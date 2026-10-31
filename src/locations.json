@@ -1,0 +1,472 @@
+[
+  {
+    "name": "Everest Region",
+    "region": "Himalayas",
+    "lat": 27.99,
+    "lon": 86.93,
+    "heading": 35,
+    "pitch": -32,
+    "arrivalAltitude": 850,
+    "glideAltitude": 2400
+  },
+  {
+    "name": "Kedarnath",
+    "region": "Himalayas",
+    "lat": 30.735,
+    "lon": 79.067,
+    "heading": 55,
+    "pitch": -35,
+    "arrivalAltitude": 650,
+    "glideAltitude": 1800
+  },
+  {
+    "name": "Leh",
+    "region": "Himalayas",
+    "lat": 34.153,
+    "lon": 77.577,
+    "heading": 110,
+    "pitch": -28,
+    "arrivalAltitude": 700,
+    "glideAltitude": 2200
+  },
+  {
+    "name": "Pangong Lake",
+    "region": "Himalayas",
+    "lat": 33.76,
+    "lon": 78.667,
+    "heading": 80,
+    "pitch": -24,
+    "arrivalAltitude": 800,
+    "glideAltitude": 2600
+  },
+  {
+    "name": "Manali",
+    "region": "Himalayas",
+    "lat": 32.24,
+    "lon": 77.189,
+    "heading": 25,
+    "pitch": -32,
+    "arrivalAltitude": 650,
+    "glideAltitude": 1900
+  },
+  {
+    "name": "Rohtang Pass",
+    "region": "Himalayas",
+    "lat": 32.372,
+    "lon": 77.247,
+    "heading": 70,
+    "pitch": -34,
+    "arrivalAltitude": 650,
+    "glideAltitude": 1700
+  },
+  {
+    "name": "Valley of Flowers",
+    "region": "Himalayas",
+    "lat": 30.728,
+    "lon": 79.605,
+    "heading": 40,
+    "pitch": -34,
+    "arrivalAltitude": 550,
+    "glideAltitude": 1500
+  },
+  {
+    "name": "Varanasi Ghats",
+    "region": "Rivers and Ghats",
+    "lat": 25.311,
+    "lon": 83.011,
+    "heading": 15,
+    "pitch": -30,
+    "arrivalAltitude": 420,
+    "glideAltitude": 1000
+  },
+  {
+    "name": "Rishikesh",
+    "region": "Rivers and Ghats",
+    "lat": 30.087,
+    "lon": 78.268,
+    "heading": 145,
+    "pitch": -30,
+    "arrivalAltitude": 500,
+    "glideAltitude": 1200
+  },
+  {
+    "name": "Haridwar",
+    "region": "Rivers and Ghats",
+    "lat": 29.946,
+    "lon": 78.164,
+    "heading": 95,
+    "pitch": -28,
+    "arrivalAltitude": 500,
+    "glideAltitude": 1100
+  },
+  {
+    "name": "Prayagraj Sangam",
+    "region": "Rivers and Ghats",
+    "lat": 25.426,
+    "lon": 81.886,
+    "heading": 85,
+    "pitch": -27,
+    "arrivalAltitude": 500,
+    "glideAltitude": 1100
+  },
+  {
+    "name": "Godavari at Rajahmundry",
+    "region": "Rivers and Ghats",
+    "lat": 17,
+    "lon": 81.79,
+    "heading": 110,
+    "pitch": -28,
+    "arrivalAltitude": 450,
+    "glideAltitude": 1000
+  },
+  {
+    "name": "Marine Drive Mumbai",
+    "region": "Sea and Coast",
+    "lat": 18.944,
+    "lon": 72.823,
+    "heading": 125,
+    "pitch": -27,
+    "arrivalAltitude": 500,
+    "glideAltitude": 1200
+  },
+  {
+    "name": "Bandra-Worli Sea Link",
+    "region": "Sea and Coast",
+    "lat": 19.033,
+    "lon": 72.816,
+    "heading": 210,
+    "pitch": -25,
+    "arrivalAltitude": 500,
+    "glideAltitude": 1000
+  },
+  {
+    "name": "Calangute-Baga Beaches",
+    "region": "Sea and Coast",
+    "lat": 15.55,
+    "lon": 73.754,
+    "heading": 270,
+    "pitch": -26,
+    "arrivalAltitude": 500,
+    "glideAltitude": 1100
+  },
+  {
+    "name": "Marina Beach Chennai",
+    "region": "Sea and Coast",
+    "lat": 13.05,
+    "lon": 80.282,
+    "heading": 110,
+    "pitch": -25,
+    "arrivalAltitude": 500,
+    "glideAltitude": 1000
+  },
+  {
+    "name": "Alappuzha Backwaters",
+    "region": "Sea and Coast",
+    "lat": 9.498,
+    "lon": 76.339,
+    "heading": 145,
+    "pitch": -27,
+    "arrivalAltitude": 500,
+    "glideAltitude": 1000
+  },
+  {
+    "name": "Pamban Bridge",
+    "region": "Sea and Coast",
+    "lat": 9.282,
+    "lon": 79.201,
+    "heading": 90,
+    "pitch": -24,
+    "arrivalAltitude": 500,
+    "glideAltitude": 1100
+  },
+  {
+    "name": "Kanyakumari",
+    "region": "Sea and Coast",
+    "lat": 8.088,
+    "lon": 77.539,
+    "heading": 190,
+    "pitch": -26,
+    "arrivalAltitude": 500,
+    "glideAltitude": 1100
+  },
+  {
+    "name": "Delhi",
+    "region": "Cities",
+    "lat": 28.613,
+    "lon": 77.23,
+    "heading": 120,
+    "pitch": -30,
+    "arrivalAltitude": 750,
+    "glideAltitude": 1800
+  },
+  {
+    "name": "Mumbai",
+    "region": "Cities",
+    "lat": 19.076,
+    "lon": 72.878,
+    "heading": 135,
+    "pitch": -30,
+    "arrivalAltitude": 700,
+    "glideAltitude": 1700
+  },
+  {
+    "name": "Hyderabad",
+    "region": "Cities",
+    "lat": 17.385,
+    "lon": 78.487,
+    "heading": 35,
+    "pitch": -30,
+    "arrivalAltitude": 700,
+    "glideAltitude": 1600
+  },
+  {
+    "name": "Bengaluru",
+    "region": "Cities",
+    "lat": 12.972,
+    "lon": 77.595,
+    "heading": 95,
+    "pitch": -29,
+    "arrivalAltitude": 700,
+    "glideAltitude": 1600
+  },
+  {
+    "name": "Chennai",
+    "region": "Cities",
+    "lat": 13.083,
+    "lon": 80.271,
+    "heading": 105,
+    "pitch": -29,
+    "arrivalAltitude": 650,
+    "glideAltitude": 1500
+  },
+  {
+    "name": "Kolkata",
+    "region": "Cities",
+    "lat": 22.573,
+    "lon": 88.364,
+    "heading": 80,
+    "pitch": -29,
+    "arrivalAltitude": 650,
+    "glideAltitude": 1500
+  },
+  {
+    "name": "Meenakshi Temple, Madurai",
+    "region": "Temples and Heritage",
+    "lat": 9.92,
+    "lon": 78.119,
+    "heading": 25,
+    "pitch": -32,
+    "arrivalAltitude": 450,
+    "glideAltitude": 900
+  },
+  {
+    "name": "Tirumala",
+    "region": "Temples and Heritage",
+    "lat": 13.683,
+    "lon": 79.347,
+    "heading": 65,
+    "pitch": -33,
+    "arrivalAltitude": 500,
+    "glideAltitude": 1200
+  },
+  {
+    "name": "Tirupati",
+    "region": "Temples and Heritage",
+    "lat": 13.629,
+    "lon": 79.419,
+    "heading": 140,
+    "pitch": -28,
+    "arrivalAltitude": 550,
+    "glideAltitude": 1300
+  },
+  {
+    "name": "Hampi",
+    "region": "Temples and Heritage",
+    "lat": 15.335,
+    "lon": 76.46,
+    "heading": 45,
+    "pitch": -31,
+    "arrivalAltitude": 500,
+    "glideAltitude": 1000
+  },
+  {
+    "name": "Konark Sun Temple",
+    "region": "Temples and Heritage",
+    "lat": 19.888,
+    "lon": 86.095,
+    "heading": 100,
+    "pitch": -30,
+    "arrivalAltitude": 450,
+    "glideAltitude": 1000
+  },
+  {
+    "name": "Golden Temple, Amritsar",
+    "region": "Temples and Heritage",
+    "lat": 31.62,
+    "lon": 74.877,
+    "heading": 330,
+    "pitch": -29,
+    "arrivalAltitude": 450,
+    "glideAltitude": 900
+  },
+  {
+    "name": "Brihadeeswara Temple, Thanjavur",
+    "region": "Temples and Heritage",
+    "lat": 10.783,
+    "lon": 79.132,
+    "heading": 60,
+    "pitch": -30,
+    "arrivalAltitude": 450,
+    "glideAltitude": 900
+  },
+  {
+    "name": "Khandala Ghat, Mumbai-Pune Expressway",
+    "region": "Highways and Ghat Roads",
+    "lat": 18.77,
+    "lon": 73.39,
+    "heading": 80,
+    "pitch": -25,
+    "arrivalAltitude": 500,
+    "glideAltitude": 1300
+  },
+  {
+    "name": "Tirumala Ghat Road",
+    "region": "Highways and Ghat Roads",
+    "lat": 13.66,
+    "lon": 79.37,
+    "heading": 40,
+    "pitch": -25,
+    "arrivalAltitude": 450,
+    "glideAltitude": 1000
+  },
+  {
+    "name": "Malshej Ghat",
+    "region": "Highways and Ghat Roads",
+    "lat": 19.354,
+    "lon": 73.783,
+    "heading": 30,
+    "pitch": -30,
+    "arrivalAltitude": 600,
+    "glideAltitude": 1500
+  },
+  {
+    "name": "Munnar",
+    "region": "Highways and Ghat Roads",
+    "lat": 10.089,
+    "lon": 77.06,
+    "heading": 35,
+    "pitch": -32,
+    "arrivalAltitude": 600,
+    "glideAltitude": 1400
+  },
+  {
+    "name": "Yamuna Expressway — Jewar segment",
+    "region": "Highways and Ghat Roads",
+    "lat": 28.145,
+    "lon": 77.555,
+    "heading": 10,
+    "pitch": -20,
+    "arrivalAltitude": 450,
+    "glideAltitude": 1000
+  },
+  {
+    "name": "Amakathadu Toll Plaza, NH 44",
+    "region": "Toll Plazas",
+    "lat": 15.486433,
+    "lon": 77.901078,
+    "heading": 5,
+    "pitch": -18,
+    "arrivalAltitude": 350,
+    "glideAltitude": 700
+  },
+  {
+    "name": "Kasepalli Toll Plaza, NH 44",
+    "region": "Toll Plazas",
+    "lat": 15.061754,
+    "lon": 77.630328,
+    "heading": 10,
+    "pitch": -18,
+    "arrivalAltitude": 350,
+    "glideAltitude": 700
+  },
+  {
+    "name": "Marur Toll Plaza, NH 44",
+    "region": "Toll Plazas",
+    "lat": 14.5020891,
+    "lon": 77.6312667,
+    "heading": 15,
+    "pitch": -18,
+    "arrivalAltitude": 350,
+    "glideAltitude": 700
+  },
+  {
+    "name": "Khalapur Toll Plaza, Mumbai-Pune Expressway",
+    "region": "Toll Plazas",
+    "lat": 18.800844,
+    "lon": 73.285159,
+    "heading": 70,
+    "pitch": -18,
+    "arrivalAltitude": 350,
+    "glideAltitude": 700
+  },
+  {
+    "name": "Jewar Toll Plaza, Yamuna Expressway",
+    "region": "Toll Plazas",
+    "lat": 28.145,
+    "lon": 77.555,
+    "heading": 10,
+    "pitch": -18,
+    "arrivalAltitude": 350,
+    "glideAltitude": 700
+  },
+  {
+    "name": "Kurnool",
+    "region": "Villages and Towns",
+    "lat": 15.828,
+    "lon": 78.037,
+    "heading": 20,
+    "pitch": -28,
+    "arrivalAltitude": 550,
+    "glideAltitude": 1200
+  },
+  {
+    "name": "Adoni",
+    "region": "Villages and Towns",
+    "lat": 15.632,
+    "lon": 77.273,
+    "heading": 40,
+    "pitch": -28,
+    "arrivalAltitude": 500,
+    "glideAltitude": 1100
+  },
+  {
+    "name": "Rayalaseema Farmland",
+    "region": "Villages and Towns",
+    "lat": 15.25,
+    "lon": 77.15,
+    "heading": 25,
+    "pitch": -22,
+    "arrivalAltitude": 650,
+    "glideAltitude": 1300
+  },
+  {
+    "name": "Sam Desert Villages, Rajasthan",
+    "region": "Villages and Towns",
+    "lat": 26.83,
+    "lon": 70.5,
+    "heading": 310,
+    "pitch": -24,
+    "arrivalAltitude": 600,
+    "glideAltitude": 1400
+  },
+  {
+    "name": "Darjeeling Tea Gardens",
+    "region": "Villages and Towns",
+    "lat": 27.036,
+    "lon": 88.263,
+    "heading": 90,
+    "pitch": -30,
+    "arrivalAltitude": 650,
+    "glideAltitude": 1500
+  }
+]
