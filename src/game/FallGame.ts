@@ -6,11 +6,12 @@ type GameState = { worldName: string; worldIndex: number; score: number; distanc
 
 export class FallGame {
   private scene = new THREE.Scene();
-  private camera = new THREE.PerspectiveCamera(52, innerWidth / innerHeight, .1, 700);
+  private camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, .1, 760);
   private renderer: THREE.WebGLRenderer;
   private clock = new THREE.Clock();
   private player = new THREE.Group();
   private worldGroup = new THREE.Group();
+  private worldChunks: THREE.Group[] = [];
   private portal: THREE.Mesh;
   private portalCore: THREE.Mesh;
   private running = false;
@@ -39,37 +40,37 @@ export class FallGame {
 
   constructor(private canvas: HTMLCanvasElement) {
     this.scene.background = this.targetSky.clone();
-    this.scene.fog = new THREE.Fog(WORLDS[0].fog, 55, 280);
-    this.camera.position.set(0, 4.5, 19);
-    this.camera.lookAt(0, 0, -9);
+    this.scene.fog = new THREE.Fog(WORLDS[0].fog, 70, 340);
+    this.camera.position.set(0, 4.1, 16.5);
+    this.camera.lookAt(0, 0, -10);
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: "high-performance" });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.65));
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
     this.renderer.setSize(innerWidth, innerHeight);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.25;
+    this.renderer.toneMappingExposure = 1.28;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-    this.scene.add(new THREE.HemisphereLight(0xeaf4ff, 0x344039, 1.8));
-    const sun = new THREE.DirectionalLight(0xffdfb0, 3.1);
+    this.scene.add(new THREE.HemisphereLight(0xeaf4ff, 0x344039, 1.9));
+    const sun = new THREE.DirectionalLight(0xffdfb0, 3.3);
     sun.position.set(-32, 55, 25);
     sun.castShadow = true;
     sun.shadow.mapSize.set(1024, 1024);
-    sun.shadow.camera.left = -70; sun.shadow.camera.right = 70;
-    sun.shadow.camera.top = 70; sun.shadow.camera.bottom = -70;
+    sun.shadow.camera.left = -75; sun.shadow.camera.right = 75;
+    sun.shadow.camera.top = 75; sun.shadow.camera.bottom = -75;
     this.scene.add(sun);
-    const rim = new THREE.PointLight(0x83c8ff, 85, 65);
+    const rim = new THREE.PointLight(0x83c8ff, 95, 78);
     rim.position.set(0, 5, -10);
     this.scene.add(rim);
 
     this.createPlayer();
     this.scene.add(this.player);
     const portalMaterial = new THREE.MeshBasicMaterial({ color: 0xa5f5ed, transparent: true, opacity: 0, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false });
-    this.portal = new THREE.Mesh(new THREE.TorusGeometry(10.5, .34, 16, 100), portalMaterial);
+    this.portal = new THREE.Mesh(new THREE.TorusGeometry(10.5, .42, 18, 112), portalMaterial);
     this.portal.position.set(0, -52, -48);
     this.scene.add(this.portal);
-    this.portalCore = new THREE.Mesh(new THREE.CircleGeometry(9.9, 64), new THREE.MeshBasicMaterial({ color: 0x7cdedb, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }));
+    this.portalCore = new THREE.Mesh(new THREE.CircleGeometry(9.9, 72), new THREE.MeshBasicMaterial({ color: 0x7cdedb, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }));
     this.portalCore.position.set(0, -52, -48.1);
     this.scene.add(this.portalCore);
     this.scene.add(this.worldGroup);
@@ -80,60 +81,67 @@ export class FallGame {
   }
 
   private createPlayer() {
-    const suit = new THREE.MeshStandardMaterial({ color: 0x182535, roughness: .48, metalness: .18 });
-    const suitLight = new THREE.MeshStandardMaterial({ color: 0x34485d, roughness: .5, metalness: .16 });
-    const skin = new THREE.MeshStandardMaterial({ color: 0xb9785b, roughness: .88 });
-    const gold = new THREE.MeshStandardMaterial({ color: 0xcaa568, roughness: .35, metalness: .55 });
-    const boot = new THREE.MeshStandardMaterial({ color: 0x111923, roughness: .7 });
+    const suit = new THREE.MeshStandardMaterial({ color: 0x172535, roughness: .52, metalness: .12 });
+    const fabric = new THREE.MeshStandardMaterial({ color: 0x34495d, roughness: .8 });
+    const skin = new THREE.MeshStandardMaterial({ color: 0xb9785b, roughness: .9 });
+    const hair = new THREE.MeshStandardMaterial({ color: 0x30241f, roughness: .95 });
+    const gold = new THREE.MeshStandardMaterial({ color: 0xcaa568, roughness: .4, metalness: .45 });
+    const boot = new THREE.MeshStandardMaterial({ color: 0x111923, roughness: .75 });
     const add = (geometry: THREE.BufferGeometry, material: THREE.Material, parent: THREE.Object3D, pos: [number, number, number], scale?: [number, number, number]) => {
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.position.set(...pos);
-      if (scale) mesh.scale.set(...scale);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      parent.add(mesh);
-      return mesh;
+      const object = new THREE.Mesh(geometry, material);
+      object.position.set(...pos);
+      if (scale) object.scale.set(...scale);
+      object.castShadow = true;
+      object.receiveShadow = true;
+      parent.add(object);
+      return object;
     };
 
-    // More human proportions: neck, tapered torso, pelvis, articulated limbs and boots.
-    add(new THREE.CapsuleGeometry(.48, .92, 8, 16), suit, this.player, [0, .05, 0], [1, 1.05, .72]);
-    add(new THREE.SphereGeometry(.48, 24, 18), suitLight, this.player, [0, -.66, .02], [1.05, .72, .72]);
-    add(new THREE.CylinderGeometry(.16, .19, .25, 16), skin, this.player, [0, .82, 0]);
-    add(new THREE.SphereGeometry(.31, 28, 22), skin, this.player, [0, 1.13, .02], [1, 1.12, .94]);
-    add(new THREE.SphereGeometry(.08, 12, 10), skin, this.player, [-.3, 1.12, .02]);
-    add(new THREE.SphereGeometry(.08, 12, 10), skin, this.player, [.3, 1.12, .02]);
-    add(new THREE.BoxGeometry(.48, .34, .16), gold, this.player, [0, .38, .39]);
-    add(new THREE.BoxGeometry(.12, .42, .12), gold, this.player, [0, -.2, .43]);
-    add(new THREE.BoxGeometry(.48, .62, .3), suitLight, this.player, [0, .06, -.48]);
-    add(new THREE.BoxGeometry(.56, .12, .34), gold, this.player, [0, .27, -.48]);
+    // A more natural silhouette with tapered torso, shoulders, pelvis and articulated joints.
+    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(.43, .94, 10, 20), suit);
+    torso.scale.set(.92, 1.08, .72); torso.position.y = .02; torso.castShadow = true; this.player.add(torso);
+    add(new THREE.SphereGeometry(.43, 24, 18), fabric, this.player, [0, -.63, .015], [1.02, .65, .76]);
+    add(new THREE.CylinderGeometry(.13, .17, .25, 18), skin, this.player, [0, .82, 0]);
+    add(new THREE.SphereGeometry(.3, 32, 24), skin, this.player, [0, 1.12, .02], [.92, 1.14, .9]);
+    const hairCap = add(new THREE.SphereGeometry(.305, 24, 14, 0, Math.PI * 2, 0, Math.PI * .55), hair, this.player, [0, 1.22, -.025]);
+    hairCap.rotation.x = -.08;
+    add(new THREE.BoxGeometry(.46, .32, .14), gold, this.player, [0, .36, .36]);
+    add(new THREE.BoxGeometry(.1, .38, .1), gold, this.player, [0, -.18, .42]);
+    add(new THREE.BoxGeometry(.5, .62, .28), fabric, this.player, [0, .04, -.43]);
+    add(new THREE.BoxGeometry(.54, .1, .3), gold, this.player, [0, .28, -.43]);
 
-    this.leftArm.position.set(-.48, .48, 0);
-    this.rightArm.position.set(.48, .48, 0);
+    this.leftArm.position.set(-.42, .48, 0);
+    this.rightArm.position.set(.42, .48, 0);
     this.player.add(this.leftArm, this.rightArm);
     for (const [pivot, sign] of [[this.leftArm, -1], [this.rightArm, 1]] as const) {
-      add(new THREE.SphereGeometry(.2, 16, 12), suitLight, pivot, [0, 0, 0]);
-      const upper = add(new THREE.CapsuleGeometry(.15, .55, 6, 12), suit, pivot, [sign * .35, -.12, 0]);
-      upper.rotation.z = sign * -.18;
-      const forearm = add(new THREE.CapsuleGeometry(.125, .48, 6, 12), suitLight, pivot, [sign * .68, -.22, .02]);
+      add(new THREE.SphereGeometry(.19, 18, 14), fabric, pivot, [0, 0, 0]);
+      const upper = add(new THREE.CapsuleGeometry(.145, .56, 8, 14), suit, pivot, [sign * .32, -.16, 0]);
+      upper.rotation.z = sign * -.2;
+      const elbow = add(new THREE.SphereGeometry(.13, 14, 12), fabric, pivot, [sign * .62, -.2, .015]);
+      const forearm = add(new THREE.CapsuleGeometry(.12, .48, 8, 14), fabric, pivot, [sign * .78, -.31, .02]);
       forearm.rotation.z = sign * -.1;
-      add(new THREE.SphereGeometry(.14, 14, 12), boot, pivot, [sign * 1.0, -.27, .02]);
+      add(new THREE.SphereGeometry(.13, 16, 12), skin, pivot, [sign * 1.05, -.37, .03]);
     }
 
-    this.leftLeg.position.set(-.24, -.78, 0);
-    this.rightLeg.position.set(.24, -.78, 0);
+    this.leftLeg.position.set(-.22, -.72, 0);
+    this.rightLeg.position.set(.22, -.72, 0);
     this.player.add(this.leftLeg, this.rightLeg);
     for (const [pivot, sign] of [[this.leftLeg, -1], [this.rightLeg, 1]] as const) {
-      add(new THREE.CapsuleGeometry(.19, .68, 7, 12), suit, pivot, [sign * .08, -.43, 0]);
-      add(new THREE.CapsuleGeometry(.145, .62, 7, 12), suitLight, pivot, [sign * .12, -1.08, .02]);
-      add(new THREE.BoxGeometry(.3, .18, .48), boot, pivot, [sign * .12, -1.48, .12]);
+      const thigh = add(new THREE.CapsuleGeometry(.18, .64, 8, 14), suit, pivot, [sign * .06, -.39, 0]);
+      const knee = add(new THREE.SphereGeometry(.16, 16, 12), fabric, pivot, [sign * .08, -.79, .015]);
+      add(new THREE.CapsuleGeometry(.135, .62, 8, 14), fabric, pivot, [sign * .1, -1.15, .02]);
+      add(new THREE.BoxGeometry(.29, .17, .45), boot, pivot, [sign * .1, -1.5, .12]);
     }
-    this.player.scale.setScalar(.92);
-    this.player.rotation.x = -.12;
+    this.player.scale.setScalar(1.08);
+    this.player.rotation.x = -.1;
   }
 
   private loadWorld(index: number) {
     this.clearGroup(this.worldGroup);
-    this.worldGroup.add(createWorld(this.scene, index));
+    this.worldChunks = [];
+    this.worldChunks.push(createWorld(this.scene, index, 0));
+    this.worldChunks.push(createWorld(this.scene, index, -150));
+    this.worldChunks.forEach(chunk => this.worldGroup.add(chunk));
     this.targetSky.setHex(WORLDS[index].sky);
     if (this.scene.fog instanceof THREE.Fog) this.scene.fog.color.setHex(WORLDS[index].fog);
   }
@@ -211,9 +219,9 @@ export class FallGame {
     this.player.position.y = Math.sin(elapsed * 2.8) * .13;
     this.player.rotation.z = THREE.MathUtils.damp(this.player.rotation.z, -this.playerX * .04, 3, delta);
     this.player.rotation.y = Math.sin(elapsed * 1.1) * .08;
-    this.player.rotation.x = -.12 + Math.sin(elapsed * 2.1) * .045;
-    this.leftArm.rotation.z = -.25 + Math.sin(elapsed * 2.4) * .09;
-    this.rightArm.rotation.z = .25 - Math.sin(elapsed * 2.4) * .09;
+    this.player.rotation.x = -.1 + Math.sin(elapsed * 2.1) * .045;
+    this.leftArm.rotation.z = -.24 + Math.sin(elapsed * 2.4) * .1;
+    this.rightArm.rotation.z = .24 - Math.sin(elapsed * 2.4) * .1;
     this.leftArm.rotation.x = Math.sin(elapsed * 1.8) * .08;
     this.rightArm.rotation.x = -Math.sin(elapsed * 1.8) * .08;
     this.leftLeg.rotation.x = .18 + Math.sin(elapsed * 2.2) * .12;
@@ -224,17 +232,22 @@ export class FallGame {
     this.score += Math.floor(delta * 12);
     this.worldGroup.position.y += delta * 18 * speed;
 
+    // Recycle the two scenery chunks before they leave the camera view.
+    for (const chunk of this.worldChunks) {
+      if (chunk.position.y + this.worldGroup.position.y > 62) chunk.position.y -= 300;
+    }
+
     const orbit = this.mode === "watch" ? Math.sin(elapsed * .2) * 1.1 : Math.sin(elapsed * .18) * .22;
     this.camera.position.x = THREE.MathUtils.damp(this.camera.position.x, this.playerX * .3 + orbit, 1.5, delta);
-    this.camera.position.y = 4.4 + Math.sin(elapsed * 1.4) * .22;
-    this.camera.position.z = 18.5 + Math.sin(elapsed * .55) * .65;
+    this.camera.position.y = 4.1 + Math.sin(elapsed * 1.4) * .22;
+    this.camera.position.z = 16.5 + Math.sin(elapsed * .55) * .55;
     this.camera.lookAt(this.player.position.x * .3, -.8, -13);
 
     const approach = THREE.MathUtils.smoothstep(this.worldProgress, .68, .96);
-    (this.portal.material as THREE.MeshBasicMaterial).opacity = approach * .88;
-    (this.portalCore.material as THREE.MeshBasicMaterial).opacity = approach * .13;
-    this.portal.rotation.z += delta * .42;
-    this.portalCore.rotation.z -= delta * .18;
+    (this.portal.material as THREE.MeshBasicMaterial).opacity = approach * .9;
+    (this.portalCore.material as THREE.MeshBasicMaterial).opacity = approach * .16;
+    this.portal.rotation.z += delta * .46;
+    this.portalCore.rotation.z -= delta * .2;
     const pulse = .92 + Math.sin(elapsed * 2.8) * .045;
     this.portal.scale.setScalar(pulse);
     this.portalCore.scale.setScalar(pulse);
@@ -261,7 +274,7 @@ export class FallGame {
     const background = this.scene.background as THREE.Color;
     background.lerp(this.targetSky, delta * 1.2);
     if (this.scene.fog instanceof THREE.Fog) this.scene.fog.color.lerp(new THREE.Color(WORLDS[this.worldIndex].fog), delta * 1.2);
-    this.renderer.toneMappingExposure = 1.25 + this.flash * .55;
+    this.renderer.toneMappingExposure = 1.28 + this.flash * .55;
     const state: GameState = {
       worldName: WORLDS[this.worldIndex].name, worldIndex: this.worldIndex,
       score: this.score, distance: this.distance, worldProgress: this.worldProgress,
@@ -275,7 +288,7 @@ export class FallGame {
     this.camera.aspect = innerWidth / innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(innerWidth, innerHeight);
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.65));
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
   };
   dispose() {
     this.disposed = true; this.running = false;
