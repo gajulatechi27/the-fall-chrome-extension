@@ -24,6 +24,6 @@ export class CinematicEffects {
  }
  update(dt,speed,elapsed){this.motion.setSpeed(speed);this.windMaterial.opacity=THREE.MathUtils.clamp(0.18+speed*0.0022,0.2,0.48);for(let i=0;i<this.positions.length/3;i++){const k=i*3;this.positions[k+2]+=dt*(speed*0.12+22)*this.velocities[i];this.positions[k]+=Math.sin(elapsed*1.8+i)*dt*0.7;if(this.positions[k+2]>16){this.positions[k]=(Math.random()-0.5)*100;this.positions[k+1]=(Math.random()-0.5)*70;this.positions[k+2]=-180-Math.random()*50;}}this.windGeometry.attributes.position.needsUpdate=true;}
  render(dt){this.composer.render(dt);}
- resize(){const scale=this.quality<1.25?0.72:0.88;this.composer.setSize(Math.max(1,Math.floor(innerWidth*scale)),Math.max(1,Math.floor(innerHeight*scale)));}
+ resize(){this.composer.setSize(Math.max(1,innerWidth),Math.max(1,innerHeight));}
  dispose(){this.scene.remove(this.wind);this.windGeometry.dispose();this.windMaterial.dispose();this.composer.dispose();}
 }
