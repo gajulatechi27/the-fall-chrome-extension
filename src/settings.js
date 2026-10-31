@@ -1,1 +1,24 @@
-const form=document.getElementById("form"),ion=document.getElementById("ion"),google=document.getElementById("google"),quality=document.getElementById("quality"),saved=document.getElementById("saved");async function get(){if(globalThis.chrome?.storage?.local)return chrome.storage.local.get(["cesiumIonToken","googleMapsApiKey","fallQuality"]);return {cesiumIonToken:localStorage.getItem("cesiumIonToken"),googleMapsApiKey:localStorage.getItem("googleMapsApiKey"),fallQuality:localStorage.getItem("fallQuality")||"medium"};}async function set(v){if(globalThis.chrome?.storage?.local)return chrome.storage.local.set(v);Object.entries(v).forEach(([k,x])=>localStorage.setItem(k,x));}const s=await get();ion.value=s.cesiumIonToken||"";google.value=s.googleMapsApiKey||"";quality.value=s.fallQuality||"medium";form.addEventListener("submit",async e=>{e.preventDefault();await set({cesiumIonToken:ion.value.trim(),googleMapsApiKey:google.value.trim(),fallQuality:quality.value});saved.textContent="Saved locally in Chrome storage. Open a new tab to apply.";});
+const form=document.getElementById("form"),ion=document.getElementById("ion"),google=document.getElementById("google"),quality=document.getElementById("quality"),saved=document.getElementById("saved");
+async function get(){
+  if(globalThis.chrome?.storage?.local)return chrome.storage.local.get(["cesiumIonToken","googleMapsApiKey","fallQuality"]);
+  return {cesiumIonToken:localStorage.getItem("cesiumIonToken"),googleMapsApiKey:localStorage.getItem("googleMapsApiKey"),fallQuality:localStorage.getItem("fallQuality")||"medium"};
+}
+async function set(v){
+  if(globalThis.chrome?.storage?.local)return chrome.storage.local.set(v);
+  Object.entries(v).forEach(([k,x])=>localStorage.setItem(k,x));
+}
+async function init(){
+  const s=await get();
+  ion.value=s.cesiumIonToken||"";
+  google.value=s.googleMapsApiKey||"";
+  quality.value=s.fallQuality||"medium";
+  form.addEventListener("submit",async e=>{
+    e.preventDefault();
+    await set({cesiumIonToken:ion.value.trim(),googleMapsApiKey:google.value.trim(),fallQuality:quality.value});
+    saved.textContent="Saved locally in Chrome storage. Open a new tab to apply.";
+  });
+}
+init().catch(error=>{
+  console.error("THE FALL settings initialization failed:",error);
+  saved.textContent="Could not load saved settings. Please refresh this page.";
+});
