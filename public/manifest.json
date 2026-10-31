@@ -1,12 +1,1 @@
-{
-  "manifest_version": 3,
-  "name": "THE FALL — Cinematic Descent",
-  "version": "0.7.0",
-  "description": "A cinematic skydiving descent and personal dashboard on every new tab.",
-  "permissions": ["storage"],
-  "host_permissions": [
-    "https://geocoding-api.open-meteo.com/*",
-    "https://api.open-meteo.com/*"
-  ],
-  "chrome_url_overrides": { "newtab": "index.html" }
-}
+{"manifest_version":3,"name":"THE FALL — Cinematic Descent","version":"0.5.0","description":"A procedural cinematic skydiving descent on every new tab.","permissions":["storage"],"chrome_url_overrides":{"newtab":"index.html"}}
