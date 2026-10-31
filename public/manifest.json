@@ -1,15 +1,15 @@
 {
   "manifest_version": 3,
-  "name": "THE FALL — Real World Descent",
-  "version": "1.0.0",
-  "description": "A cinematic descent over real places using Cesium World Terrain and photorealistic 3D tiles.",
-  "permissions": ["storage"],
+  "name": "THE FALL — Endless Real World Flight",
+  "version": "1.1.0",
+  "description": "An endless cinematic flight over real-world terrain, satellite imagery and OpenStreetMap 3D buildings.",
+  "permissions": [
+    "storage"
+  ],
   "host_permissions": [
     "https://*.cesium.com/*",
     "https://assets.cesium.com/*",
-    "https://api.cesium.com/*",
-    "https://tile.googleapis.com/*",
-    "https://*.googleapis.com/*"
+    "https://api.cesium.com/*"
   ],
   "options_page": "settings.html",
   "content_security_policy": {
