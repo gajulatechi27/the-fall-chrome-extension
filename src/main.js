@@ -18,7 +18,7 @@ let viewer, terrainProvider, imageryProvider, buildings;
 let settings = { fallQuality: "medium", osmBuildings: true };
 let bag = [], previous = null, current = null, route = null;
 let routeProgress = 0, routeDuration = 60, frame = 0, lastFrame = 0;
-let running = false, retryDelay = 5000, retryTimer = 0, prefetchName = "";
+let running = false, retryDelay = 5000, retryTimer = 0, prefetchName = "", pendingDestination = null, pendingGround = null, preparingNext = false;
 
 async function getSettings() {
   if (globalThis.chrome?.storage?.local) {
@@ -213,24 +213,37 @@ async function prefetchAhead(place) {
     await Promise.allSettled(tasks);
   } catch(e) { console.debug("Ahead-of-route cache warm-up skipped:",e); }
 }
+function prepareNextDestination() {
+  if (pendingDestination) return;
+  pendingDestination = chooseNext();
+  pendingGround = sampleGround(pendingDestination.lat, pendingDestination.lon);
+  prefetchAhead(pendingDestination);
+}
 async function nextLeg() {
-  const next=chooseNext();
-  const [ground]=await Promise.all([sampleGround(next.lat,next.lon),prefetchAhead(next)]);
-  const from=current;
-  route=makeRoute(from,next,from._ground||0,ground);
-  current={...next,_ground:ground};
-  previous=next;
+  if (!pendingDestination) prepareNextDestination();
+  const next = pendingDestination;
+  const ground = await pendingGround;
+  const from = current;
+  route = makeRoute(from, next, from._ground || 0, ground);
+  current = { ...next, _ground: ground };
+  previous = next;
+  pendingDestination = null;
+  pendingGround = null;
+  preparingNext = false;
   changeCaption(next);
-  routeProgress=0;
-  routeDuration=route.duration;
+  routeProgress = 0;
+  routeDuration = route.duration;
+  prepareNextDestination();
 }
 async function initialLeg() {
   const first=chooseNext();
   const ground=await sampleGround(first.lat,first.lon);
   current={...first,_ground:ground};
   previous=first;
-  setInitialCamera(first,ground,rand(8500,11500));
-  route=makeRoute({...first,arrivalAltitude:rand(8500,11500)},first,ground,ground,true);
+  const start = { ...first, lat: first.lat + 0.018, lon: first.lon - 0.018 };
+  setInitialCamera(start,ground,rand(8500,11500));
+  route=makeRoute(start,first,ground,ground,true);
+  prepareNextDestination();
   routeProgress=0;
   routeDuration=route.duration;
   caption.textContent=first.name;
@@ -242,15 +255,18 @@ function animate(now) {
   const dt=Math.min(.05,Math.max(0,(now-lastFrame)/1000));
   lastFrame=now;
   routeProgress=Math.min(1,routeProgress+dt/routeDuration);
+  if (routeProgress >= 0.68 && !pendingDestination) prepareNextDestination();
   const p=poseAt(routeProgress,now);
   viewer.camera.setView({destination:p.destination,orientation:{heading:p.heading,pitch:p.pitch,roll:p.roll}});
   viewer.clock.currentTime=Cesium.JulianDate.fromDate(new Date());
   viewer.scene.fog.density=.000018;
   viewer.scene.requestRender();
-  if (routeProgress>=1) {
+  if (routeProgress>=1 && !preparingNext) {
+    preparingNext=true;
     lastFrame=now;
     nextLeg().catch(e=>{
       console.error("Preparing next flight route failed:",e);
+      preparingNext=false;
       errorMessage("ROUTE DATA TEMPORARILY UNAVAILABLE — RETRYING");
       window.setTimeout(()=>nextLeg().catch(console.error),2500);
     });
