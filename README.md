@@ -7,11 +7,12 @@ A cinematic endless-falling experience designed to replace the Chrome New Tab pa
 - Chrome Extension Manifest V3 / New Tab override
 - Three.js + TypeScript + Vite
 - Four sequential Yuga timelines: Satya, Treta, Dvapara and Kali
-- Era-specific procedural scenery, landmarks, lighting palettes and atmospheric particles
+- Distinct procedural scenery: sacred forest and shrine, river valley and temple complex, fortified capital, futuristic illuminated skyline
+- Two recycled environment chunks per era to prevent the world from disappearing during descent
+- Layered mountain silhouettes, cloud banks, terrain, foreground rocks and atmospheric particles
 - Articulated procedural falling character with animated arms and legs
-- Third-person cinematic camera movement and portal transition sequence
-- Interactive steering (A/D or arrow keys, pointer/touch)
-- Automatic watch mode
+- Third-person camera, lighting, shadows and portal transition
+- Interactive steering (A/D or arrow keys, pointer/touch) and automatic watch mode
 - Time-fragment score, distance HUD, pause and sound controls
 
 ## Run locally
@@ -37,16 +38,16 @@ For development, run `npm run dev`.
 - F: fullscreen
 - Watch The Journey: automatic camera/player movement
 
-## Current limitations
+## Honest asset status and limitations
 
-The character is still a procedural Three.js model, not a photorealistic scanned human or a rigged GLB asset. The Yuga environments are generated from procedural geometry rather than hand-authored high-detail environment assets. The portal transition is an in-engine visual transition, not a fully streamed cinematic sequence. Persistent settings, saved scores, obstacle gameplay, and locally bundled fonts are not yet implemented.
+The environments and character are currently generated from Three.js geometry and materials. The character is an articulated procedural placeholder, **not yet a photorealistic human or an imported rigged GLB model**. The environments are more varied and now recycle two scenery chunks per era, but they are not yet hand-authored high-detail environment assets. The portal is a lightweight visual transition rather than a fully cinematic streamed sequence. External model assets should be licensed and packaged locally before use so the Chrome extension works offline.
 
 ## Next milestones
 
 1. Import a high-quality licensed GLB human with a proper skeleton and falling animation.
-2. Build authored, high-detail environment assets for each Yuga.
-3. Add layered cloud volumes, post-processing bloom and cinematic portal VFX.
-4. Implement streamed world chunks, obstacles, collectibles and persistent progression.
+2. Replace procedural landmark placeholders with optimized, locally packaged GLB environment assets for each Yuga.
+3. Add layered cloud volumes, post-processing bloom and richer portal VFX.
+4. Add obstacles, collectibles, collision handling and persistent progression.
 5. Add graphics settings, performance profiling and offline-bundled fonts.
 
 ## Stack
