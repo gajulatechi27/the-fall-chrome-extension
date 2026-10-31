@@ -1,8 +1,8 @@
 {
-  "manifest_version":3,
-  "name":"THE FALL — A Journey Through Time",
-  "version":"0.1.0",
-  "description":"An endless cinematic fall through the worlds of time.",
-  "chrome_url_overrides":{"newtab":"index.html"},
-  "permissions":["storage"]
+  "manifest_version": 3,
+  "name": "THE FALL — Endless Freefall",
+  "version": "0.2.0",
+  "description": "A cinematic endless freefall above a vast alpine valley.",
+  "chrome_url_overrides": { "newtab": "index.html" },
+  "permissions": ["storage"]
 }
