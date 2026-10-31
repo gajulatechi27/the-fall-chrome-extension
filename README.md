@@ -1,21 +1,17 @@
-# THE FALL — A Journey Through Time
+# THE FALL — Endless Freefall
 
-A cinematic endless-falling experience designed to replace the Chrome New Tab page.
+A cinematic endless-falling Chrome New Tab experience. The Yuga timelines, era labels and portal progression have been removed.
 
-## Current build
+## Experience
 
-- Chrome Extension Manifest V3 / New Tab override
-- Three.js + TypeScript + Vite
-- Four sequential Yuga timelines: Satya, Treta, Dvapara and Kali
-- Distinct procedural scenery: sacred forest and shrine, river valley and temple complex, fortified capital, futuristic illuminated skyline
-- Two recycled environment chunks per era to prevent the world from disappearing during descent
-- Layered mountain silhouettes, cloud banks, terrain, foreground rocks and atmospheric particles
-- Articulated procedural falling character with animated arms and legs
-- Third-person camera, lighting, shadows and portal transition
-- Interactive steering (A/D or arrow keys, pointer/touch) and automatic watch mode
-- Time-fragment score, distance HUD, pause and sound controls
+- One continuous alpine valley environment: snowy mountain ranges, pine forests, winding river, a small mountain village, cloud banks and atmospheric particles.
+- Third-person freefall camera positioned behind the skydiver, looking out over the valley.
+- Procedural articulated human placeholder with an enlarged silhouette and animated limbs.
+- Endless environment chunks recycle as the descent continues.
+- Interactive steering (A/D or arrow keys, pointer/touch) and automatic cinematic watch mode.
+- Distance and score HUD, pause, sound toggle and fullscreen.
 
-## Run locally
+## Run
 
 ```bash
 npm install
@@ -23,12 +19,7 @@ npm run typecheck
 npm run build
 ```
 
-Load the generated `dist/` directory in Chrome:
-1. Open `chrome://extensions`.
-2. Enable Developer mode.
-3. Choose **Load unpacked** and select `dist/`.
-
-For development, run `npm run dev`.
+Load `dist/` from `chrome://extensions` with Developer mode enabled. For development, use `npm run dev`.
 
 ## Controls
 
@@ -36,19 +27,11 @@ For development, run `npm run dev`.
 - Pointer / touch: steer horizontally
 - Space: pause / resume
 - F: fullscreen
-- Watch The Journey: automatic camera/player movement
+- Watch Cinematic: automatic steering
 
-## Honest asset status and limitations
+## Asset status
 
-The environments and character are currently generated from Three.js geometry and materials. The character is an articulated procedural placeholder, **not yet a photorealistic human or an imported rigged GLB model**. The environments are more varied and now recycle two scenery chunks per era, but they are not yet hand-authored high-detail environment assets. The portal is a lightweight visual transition rather than a fully cinematic streamed sequence. External model assets should be licensed and packaged locally before use so the Chrome extension works offline.
-
-## Next milestones
-
-1. Import a high-quality licensed GLB human with a proper skeleton and falling animation.
-2. Replace procedural landmark placeholders with optimized, locally packaged GLB environment assets for each Yuga.
-3. Add layered cloud volumes, post-processing bloom and richer portal VFX.
-4. Add obstacles, collectibles, collision handling and persistent progression.
-5. Add graphics settings, performance profiling and offline-bundled fonts.
+The valley is currently generated from Three.js geometry and materials. The human is still an articulated procedural placeholder, not a realistic rigged GLB character. The reference photo supplied for the visual direction has not been embedded as a texture in this build. The next quality milestone is to add a licensed, high-quality skydiver GLB, authored mountain/forest assets, volumetric cloud layers and post-processing. All production assets should be packaged locally for reliable offline extension use.
 
 ## Stack
 
