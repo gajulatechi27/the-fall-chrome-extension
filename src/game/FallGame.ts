@@ -244,7 +244,8 @@ export class FallGame {
     this.camera.position.z = 13.5 + Math.sin(elapsed * .55) * .45;
     this.camera.lookAt(this.player.position.x * .25, -9, -34);
 
-    // No eras or portal transitions: this is one continuous freefall scene.\n\n    const background = this.scene.background as THREE.Color;
+    // No eras or portal transitions: this is one continuous freefall scene.
+    const background = this.scene.background as THREE.Color;
     background.lerp(this.targetSky, delta * 1.2);
     if (this.scene.fog instanceof THREE.Fog) this.scene.fog.color.lerp(new THREE.Color(WORLDS[this.worldIndex].fog), delta * 1.2);
     this.renderer.toneMappingExposure = 1.28 + this.flash * .55;
