@@ -10,10 +10,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "cesium": "^1.131.0"
-  },
-  "overrides": {
-    "@zip.js/zip.js": "2.7.73"
+    "cesium": "^1.131.0",
+    "@zip.js/zip.js": "2.8.15"
   },
   "devDependencies": {
     "@types/chrome": "^0.1.0",
