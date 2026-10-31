@@ -2,7 +2,6 @@ import * as THREE from "three";
 import {createSky} from "./sky.js";
 import {CloudField} from "./clouds.js";
 import {Terrain} from "./terrain.js";
-import {Skydiver} from "./player.js";
 import {CinematicEffects} from "./effects.js";
 import "./style.css";
 
@@ -23,12 +22,12 @@ const camera=new THREE.PerspectiveCamera(58,innerWidth/innerHeight,.1,7000);
 camera.position.set(0,3.4,15.5);
 const cameraTarget=new THREE.Vector3(0,-.25,-15);
 const cameraDesired=new THREE.Vector3();
-let sky,clouds,terrain,player,effects,seed=0,time=0,altitude=32000,speed=90,running=false,paused=false,frame=0,clock=new THREE.Clock(),descentNumber=0;
+let sky,clouds,terrain,effects,seed=0,time=0,altitude=32000,speed=90,running=false,paused=false,frame=0,clock=new THREE.Clock(),descentNumber=0;
 const biomes=["mountains","desert","islands","forest","snow"];
 const randSeed=()=>crypto.getRandomValues(new Uint32Array(1))[0];
 let biome="mountains";
 async function saveDescent(){try{if(globalThis.chrome?.storage?.local)await chrome.storage.local.set({theFallLastSeed:seed,theFallDescentCount:descentNumber,theFallLastBiome:biome});}catch(error){console.info("Chrome storage unavailable in preview mode",error);}}
-function cleanup(){effects?.dispose();effects=undefined;sky?.dispose();clouds?.dispose();terrain?.dispose();player?.dispose();scene.clear();}
+function cleanup(){effects?.dispose();effects=undefined;sky?.dispose();clouds?.dispose();terrain?.dispose();scene.clear();}
 async function beginDescent(){
  cancelAnimationFrame(frame);running=false;fade.classList.add("white");await new Promise(resolve=>setTimeout(resolve,850));cleanup();
  seed=randSeed();descentNumber++;biome=biomes[seed%biomes.length];time=0;altitude=32000;speed=90;
@@ -36,9 +35,7 @@ async function beginDescent(){
  scene.background=new THREE.Color(skyColors[timeOfDay]);
  scene.fog=new THREE.FogExp2(skyColors[timeOfDay],.000025+weather*.000006);
  sky=createSky(scene,renderer,seed);terrain=new Terrain(scene,seed,biome);clouds=new CloudField(scene,seed);
- player=new Skydiver(scene);
  try{effects=new CinematicEffects(renderer,scene,camera,quality);}catch(error){console.error("Postprocessing setup failed; using direct renderer.",error);effects=undefined;}
- await player.load();
  await saveDescent();running=true;paused=false;clock.start();fade.classList.remove("white");animate();
 }
 function animate(){
@@ -47,13 +44,13 @@ function animate(){
  const dt=Math.min(clock.getDelta(),.033);time+=dt;
  const progress=1-altitude/32000,target=altitude<450?24:altitude<3500?110:altitude<11000?103:90;
  speed=THREE.MathUtils.damp(speed,target,1.15,dt);altitude=Math.max(0,altitude-speed*dt*3.6);
- player?.update(dt,time,speed);clouds?.update(dt,speed);terrain?.update(dt,speed,altitude);
+ clouds?.update(dt,speed);terrain?.update(dt,speed,altitude);
  const targetFov=58+Math.min(9,speed*.055);
  camera.fov=THREE.MathUtils.damp(camera.fov,targetFov,1.1,dt);camera.updateProjectionMatrix();
  const shake=Math.min(.035,speed*.00024);
  cameraDesired.set(Math.sin(time*1.1)*.12+Math.sin(time*13)*shake,3.4+Math.sin(time*.7)*.12+Math.sin(time*9)*shake,15.5+Math.sin(time*.8)*.18);
  camera.position.lerp(cameraDesired,1-Math.exp(-2.8*dt));
- cameraTarget.set((player?.root.position.x||0)*.22,-.25,-15);
+ cameraTarget.set(0,-.25,-15);
  camera.lookAt(cameraTarget);
  if(scene.fog instanceof THREE.FogExp2)scene.fog.density=THREE.MathUtils.lerp(.000025,.0011,THREE.MathUtils.smoothstep(progress,.4,.97));
  try{effects?.update(dt,speed,time);if(effects)effects.render(dt);else renderer.render(scene,camera);}
