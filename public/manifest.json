@@ -1,1 +1,1 @@
-{"manifest_version":3,"name":"THE FALL — Cinematic Descent","version":"0.4.0","description":"An atmospheric cinematic skydiver descent on every new tab.","chrome_url_overrides":{"newtab":"index.html"}}
+{"manifest_version":3,"name":"THE FALL — Cinematic Descent","version":"0.5.0","description":"A procedural cinematic skydiving descent on every new tab.","permissions":["storage"],"chrome_url_overrides":{"newtab":"index.html"}}
