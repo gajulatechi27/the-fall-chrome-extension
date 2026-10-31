@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "cesium": "^1.131.0"
+    "cesium": "^1.131.0",
+    "@cesium/engine": "^15.0.0"
   },
   "devDependencies": {
     "@types/chrome": "^0.1.0",
