@@ -94,13 +94,13 @@ function createViewer() {
 async function loadBuildings() {
   if (!viewer || buildings || !settings.osmBuildings) return;
   try {
-    buildings = await Cesium.Cesium3DTileset.fromIonAssetId(BUILDINGS_ASSET_ID, {
-      maximumScreenSpaceError: q().buildingSse,
-      cacheBytes: q().buildingCache * 1024 * 1024,
-      maximumCacheOverflowBytes: 64 * 1024 * 1024,
-      dynamicScreenSpaceError: true
-    });
-    viewer.scene.primitives.add(buildings);
+    buildings = viewer.scene.primitives.add(
+      await Cesium.Cesium3DTileset.fromIonAssetId(96188),
+    );
+    buildings.maximumScreenSpaceError = q().buildingSse;
+    buildings.cacheBytes = q().buildingCache * 1024 * 1024;
+    buildings.maximumCacheOverflowBytes = 64 * 1024 * 1024;
+    buildings.dynamicScreenSpaceError = true;
     buildings.show = settings.osmBuildings;
   } catch (e) {
     console.error("OSM Buildings asset 96188 failed:", e);
