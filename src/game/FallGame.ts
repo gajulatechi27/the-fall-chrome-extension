@@ -41,7 +41,7 @@ export class FallGame {
   constructor(private canvas: HTMLCanvasElement) {
     this.scene.background = this.targetSky.clone();
     this.scene.fog = new THREE.Fog(WORLDS[0].fog, 70, 340);
-    this.camera.position.set(0, 4.1, 16.5);
+    this.camera.position.set(0, 5.8, 13.5);
     this.camera.lookAt(0, 0, -10);
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: "high-performance" });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
@@ -132,8 +132,8 @@ export class FallGame {
       add(new THREE.CapsuleGeometry(.135, .62, 8, 14), fabric, pivot, [sign * .1, -1.15, .02]);
       add(new THREE.BoxGeometry(.29, .17, .45), boot, pivot, [sign * .1, -1.5, .12]);
     }
-    this.player.scale.setScalar(1.08);
-    this.player.rotation.x = -.1;
+    this.player.scale.setScalar(1.48);
+    this.player.rotation.x = -.12;\n    this.player.rotation.y = Math.PI;
   }
 
   private loadWorld(index: number) {
@@ -218,7 +218,7 @@ export class FallGame {
     this.player.position.x = this.playerX;
     this.player.position.y = Math.sin(elapsed * 2.8) * .13;
     this.player.rotation.z = THREE.MathUtils.damp(this.player.rotation.z, -this.playerX * .04, 3, delta);
-    this.player.rotation.y = Math.sin(elapsed * 1.1) * .08;
+    this.player.rotation.y = Math.PI + Math.sin(elapsed * 1.1) * .045;
     this.player.rotation.x = -.1 + Math.sin(elapsed * 2.1) * .045;
     this.leftArm.rotation.z = -.24 + Math.sin(elapsed * 2.4) * .1;
     this.rightArm.rotation.z = .24 - Math.sin(elapsed * 2.4) * .1;
@@ -227,7 +227,7 @@ export class FallGame {
     this.leftLeg.rotation.x = .18 + Math.sin(elapsed * 2.2) * .12;
     this.rightLeg.rotation.x = -.12 - Math.sin(elapsed * 2.2) * .1;
 
-    this.worldProgress += delta * .12 * speed;
+    this.worldProgress = (this.worldProgress + delta * .12 * speed) % 1;
     this.distance += delta * 92 * speed;
     this.score += Math.floor(delta * 12);
     this.worldGroup.position.y += delta * 18 * speed;
@@ -239,46 +239,18 @@ export class FallGame {
 
     const orbit = this.mode === "watch" ? Math.sin(elapsed * .2) * 1.1 : Math.sin(elapsed * .18) * .22;
     this.camera.position.x = THREE.MathUtils.damp(this.camera.position.x, this.playerX * .3 + orbit, 1.5, delta);
-    this.camera.position.y = 4.1 + Math.sin(elapsed * 1.4) * .22;
-    this.camera.position.z = 16.5 + Math.sin(elapsed * .55) * .55;
-    this.camera.lookAt(this.player.position.x * .3, -.8, -13);
+    this.camera.position.y = 5.8 + Math.sin(elapsed * 1.4) * .28;
+    this.camera.position.z = 13.5 + Math.sin(elapsed * .55) * .45;
+    this.camera.lookAt(this.player.position.x * .25, -9, -34);
 
-    const approach = THREE.MathUtils.smoothstep(this.worldProgress, .68, .96);
-    (this.portal.material as THREE.MeshBasicMaterial).opacity = approach * .9;
-    (this.portalCore.material as THREE.MeshBasicMaterial).opacity = approach * .16;
-    this.portal.rotation.z += delta * .46;
-    this.portalCore.rotation.z -= delta * .2;
-    const pulse = .92 + Math.sin(elapsed * 2.8) * .045;
-    this.portal.scale.setScalar(pulse);
-    this.portalCore.scale.setScalar(pulse);
-
-    if (this.worldProgress >= .94 && !this.transitionActive) {
-      this.transitionActive = true;
-      this.transitionTimer = 1.05;
-      this.flash = 1;
-    }
-    if (this.transitionActive) {
-      this.transitionTimer -= delta;
-      this.flash = Math.max(0, this.flash - delta * 1.65);
-      if (this.transitionTimer <= 0) {
-        this.worldIndex = (this.worldIndex + 1) % WORLDS.length;
-        this.worldProgress = 0;
-        this.worldGroup.position.y = 0;
-        this.portal.position.y = -52;
-        this.portalCore.position.y = -52;
-        this.loadWorld(this.worldIndex);
-        this.transitionActive = false;
-      }
-    }
-
-    const background = this.scene.background as THREE.Color;
+    // No eras or portal transitions: this is one continuous freefall scene.\n\n    const background = this.scene.background as THREE.Color;
     background.lerp(this.targetSky, delta * 1.2);
     if (this.scene.fog instanceof THREE.Fog) this.scene.fog.color.lerp(new THREE.Color(WORLDS[this.worldIndex].fog), delta * 1.2);
     this.renderer.toneMappingExposure = 1.28 + this.flash * .55;
     const state: GameState = {
       worldName: WORLDS[this.worldIndex].name, worldIndex: this.worldIndex,
       score: this.score, distance: this.distance, worldProgress: this.worldProgress,
-      transitioning: this.transitionActive, nextWorldName: WORLDS[(this.worldIndex + 1) % WORLDS.length].name
+      transitioning: false, nextWorldName: ""
     };
     this.callbacks.forEach(callback => callback(state));
   }
