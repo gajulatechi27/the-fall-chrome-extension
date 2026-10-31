@@ -1,8 +1,66 @@
 import * as THREE from "three";
 import {createNoise2D} from "simplex-noise";
-function makeCloudTexture(seed){const noise=createNoise2D(()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;});const c=document.createElement("canvas");c.width=c.height=256;const ctx=c.getContext("2d"),im=ctx.createImageData(256,256);for(let y=0;y<256;y++)for(let x=0;x<256;x++){let n=0,a=.55;for(let o=0;o<5;o++){const f=Math.pow(2,o)*.025;n+=noise(x*f,y*f)*a;a*=.52;}const edge=Math.max(0,1-Math.hypot((x-128)/128,(y-128)/128)),alpha=THREE.MathUtils.clamp((n+.15)*2.3*edge,0,1),i=(y*256+x)*4;im.data[i]=im.data[i+1]=im.data[i+2]=255;im.data[i+3]=alpha*255;}ctx.putImageData(im,0,0);return new THREE.CanvasTexture(c);}
+
+function makeCloudTexture(seed){
+  let state=seed>>>0;
+  const noise=createNoise2D(()=>{state=(state*1664525+1013904223)>>>0;return state/4294967296;});
+  const canvas=document.createElement("canvas");canvas.width=canvas.height=256;
+  const ctx=canvas.getContext("2d"),image=ctx.createImageData(256,256);
+  for(let y=0;y<256;y++)for(let x=0;x<256;x++){
+    let value=0,amplitude=.58;
+    for(let octave=0;octave<6;octave++){const frequency=Math.pow(2,octave)*.021;value+=noise(x*frequency,y*frequency)*amplitude;amplitude*=.51;}
+    const radial=Math.hypot((x-128)/144,(y-128)/144);
+    const edge=THREE.MathUtils.smoothstep(1.02-radial,.02,.82);
+    const alpha=THREE.MathUtils.clamp((value+.28)*2.05*edge,0,1);
+    const index=(y*256+x)*4;
+    image.data[index]=image.data[index+1]=image.data[index+2]=255;
+    image.data[index+3]=Math.round(alpha*255);
+  }
+  ctx.putImageData(image,0,0);
+  const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
+  return texture;
+}
+
 export class CloudField{
- constructor(scene,seed){this.group=new THREE.Group();scene.add(this.group);this.texture=makeCloudTexture(seed);this.layers=[];let state=seed>>>0;const rand=()=>{state=(state*1664525+1013904223)>>>0;return state/4294967296;};for(let layer=0;layer<3;layer++){const group=new THREE.Group();group.userData.speed=[.55,1,1.65][layer];this.group.add(group);for(let i=0;i<22;i++){const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:this.texture,color:layer===1?0xffffff:0xdce6ee,transparent:true,opacity:.16+rand()*.22,depthWrite:false}));sprite.position.set((rand()-.5)*950,layer*65+(rand()-.5)*95,-rand()*2100-100);const w=100+rand()*260;sprite.scale.set(w,w*(.25+rand()*.22),1);group.add(sprite);}this.layers.push(group);}}
- update(dt,speed){for(const layer of this.layers){layer.position.z+=dt*(55+speed*layer.userData.speed);for(const s of layer.children)if(s.position.z+layer.position.z>130){s.position.z-=2350;s.position.x=(Math.random()-.5)*950;s.position.y=(Math.random()-.5)*100;}}}
- dispose(){this.group.parent?.remove(this.group);this.texture.dispose();for(const l of this.layers)for(const s of l.children)s.material.dispose();}
+  constructor(scene,seed){
+    this.group=new THREE.Group();scene.add(this.group);
+    this.texture=makeCloudTexture(seed);
+    this.layers=[];
+    let state=(seed^0x9e3779b9)>>>0;
+    const random=()=>{state=(Math.imul(state,1664525)+1013904223)>>>0;return state/4294967296;};
+    const layerConfigs=[
+      {speed:.48,count:72,y:-105,zRange:4600,opacity:.23,color:0xcbd7e1},
+      {speed:.86,count:78,y:-10,zRange:4300,opacity:.29,color:0xffffff},
+      {speed:1.32,count:72,y:85,zRange:4000,opacity:.25,color:0xe5edf3}
+    ];
+    for(const config of layerConfigs){
+      const layer=new THREE.Group();layer.userData.speed=config.speed;this.group.add(layer);
+      for(let i=0;i<config.count;i++){
+        const material=new THREE.SpriteMaterial({map:this.texture,color:config.color,transparent:true,opacity:config.opacity+random()*.12,depthWrite:false});
+        const cloud=new THREE.Sprite(material);
+        cloud.position.set((random()-.5)*1900,config.y+(random()-.5)*185,-random()*config.zRange-140);
+        const width=210+random()*430;
+        cloud.scale.set(width,width*(.32+random()*.24),1);
+        layer.add(cloud);
+      }
+      this.layers.push(layer);
+    }
+  }
+  update(dt,speed){
+    for(const layer of this.layers){
+      layer.position.z+=dt*(48+speed*layer.userData.speed);
+      for(const cloud of layer.children){
+        if(cloud.position.z+layer.position.z>170){
+          cloud.position.z-=4850;
+          cloud.position.x=(Math.random()-.5)*1900;
+          cloud.position.y=-115+Math.random()*300;
+        }
+      }
+    }
+  }
+  dispose(){
+    this.group.parent?.remove(this.group);
+    this.texture.dispose();
+    for(const layer of this.layers)for(const cloud of layer.children)cloud.material.dispose();
+  }
 }
