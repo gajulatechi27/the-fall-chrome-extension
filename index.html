@@ -1,1 +1,57 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#9ab8cd"><title>THE FALL</title></head><body><canvas id="world"></canvas><div id="fade"></div><script type="module" src="/src/main.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#9ab8cd">
+  <title>THE FALL</title>
+</head>
+<body>
+  <canvas id="world"></canvas>
+  <div id="fade"></div>
+  <button id="dashboard-show" class="dashboard-show" type="button" aria-label="Show dashboard">☰</button>
+  <aside id="dashboard" class="dashboard">
+    <header class="dashboard-header">
+      <div class="brand-mark">TF</div>
+      <div class="brand-copy"><strong>THE FALL</strong><span>YOUR SPACE ABOVE THE NOISE</span></div>
+      <button id="dashboard-hide" class="icon-button close-dashboard" type="button" aria-label="Minimize dashboard">×</button>
+    </header>
+    <section class="clock-card">
+      <div id="dash-greeting" class="eyebrow">GOOD EVENING</div>
+      <div id="dash-time" class="clock-time">--:--</div>
+      <div id="dash-date" class="clock-date">Loading date…</div>
+      <div class="streak-line"><span class="streak-flame">✦</span><span><b id="streak-count">0</b> day focus streak</span><span class="streak-caption">SHOW UP DAILY</span></div>
+    </section>
+    <section class="dash-card focus-card">
+      <div class="card-heading"><span class="eyebrow">POMODORO</span><span id="timer-mode" class="status-pill">FOCUS SESSION</span></div>
+      <div id="timer-value" class="timer-value">25:00</div>
+      <div class="timer-track"><span id="timer-progress"></span></div>
+      <div class="timer-actions"><button id="timer-toggle" class="primary-button" type="button">Start focus</button><button id="timer-reset" class="secondary-button" type="button">Reset</button></div>
+      <p id="timer-status" class="helper-text">Start a focus session to begin a fresh descent.</p>
+    </section>
+    <section class="dash-card">
+      <div class="card-heading"><span class="eyebrow">TODAY'S FLIGHT PLAN</span><span id="task-count" class="muted-label">0 remaining</span></div>
+      <form id="task-form" class="inline-form"><input id="task-input" type="text" maxlength="100" placeholder="Add a task…" autocomplete="off" aria-label="New task"><button class="add-button" type="submit" aria-label="Add task">+</button></form>
+      <ul id="task-list" class="task-list"></ul>
+    </section>
+    <section class="dash-card">
+      <div class="card-heading"><span class="eyebrow">QUICK NOTES</span><span id="notes-status" class="muted-label">Autosave on</span></div>
+      <textarea id="notes-input" class="notes-input" maxlength="5000" placeholder="Capture a thought before it disappears…" aria-label="Quick notes"></textarea>
+    </section>
+    <section class="dash-card">
+      <div class="card-heading"><span class="eyebrow">QUICK LINKS</span></div>
+      <form id="bookmark-form" class="bookmark-form"><input id="bookmark-title" type="text" maxlength="24" placeholder="Name" aria-label="Bookmark name"><input id="bookmark-url" type="text" placeholder="website.com" aria-label="Bookmark URL"><button class="add-button" type="submit" aria-label="Add bookmark">+</button></form>
+      <ul id="bookmark-list" class="bookmark-list"></ul><div id="bookmark-status" class="helper-text"></div>
+    </section>
+    <section class="dash-card weather-card">
+      <div class="card-heading"><span class="eyebrow">WEATHER ABOVE YOU</span><span class="muted-label">LIVE</span></div>
+      <form id="weather-form" class="inline-form"><input id="weather-city" type="text" placeholder="Enter city…" autocomplete="off" aria-label="Weather city"><button class="add-button" type="submit" aria-label="Check weather">↗</button></form>
+      <p id="weather-status" class="helper-text">Search a city to see current conditions.</p>
+      <div id="weather-result" class="weather-result" hidden><div><div id="weather-place" class="weather-place"></div><div id="weather-description" class="weather-description"></div></div><div id="weather-temp" class="weather-temp"></div><div id="weather-details" class="weather-details"></div></div>
+    </section>
+    <footer class="dashboard-footer"><span>BUILT FOR THE LONG FALL</span><span>✦</span></footer>
+  </aside>
+  <script type="module" src="/src/main.js"></script>
+  <script type="module" src="/src/dashboard.js"></script>
+</body>
+</html>
