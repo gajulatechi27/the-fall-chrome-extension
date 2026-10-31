@@ -12,7 +12,7 @@ const knockoutCspPatch = {
     // Knockout 3.5.1 uses (0, eval)("this") only to obtain the global object.
     // Replace that exact probe; keep MV3's prohibition on dynamic evaluation.
     return {
-      code: code.replace(/\\(0,\\s*eval\\)\\(["']this["']\\)/g, "window"),
+      code: code.replace(/\(0,\s*eval\)\(["']this["']\)/g, "window"),
       map: null
     };
   }
