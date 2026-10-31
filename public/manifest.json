@@ -1,1 +1,23 @@
-{"manifest_version":3,"name":"THE FALL — Cinematic Descent","version":"0.5.0","description":"A procedural cinematic skydiving descent on every new tab.","permissions":["storage"],"chrome_url_overrides":{"newtab":"index.html"}}
+{
+  "manifest_version": 3,
+  "name": "THE FALL — Real World Descent",
+  "version": "1.0.0",
+  "description": "A cinematic descent over real places using Cesium World Terrain and photorealistic 3D tiles.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://*.cesium.com/*",
+    "https://assets.cesium.com/*",
+    "https://api.cesium.com/*",
+    "https://tile.googleapis.com/*",
+    "https://*.googleapis.com/*"
+  ],
+  "options_page": "settings.html",
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; worker-src 'self' blob:; connect-src 'self' https: blob: data:; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline';"
+  },
+  "chrome_url_overrides": {
+    "newtab": "index.html"
+  }
+}
