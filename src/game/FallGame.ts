@@ -133,7 +133,8 @@ export class FallGame {
       add(new THREE.BoxGeometry(.29, .17, .45), boot, pivot, [sign * .1, -1.5, .12]);
     }
     this.player.scale.setScalar(1.48);
-    this.player.rotation.x = -.12;\n    this.player.rotation.y = Math.PI;
+    this.player.rotation.x = -0.12;
+    this.player.rotation.y = Math.PI;
   }
 
   private loadWorld(index: number) {
