@@ -1,8 +1,80 @@
 import * as THREE from "three";
-// Stage 1 deliberately uses a simple non-realistic placeholder. Stage 2 replaces
-// this class with GLTFLoader + AnimationMixer and a licensed Mixamo GLB.
-export class SkydiverPlaceholder{
- constructor(scene){this.root=new THREE.Group();scene.add(this.root);this.phase=Math.random()*Math.PI*2;const suit=new THREE.Mesh(new THREE.CapsuleGeometry(.42,1.05,6,10),new THREE.MeshStandardMaterial({color:0x252d38,roughness:.82}));suit.rotation.x=Math.PI/2;suit.position.y=-.05;this.root.add(suit);const head=new THREE.Mesh(new THREE.SphereGeometry(.25,12,10),new THREE.MeshStandardMaterial({color:0x303943,roughness:.9}));head.position.set(0,.02,-.82);this.root.add(head);const wingGeo=new THREE.BoxGeometry(1.55,.12,.48);const wingMat=new THREE.MeshStandardMaterial({color:0x394754,roughness:.9});for(const side of [-1,1]){const arm=new THREE.Mesh(wingGeo,wingMat);arm.position.set(side*.78,.05,-.22);arm.rotation.z=side*.08;this.root.add(arm);const leg=new THREE.Mesh(new THREE.CylinderGeometry(.13,.17,.9,8),wingMat);leg.position.set(side*.2,-.08,.65);leg.rotation.x=Math.PI/2;this.root.add(leg);}this.root.rotation.x=-.08;}
- update(dt,t){this.root.rotation.z=Math.sin(t*.62+this.phase)*.025;this.root.rotation.x=-.08+Math.sin(t*.45+this.phase)*.018;this.root.position.x=Math.sin(t*.14)*.6;this.root.position.y=Math.sin(t*.8)*.08;}
- dispose(){this.root.traverse(o=>{if(o.isMesh){o.geometry.dispose();for(const m of(Array.isArray(o.material)?o.material:[o.material]))m.dispose();}});this.root.parent?.remove(this.root);}
+import {GLTFLoader} from "three/addons/loaders/GLTFLoader.js";
+
+/**
+ * Stage 2 skydiver. No procedural/primitive fallback by design.
+ * Put a rigged Mixamo GLB with an embedded freefall animation at:
+ * public/assets/skydiver-freefall.glb
+ */
+export class Skydiver {
+  constructor(scene) {
+    this.root = new THREE.Group();
+    this.root.name = "SkydiverFollowRoot";
+    scene.add(this.root);
+    this.loader = new GLTFLoader();
+    this.mixer = null;
+    this.model = null;
+    this.ready = false;
+    this.error = null;
+    this.phase = Math.random() * Math.PI * 2;
+  }
+
+  async load() {
+    try {
+      const gltf = await this.loader.loadAsync("/assets/skydiver-freefall.glb");
+      this.model = gltf.scene;
+      this.model.scale.setScalar(2.0);
+      this.model.rotation.y = Math.PI;
+      this.model.traverse((node) => {
+        if (!node.isMesh) return;
+        node.castShadow = true;
+        node.receiveShadow = true;
+        if (node.material) {
+          const materials = Array.isArray(node.material) ? node.material : [node.material];
+          for (const material of materials) {
+            material.needsUpdate = true;
+          }
+        }
+      });
+      this.root.add(this.model);
+      if (gltf.animations.length) {
+        this.mixer = new THREE.AnimationMixer(this.model);
+        const freefall = gltf.animations.find((clip) => /fall|free.?fall|skydive|jump/i.test(clip.name));
+        this.mixer.clipAction(freefall || gltf.animations[0]).reset().play();
+      } else {
+        console.warn("Skydiver GLB has no embedded animation clip.");
+      }
+      this.ready = true;
+      return true;
+    } catch (error) {
+      this.error = error;
+      console.error("Skydiver model unavailable. Add public/assets/skydiver-freefall.glb.", error);
+      return false;
+    }
+  }
+
+  update(dt, elapsed, speed = 90) {
+    this.mixer?.update(dt);
+    this.root.rotation.z = Math.sin(elapsed * 0.62 + this.phase) * 0.035;
+    this.root.rotation.x = -0.1 + Math.sin(elapsed * 0.43 + this.phase) * 0.018;
+    this.root.rotation.y = Math.PI + Math.sin(elapsed * 0.31) * 0.025;
+    this.root.position.x = Math.sin(elapsed * 0.15) * 0.65;
+    this.root.position.y = Math.sin(elapsed * 0.8) * 0.1;
+    this.root.position.z = -0.5 + Math.sin(elapsed * 0.35) * Math.min(0.08, speed * 0.0005);
+  }
+
+  dispose() {
+    this.root.parent?.remove(this.root);
+    this.model?.traverse((node) => {
+      if (!node.isMesh) return;
+      node.geometry?.dispose();
+      const materials = Array.isArray(node.material) ? node.material : [node.material];
+      for (const material of materials) {
+        for (const value of Object.values(material)) {
+          if (value?.isTexture) value.dispose();
+        }
+        material.dispose();
+      }
+    });
+  }
 }
