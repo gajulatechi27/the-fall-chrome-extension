@@ -1,38 +1,36 @@
-# THE FALL — Endless Freefall
+# THE FALL — cinematic New Tab descent
 
-A cinematic endless-falling Chrome New Tab experience. The Yuga timelines, era labels and portal progression have been removed.
+A Manifest V3 Chrome extension replacing New Tab with a silent, non-interactive full-screen skydiver descent. No controls, score, or HUD.
 
-## Experience
+## Architecture
+- `src/main.js`: randomized descent lifecycle, altitude stages, fade/reset, hidden-tab pause.
+- `src/sky.js`: gradient sky shader, directional/hemisphere lighting, optional local HDRI via RGBELoader and PMREM.
+- `src/clouds.js`: procedural noise cloud sprites, spawned ahead and recycled.
+- `src/terrain.js`: seeded noise terrain chunks, procedural surface textures, fog and regeneration.
+- `src/player.js`: GLTFLoader and AnimationMixer; subtle wind sway; no primitive character.
+- `src/effects.js`: pmndrs postprocessing bloom, depth of field, motion blur, vignette, tone mapping and SMAA.
 
-- One continuous alpine valley environment: snowy mountain ranges, pine forests, winding river, a small mountain village, cloud banks and atmospheric particles.
-- Third-person freefall camera positioned behind the skydiver, looking out over the valley.
-- Procedural articulated human placeholder with an enlarged silhouette and animated limbs.
-- Endless environment chunks recycle as the descent continues.
-- Interactive steering (A/D or arrow keys, pointer/touch) and automatic cinematic watch mode.
-- Distance and score HUD, pause, sound toggle and fullscreen.
+## Required local assets
+Add these under `public/assets/` before building:
+1. `skydiver-freefall.glb` — licensed rigged character with Mixamo freefall animation embedded.
+2. `toposcope_sunset_1k.hdr` — Poly Haven CC0 HDRI (optional; gradient sky remains fallback).
 
-## Run
+See `public/assets/README.md`. Export a character you are licensed to use; do not redistribute restricted assets. The app intentionally has no toy/primitive fallback if the GLB is missing.
 
+## Build and load in Chrome
+Use Node.js 20.19+ or 22.12+.
 ```bash
 npm install
 npm run typecheck
 npm run build
 ```
+1. Open `chrome://extensions`.
+2. Enable Developer mode.
+3. Click **Load unpacked** and select the project's `dist/` folder.
+4. Open a new tab. After code or asset changes, rebuild and click Reload.
 
-Load `dist/` from `chrome://extensions` with Developer mode enabled. For development, use `npm run dev`.
+## Performance
+Adaptive DPR is capped at 1.5 (1.0 on narrow screens); terrain uses four recycled chunks, clouds use sprites, and rendering pauses when the tab is hidden. 60 FPS is a target, not guaranteed on every GPU. Reduce DPR, cloud count, terrain resolution and shadow quality on slower hardware.
 
-## Controls
-
-- A / D or ← / →: steer
-- Pointer / touch: steer horizontally
-- Space: pause / resume
-- F: fullscreen
-- Watch Cinematic: automatic steering
-
-## Asset status
-
-The valley is currently generated from Three.js geometry and materials. The human is still an articulated procedural placeholder, not a realistic rigged GLB character. The reference photo supplied for the visual direction has not been embedded as a texture in this build. The next quality milestone is to add a licensed, high-quality skydiver GLB, authored mountain/forest assets, volumetric cloud layers and post-processing. All production assets should be packaged locally for reliable offline extension use.
-
-## Stack
-
-Three.js, TypeScript, Vite, Chrome Extension Manifest V3.
+## CSP and privacy
+No CDN scripts, remote code, eval or runtime network dependencies. Vite bundles npm libraries locally. The HDRI and character are loaded from local extension paths.
