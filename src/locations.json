@@ -410,16 +410,6 @@
     "glideAltitude": 700
   },
   {
-    "name": "Jewar Toll Plaza, Yamuna Expressway",
-    "region": "Toll Plazas",
-    "lat": 28.145,
-    "lon": 77.555,
-    "heading": 10,
-    "pitch": -18,
-    "arrivalAltitude": 350,
-    "glideAltitude": 700
-  },
-  {
     "name": "Kurnool",
     "region": "Villages and Towns",
     "lat": 15.828,
