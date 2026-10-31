@@ -44,7 +44,7 @@ private update(delta:number){
 const elapsed=this.clock.elapsedTime,speed=this.mode==="watch"?1:1.08;
 if(this.mode==="play"){if(this.keys.has("ArrowLeft")||this.keys.has("KeyA"))this.targetX-=delta*8;if(this.keys.has("ArrowRight")||this.keys.has("KeyD"))this.targetX+=delta*8;this.targetX=THREE.MathUtils.clamp(this.targetX,-5.5,5.5);}else this.targetX=Math.sin(elapsed*.42)*2.7;
 this.playerX=THREE.MathUtils.damp(this.playerX,this.targetX,4.2,delta);this.player.position.x=this.playerX;this.player.rotation.z=THREE.MathUtils.damp(this.player.rotation.z,-this.playerX*.045,3.5,delta);this.player.rotation.y=Math.sin(elapsed*1.4)*.06;this.player.rotation.x=-.16+Math.sin(elapsed*2.2)*.035;
-this.worldProgress+=delta*.115*speed;this.distance+=delta*92*speed;this.score+=Math.floor(delta*12);this.worldGroup.position.y+=delta*18*speed;if(this.worldGroup.position.y>30){this.worldGroup.position.y=0;this.worldProgress=0;}
+this.worldProgress+=delta*.115*speed;this.distance+=delta*92*speed;this.score+=Math.floor(delta*12);this.worldGroup.position.y+=delta*18*speed;
 const orbit=this.mode==="watch"?Math.sin(elapsed*.22)*.55:Math.sin(elapsed*.18)*.12;this.camera.position.x=THREE.MathUtils.damp(this.camera.position.x,this.playerX*.32+orbit,1.7,delta);this.camera.position.y=5.8+Math.sin(elapsed*1.9)*.18;this.camera.position.z=17.5+Math.sin(elapsed*.7)*.45;this.camera.lookAt(this.player.position.x*.35,-1.2,-12);
 this.portal.rotation.z+=delta*.5;const approach=this.worldProgress>.72;(this.portal.material as THREE.MeshBasicMaterial).opacity=approach?Math.min(.75,(this.worldProgress-.72)*2.7):0;this.portal.scale.setScalar(.75+Math.sin(elapsed*3)*.035);
 if(this.worldProgress>=.98&&!this.transitionActive){this.transitionActive=true;this.transitionTimer=1.35;}
