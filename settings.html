@@ -1,1 +1,43 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>THE FALL — Settings</title></head><body><main class="settings"><a href="./index.html">← Back to descent</a><p class="eyebrow">THE FALL / CONFIGURATION</p><h1>Real-world data access</h1><p class="intro">Keys are saved in Chrome local storage. They are not written into source files or GitHub.</p><form id="form"><label>Cesium ion access token <small>Required for World Terrain and satellite imagery</small><input id="ion" type="password" autocomplete="off" placeholder="Paste Cesium ion token"></label><label>Google Maps Platform API key <small>Optional — enables Photorealistic 3D Tiles</small><input id="google" type="password" autocomplete="off" placeholder="Paste Google API key"></label><label>Rendering quality<select id="quality"><option value="low">Low</option><option value="medium">Medium — recommended</option><option value="high">High</option></select></label><button>Save settings</button><p id="saved"></p></form><section><h2>Get your API keys</h2><ol><li>Create a <a href="https://ion.cesium.com/signup/" target="_blank">Cesium ion account</a>. Copy your default token from <a href="https://ion.cesium.com/tokens" target="_blank">Access Tokens</a>. Ensure it can access Cesium World Terrain and World Imagery.</li><li>In <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a>, select a project, enable billing and the <b>Map Tiles API</b>, create an API key, and restrict it to Map Tiles API. Google may charge for usage.</li><li>Paste keys above, save, then open a new tab.</li></ol><p class="note">Google 3D coverage varies. If unavailable, the extension falls back to real terrain and satellite imagery. Cesium displays required map credits.</p></section></main><script type="module" src="/src/settings.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>THE FALL — Settings</title>
+  <link rel="stylesheet" href="/src/settings.css">
+</head>
+<body>
+  <main class="settings">
+    <a href="./index.html">← Back to flight</a>
+    <p class="eyebrow">THE FALL / FLIGHT SETTINGS</p>
+    <h1>Real-world data</h1>
+    <p class="intro">Cesium ion credentials are stored locally in Chrome and are never written into source files.</p>
+    <form id="form">
+      <label>Cesium ion access token
+        <small>Required for Cesium World Terrain, satellite imagery and OSM Buildings</small>
+        <input id="ion" type="password" autocomplete="off" placeholder="Paste Cesium ion token">
+      </label>
+      <label>Rendering quality
+        <select id="quality">
+          <option value="low">Low — performance first</option>
+          <option value="medium">Medium — recommended</option>
+          <option value="high">High — detail first</option>
+        </select>
+      </label>
+      <label class="check"><input id="buildings" type="checkbox"> Show real OpenStreetMap 3D Buildings (ion asset 96188)</label>
+      <button type="submit">Save settings</button>
+      <p id="saved" aria-live="polite"></p>
+    </form>
+    <section>
+      <h2>Connect Cesium ion</h2>
+      <ol>
+        <li>Create or sign in to a <a href="https://ion.cesium.com/signup/" target="_blank" rel="noreferrer">Cesium ion account</a>.</li>
+        <li>Copy an access token from <a href="https://ion.cesium.com/tokens" target="_blank" rel="noreferrer">Access Tokens</a> with access to World Terrain, World Imagery and asset 96188.</li>
+        <li>Paste the token above and save. Open a new tab to reconnect.</li>
+      </ol>
+      <p class="note">Building coverage depends on OpenStreetMap contributions. Rural and remote areas may show terrain and satellite imagery without 3D buildings.</p>
+    </section>
+  </main>
+  <script type="module" src="/src/settings.js"></script>
+</body>
+</html>
