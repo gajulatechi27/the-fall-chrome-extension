@@ -1,5 +1,5 @@
-import * as Cesium from "cesium";
-import "cesium/Build/Cesium/Widgets/widgets.css";
+import * as Cesium from "@cesium/engine";
+import "@cesium/engine/Source/Widget/CesiumWidget.css";
 import locations from "./locations.json";
 import "./style.css";
 
@@ -63,11 +63,12 @@ function updateQuality() {
   }
 }
 function createViewer() {
-  viewer = new Cesium.Viewer("cesiumContainer", {
-    animation: false, timeline: false, baseLayerPicker: false, geocoder: false,
-    homeButton: false, sceneModePicker: false, navigationHelpButton: false,
-    fullscreenButton: false, infoBox: false, selectionIndicator: false,
-    requestRenderMode: false, scene3DOnly: true, baseLayer: false,
+  viewer = new Cesium.CesiumWidget("cesiumContainer", {
+    shouldAnimate: true,
+    baseLayer: false,
+    requestRenderMode: false,
+    scene3DOnly: true,
+    skyAtmosphere: true,
     terrainProvider: new Cesium.EllipsoidTerrainProvider()
   });
   const scene = viewer.scene;
