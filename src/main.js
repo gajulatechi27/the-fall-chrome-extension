@@ -47,6 +47,7 @@ function animate(){
  catch(error){console.error("Postprocessing render failed; switching to direct rendering.",error);effects?.dispose();effects=undefined;renderer.render(scene,camera);}
  if(altitude<=0){running=false;fade.classList.add("white");window.setTimeout(beginDescent,1800);}
 }
+window.addEventListener("thefall:focus-start",()=>{ if(!running) beginDescent(); else { fade.classList.add("white"); setTimeout(()=>fade.classList.remove("white"),350); } });
 document.addEventListener("visibilitychange",()=>{if(document.hidden){paused=true;cancelAnimationFrame(frame);}else if(running){paused=false;clock.start();animate();}});
 function resize(){quality=Math.min(devicePixelRatio,matchMedia("(max-width:700px)").matches?1:2);renderer.setPixelRatio(quality);renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();effects?.resize();}
 window.addEventListener("resize",resize);window.addEventListener("orientationchange",()=>window.setTimeout(resize,180));
