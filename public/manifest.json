@@ -3,9 +3,7 @@
   "name": "THE FALL — Real World Descent",
   "version": "1.0.0",
   "description": "A cinematic descent over real places using Cesium World Terrain and photorealistic 3D tiles.",
-  "permissions": [
-    "storage"
-  ],
+  "permissions": ["storage"],
   "host_permissions": [
     "https://*.cesium.com/*",
     "https://assets.cesium.com/*",
@@ -15,7 +13,7 @@
   ],
   "options_page": "settings.html",
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; worker-src 'self' blob:; connect-src 'self' https: blob: data:; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline';"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; worker-src 'self'; connect-src 'self' https: blob: data:; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline';"
   },
   "chrome_url_overrides": {
     "newtab": "index.html"
