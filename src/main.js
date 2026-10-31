@@ -2,6 +2,7 @@ import * as THREE from "three";
 import {createSky} from "./sky.js";
 import {CloudField} from "./clouds.js";
 import {Terrain} from "./terrain.js";
+import {Landmarks,themes} from "./landmarks.js";
 import {CinematicEffects} from "./effects.js";
 import "./style.css";
 
@@ -22,19 +23,19 @@ const camera=new THREE.PerspectiveCamera(58,innerWidth/innerHeight,.1,7000);
 camera.position.set(0,3.4,15.5);
 const cameraTarget=new THREE.Vector3(0,-.25,-15);
 const cameraDesired=new THREE.Vector3();
-let sky,clouds,terrain,effects,seed=0,time=0,altitude=32000,speed=90,running=false,paused=false,frame=0,clock=new THREE.Clock(),descentNumber=0;
+let sky,clouds,terrain,landmarks,effects,seed=0,time=0,altitude=32000,speed=90,running=false,paused=false,frame=0,clock=new THREE.Clock(),descentNumber=0;
 const biomes=["mountains","desert","islands","forest","snow"];
 const randSeed=()=>crypto.getRandomValues(new Uint32Array(1))[0];
 let biome="mountains";
 async function saveDescent(){try{if(globalThis.chrome?.storage?.local)await chrome.storage.local.set({theFallLastSeed:seed,theFallDescentCount:descentNumber,theFallLastBiome:biome});}catch(error){console.info("Chrome storage unavailable in preview mode",error);}}
-function cleanup(){effects?.dispose();effects=undefined;sky?.dispose();clouds?.dispose();terrain?.dispose();scene.clear();}
+function cleanup(){effects?.dispose();effects=undefined;sky?.dispose();clouds?.dispose();terrain?.dispose();landmarks?.dispose();scene.clear();}
 async function beginDescent(){
  cancelAnimationFrame(frame);running=false;fade.classList.add("white");await new Promise(resolve=>setTimeout(resolve,850));cleanup();
- seed=randSeed();descentNumber++;biome=biomes[seed%biomes.length];time=0;altitude=32000;speed=90;
+ seed=randSeed();descentNumber++;biome=biomes[seed%biomes.length];const route=themes[Math.floor(seed/5)%themes.length];time=0;altitude=32000;speed=90;
  const timeOfDay=seed%3,weather=seed%4,skyColors=[0x9abbd1,0xd8ad91,0x627f9b];
  scene.background=new THREE.Color(skyColors[timeOfDay]);
  scene.fog=new THREE.FogExp2(skyColors[timeOfDay],.000025+weather*.000006);
- sky=createSky(scene,renderer,seed);terrain=new Terrain(scene,seed,biome);clouds=new CloudField(scene,seed);
+ sky=createSky(scene,renderer,seed);terrain=new Terrain(scene,seed,biome);landmarks=new Landmarks(scene,seed,route);clouds=new CloudField(scene,seed);
  try{effects=new CinematicEffects(renderer,scene,camera,quality);}catch(error){console.error("Postprocessing setup failed; using direct renderer.",error);effects=undefined;}
  await saveDescent();running=true;paused=false;clock.start();fade.classList.remove("white");animate();
 }
@@ -44,7 +45,7 @@ function animate(){
  const dt=Math.min(clock.getDelta(),.033);time+=dt;
  const progress=1-altitude/32000,target=altitude<450?24:altitude<3500?110:altitude<11000?103:90;
  speed=THREE.MathUtils.damp(speed,target,1.15,dt);altitude=Math.max(0,altitude-speed*dt*3.6);
- clouds?.update(dt,speed);terrain?.update(dt,speed,altitude);
+ clouds?.update(dt,speed);terrain?.update(dt,speed,altitude);landmarks?.update(dt,speed);
  const targetFov=58+Math.min(9,speed*.055);
  camera.fov=THREE.MathUtils.damp(camera.fov,targetFov,1.1,dt);camera.updateProjectionMatrix();
  const shake=Math.min(.035,speed*.00024);
