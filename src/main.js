@@ -240,9 +240,10 @@ async function initialLeg() {
   const ground=await sampleGround(first.lat,first.lon);
   current={...first,_ground:ground};
   previous=first;
-  const start = { ...first, lat: first.lat + 0.018, lon: first.lon - 0.018 };
-  setInitialCamera(start,ground,rand(8500,11500));
-  route=makeRoute(start,first,ground,ground,true);
+  const initialAltitude = rand(8500,11500);
+  const start = { ...first, lat: first.lat + 0.018, lon: first.lon - 0.018, arrivalAltitude: initialAltitude };
+  setInitialCamera(start,ground,initialAltitude);
+  route=makeRoute(start,first,ground,ground,false);
   prepareNextDestination();
   routeProgress=0;
   routeDuration=route.duration;
