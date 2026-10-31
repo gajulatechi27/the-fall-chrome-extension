@@ -2,15 +2,17 @@
 
 A cinematic endless-falling experience designed to replace the Chrome New Tab page.
 
-## MVP
+## Current build
 
 - Chrome Extension Manifest V3 / New Tab override
 - Three.js + TypeScript + Vite
+- Four sequential Yuga timelines: Satya, Treta, Dvapara and Kali
+- Era-specific procedural scenery, landmarks, lighting palettes and atmospheric particles
+- Articulated procedural falling character with animated arms and legs
+- Third-person cinematic camera movement and portal transition sequence
 - Interactive steering (A/D or arrow keys, pointer/touch)
 - Automatic watch mode
-- Four procedural timelines: Satya Yuga, Ancient Greece (c.1000 BCE), Ice Age, and Future Earth (3000 AD)
 - Time-fragment score, distance HUD, pause and sound controls
-- Responsive UI and reduced-motion CSS support
 
 ## Run locally
 
@@ -35,17 +37,17 @@ For development, run `npm run dev`.
 - F: fullscreen
 - Watch The Journey: automatic camera/player movement
 
-## Current prototype limitations
+## Current limitations
 
-This is an early procedural MVP. The falling character is assembled from Three.js primitives rather than a production character rig; environments are procedural silhouettes rather than optimized authored assets; transitions and world streaming are prototype-level. Persistent settings, saved scores, obstacle gameplay, and local font packaging are not yet implemented. The declared Chrome storage permission is reserved for a later persistence milestone.
+The character is still a procedural Three.js model, not a photorealistic scanned human or a rigged GLB asset. The Yuga environments are generated from procedural geometry rather than hand-authored high-detail environment assets. The portal transition is an in-engine visual transition, not a fully streamed cinematic sequence. Persistent settings, saved scores, obstacle gameplay, and locally bundled fonts are not yet implemented.
 
-## Planned milestones
+## Next milestones
 
-1. Replace primitive character with an animated, optimized GLB character.
-2. Build distinct authored environment assets for each era.
-3. Implement seamless portal transitions and streamed world chunks.
-4. Add obstacles, collectibles, collision handling, and persistent progression.
-5. Add graphics settings, performance profiling, and offline-bundled fonts.
+1. Import a high-quality licensed GLB human with a proper skeleton and falling animation.
+2. Build authored, high-detail environment assets for each Yuga.
+3. Add layered cloud volumes, post-processing bloom and cinematic portal VFX.
+4. Implement streamed world chunks, obstacles, collectibles and persistent progression.
+5. Add graphics settings, performance profiling and offline-bundled fonts.
 
 ## Stack
 
