@@ -21,7 +21,7 @@ export class Skydiver {
   update(dt:number,controls:PlayerControls,elapsed:number){
     this.targetX=THREE.MathUtils.clamp(this.targetX+controls.steer*dt*7,-24,24);
     this.root.position.x=THREE.MathUtils.damp(this.root.position.x,this.targetX,3.8,dt);
-    const targetPitch=controls.dive?-.42:controls.flare?.2:-.12;
+    const targetPitch = controls.dive ? -0.42 : controls.flare ? 0.2 : -0.12;
     this.root.rotation.x=THREE.MathUtils.damp(this.root.rotation.x,targetPitch,2.8,dt);
     this.root.rotation.z=THREE.MathUtils.damp(this.root.rotation.z,-controls.steer*.14,3.5,dt);
     this.root.rotation.y=Math.PI+Math.sin(elapsed*.8)*.035;
