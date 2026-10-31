@@ -9,7 +9,7 @@ const M={
 export const themes=["himalayas","river","sea","village","town","city","ghats","highway","tollgate","temple"];
 function box(p,x,y,z,w,h,d,m){const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y,z);o.castShadow=true;p.add(o);return o;}
 function tower(p,x,z,s=1){box(p,x,-57,z,34*s,26*s,28*s,M.temple);for(let i=0;i<5;i++){const o=new THREE.Mesh(new THREE.ConeGeometry((1-i*.14)*17*s,7*s,8),M.red);o.position.set(x,-42*s+i*6*s,z);p.add(o);}}
-function curveRoad(p,pts,w){const c=new THREE.CatmullRomCurve3(pts.map(v=>new THREE.Vector3(...v)));const o=new THREE.Mesh(new THREE.TubeGeometry(c,90,w/2,7,false),M.road);o.position.y=-62;p.add(o);}
+function curveRoad(p,pts,w){const c=new THREE.CatmullRomCurve3(pts.map(v=>new THREE.Vector3(...v)));const o=new THREE.Mesh(new THREE.TubeGeometry(c,90,w/2,7,false),M.road);p.add(o);}
 function building(p,x,z,w,h,d,mat){box(p,x,-70+h/2,z,w,h,d,mat);for(let r=0;r<Math.max(2,h/15);r++)for(let c=0;c<Math.max(1,w/12);c++)box(p,x-w/2+5+c*12,-62+r*14,z-d/2-.5,3,4,.5,M.glass);}
 function addTheme(p,t,seed,z){let s=seed>>>0;const rand=()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/4294967296;};
  if(t==="himalayas")for(let i=0;i<18;i++){const x=(rand()-.5)*1700,d=z-250-rand()*2100,h=300+rand()*520,r=170+rand()*240;const a=new THREE.Mesh(new THREE.ConeGeometry(r,h,5),i%3?M.concrete:M.snow);a.position.set(x,-100+h/2,d);p.add(a);const cap=new THREE.Mesh(new THREE.ConeGeometry(r*.3,h*.3,5),M.snow);cap.position.set(x,-100+h*.84,d);p.add(cap);}
