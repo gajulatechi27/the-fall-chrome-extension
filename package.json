@@ -10,8 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "cesium": "^1.131.0",
-    "@cesium/engine": "^15.0.0"
+    "cesium": "^1.131.0"
   },
   "overrides": {
     "@zip.js/zip.js": "2.7.73"
