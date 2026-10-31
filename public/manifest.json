@@ -1,8 +1,1 @@
-{
-  "manifest_version": 3,
-  "name": "THE FALL — Endless Freefall",
-  "version": "0.2.0",
-  "description": "A cinematic endless freefall above a vast alpine valley.",
-  "chrome_url_overrides": { "newtab": "index.html" },
-  "permissions": ["storage"]
-}
+{"manifest_version":3,"name":"THE FALL — Cinematic Descent","version":"0.4.0","description":"An atmospheric cinematic skydiver descent on every new tab.","chrome_url_overrides":{"newtab":"index.html"}}
