@@ -9,7 +9,7 @@ import "./style.css";
 const canvas=document.querySelector("#world"),fade=document.querySelector("#fade");
 const renderer=new THREE.WebGLRenderer({canvas,antialias:false,powerPreference:"high-performance",stencil:false});
 let quality=Math.min(devicePixelRatio,matchMedia("(max-width:700px)").matches?1:2);
-renderer.setPixelRatio(quality);renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.setPixelRatio(quality);renderer.setSize(innerWidth,innerHeight,false);renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.NoToneMapping;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(64,innerWidth/innerHeight,.1,7000);
 camera.position.set(0,5,18);
@@ -48,7 +48,7 @@ function animate(){
  if(altitude<=0){running=false;fade.classList.add("white");window.setTimeout(beginDescent,1800);}
 }
 document.addEventListener("visibilitychange",()=>{if(document.hidden){paused=true;cancelAnimationFrame(frame);}else if(running){paused=false;clock.start();animate();}});
-function resize(){quality=Math.min(devicePixelRatio,matchMedia("(max-width:700px)").matches?1:2);renderer.setPixelRatio(quality);renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();effects?.resize();}
+function resize(){quality=Math.min(devicePixelRatio,matchMedia("(max-width:700px)").matches?1:2);renderer.setPixelRatio(quality);renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();effects?.resize();}
 window.addEventListener("resize",resize);window.addEventListener("orientationchange",()=>window.setTimeout(resize,180));
 window.addEventListener("error",event=>console.error("THE FALL error",event.error||event.message));
 beginDescent();
