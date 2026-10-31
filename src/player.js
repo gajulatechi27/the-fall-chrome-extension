@@ -1,178 +1,91 @@
 import * as THREE from "three";
 
-const SKIN = new THREE.MeshStandardMaterial({ color: 0xc88762, roughness: 0.78 });
-const SUIT = new THREE.MeshStandardMaterial({ color: 0x26394b, roughness: 0.82 });
-const SUIT_LIGHT = new THREE.MeshStandardMaterial({ color: 0x40596d, roughness: 0.78 });
-const GLOVE = new THREE.MeshStandardMaterial({ color: 0x17232e, roughness: 0.9 });
-const BOOT = new THREE.MeshStandardMaterial({ color: 0x111a22, roughness: 0.92 });
-const ACCENT = new THREE.MeshStandardMaterial({ color: 0xe49a42, roughness: 0.65 });
-const VISOR = new THREE.MeshStandardMaterial({ color: 0x263d50, metalness: 0.55, roughness: 0.22 });
-const DARK = new THREE.MeshStandardMaterial({ color: 0x17232d, roughness: 0.9 });
-
-function capsuleBetween(parent, start, end, radius, material, radialSegments = 10) {
-  const a = new THREE.Vector3(...start);
-  const b = new THREE.Vector3(...end);
-  const delta = new THREE.Vector3().subVectors(b, a);
-  const length = delta.length();
-  const geometry = new THREE.CapsuleGeometry(radius, Math.max(0.01, length - radius * 2), 4, radialSegments);
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.position.copy(a).add(b).multiplyScalar(0.5);
-  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.normalize());
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  parent.add(mesh);
-  return mesh;
+const mat=(color,roughness=.78,metalness=0)=>new THREE.MeshStandardMaterial({color,roughness,metalness});
+const M={
+ skin:mat(0xd99b78),suit:mat(0x263b59),suitLight:mat(0x3f6285),seam:mat(0x172b43),
+ glove:mat(0x202b3b),boot:mat(0x172334),accent:mat(0xf2b45f),visor:mat(0x75c7d5,.24,.35),
+ buckle:mat(0xf4d08a,.35,.45),sole:mat(0x101a27)
+};
+function capsule(parent,a,b,r,material,segments=12){
+ const start=new THREE.Vector3(...a),end=new THREE.Vector3(...b),delta=end.clone().sub(start);
+ const mesh=new THREE.Mesh(new THREE.CapsuleGeometry(r,Math.max(.01,delta.length()-2*r),5,segments),material);
+ mesh.position.copy(start).add(end).multiplyScalar(.5);mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),delta.normalize());mesh.castShadow=true;parent.add(mesh);return mesh;
 }
-
-function sphere(parent, position, scale, material, segments = 16) {
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, segments, Math.max(8, segments >> 1)), material);
-  mesh.position.set(...position);
-  mesh.scale.set(...scale);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  parent.add(mesh);
-  return mesh;
+function ellipsoid(parent,p,s,material,segments=18){
+ const mesh=new THREE.Mesh(new THREE.SphereGeometry(1,segments,Math.max(8,segments>>1)),material);
+ mesh.position.set(...p);mesh.scale.set(...s);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh;
 }
-
-function box(parent, position, size, material, bevel = 0) {
-  const geometry = new THREE.BoxGeometry(...size);
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.position.set(...position);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  parent.add(mesh);
-  return mesh;
+function block(parent,p,s,material){
+ const mesh=new THREE.Mesh(new THREE.BoxGeometry(...s),material);mesh.position.set(...p);mesh.castShadow=true;mesh.receiveShadow=true;parent.add(mesh);return mesh;
 }
-
-function makeArm(parent, side) {
-  const pivot = new THREE.Group();
-  pivot.position.set(side * 0.27, 0.28, 0);
-  parent.add(pivot);
-  capsuleBetween(pivot, [0, 0, 0], [side * 0.48, 0.02, 0.015], 0.115, SUIT_LIGHT);
-  sphere(pivot, [side * 0.48, 0.02, 0.015], [0.12, 0.12, 0.12], SUIT);
-  capsuleBetween(pivot, [side * 0.48, 0.02, 0.015], [side * 0.91, -0.10, 0.06], 0.085, SUIT);
-  capsuleBetween(pivot, [side * 0.91, -0.10, 0.06], [side * 1.03, -0.13, 0.09], 0.075, GLOVE);
-  sphere(pivot, [side * 1.07, -0.14, 0.09], [0.105, 0.075, 0.12], GLOVE);
-  // Small orange sleeve patch.
-  box(pivot, [side * 0.66, -0.005, 0.02], [0.12, 0.035, 0.17], ACCENT);
-  return pivot;
+function arm(parent,side){
+ const pivot=new THREE.Group();pivot.position.set(side*.25,.25,0);parent.add(pivot);
+ capsule(pivot,[0,0,0],[side*.48,.04,0],.125,M.suitLight);
+ ellipsoid(pivot,[side*.48,.04,0],[.13,.13,.13],M.seam);
+ capsule(pivot,[side*.48,.04,0],[side*.91,-.09,.035],.09,M.suit);
+ capsule(pivot,[side*.91,-.09,.035],[side*1.03,-.13,.07],.075,M.glove);
+ ellipsoid(pivot,[side*1.07,-.14,.08],[.11,.08,.12],M.glove);
+ block(pivot,[side*.68,.02,-.01],[.13,.045,.18],M.accent);
+ return pivot;
 }
-
-function makeLeg(parent, side) {
-  const pivot = new THREE.Group();
-  pivot.position.set(side * 0.13, -0.43, 0);
-  parent.add(pivot);
-  capsuleBetween(pivot, [0, 0, 0], [side * 0.11, -0.43, 0.025], 0.15, SUIT);
-  sphere(pivot, [side * 0.11, -0.43, 0.025], [0.15, 0.15, 0.15], SUIT_LIGHT);
-  capsuleBetween(pivot, [side * 0.11, -0.43, 0.025], [side * 0.20, -0.78, 0.11], 0.105, SUIT_LIGHT);
-  capsuleBetween(pivot, [side * 0.20, -0.78, 0.11], [side * 0.23, -0.91, 0.19], 0.105, BOOT);
-  sphere(pivot, [side * 0.23, -0.93, 0.23], [0.12, 0.09, 0.19], BOOT);
-  return pivot;
+function leg(parent,side){
+ const pivot=new THREE.Group();pivot.position.set(side*.13,-.43,0);parent.add(pivot);
+ capsule(pivot,[0,0,0],[side*.11,-.43,.02],.15,M.suit);
+ ellipsoid(pivot,[side*.11,-.43,.02],[.15,.15,.15],M.suitLight);
+ capsule(pivot,[side*.11,-.43,.02],[side*.2,-.78,.1],.105,M.suitLight);
+ capsule(pivot,[side*.2,-.78,.1],[side*.23,-.91,.17],.105,M.boot);
+ ellipsoid(pivot,[side*.23,-.93,.22],[.12,.09,.19],M.boot);
+ return pivot;
 }
-
-function buildSkydiver() {
-  const model = new THREE.Group();
-  model.name = "ProceduralFreefallSkydiver";
-
-  // Torso, waist and flight equipment.
-  capsuleBetween(model, [0, -0.48, 0], [0, 0.48, 0], 0.245, SUIT_LIGHT, 14);
-  sphere(model, [0, -0.39, 0.015], [0.255, 0.19, 0.24], SUIT);
-  box(model, [0, 0.04, -0.205], [0.34, 0.53, 0.14], SUIT);
-  // Harness straps and chest buckle.
-  capsuleBetween(model, [-0.19, 0.37, -0.015], [-0.11, -0.22, -0.20], 0.027, ACCENT, 7);
-  capsuleBetween(model, [0.19, 0.37, -0.015], [0.11, -0.22, -0.20], 0.027, ACCENT, 7);
-  box(model, [0, -0.04, -0.225], [0.12, 0.10, 0.035], ACCENT);
-
-  // Backpack and parachute container on the back.
-  const pack = box(model, [0, 0.03, 0.245], [0.39, 0.58, 0.22], SUIT);
-  pack.rotation.x = -0.06;
-  box(model, [0, 0.12, 0.37], [0.30, 0.25, 0.045], SUIT_LIGHT);
-  box(model, [0, -0.17, 0.37], [0.30, 0.13, 0.045], ACCENT);
-
-  // Neck, head, ears and simple face details.
-  capsuleBetween(model, [0, 0.43, 0], [0, 0.59, 0], 0.09, SKIN);
-  sphere(model, [0, 0.72, 0], [0.19, 0.235, 0.19], SKIN, 20);
-  sphere(model, [-0.185, 0.72, 0], [0.045, 0.07, 0.055], SKIN);
-  sphere(model, [0.185, 0.72, 0], [0.045, 0.07, 0.055], SKIN);
-  // Eyes and brows face the camera-facing side of the model.
-  sphere(model, [-0.067, 0.755, -0.168], [0.022, 0.018, 0.012], DARK, 10);
-  sphere(model, [0.067, 0.755, -0.168], [0.022, 0.018, 0.012], DARK, 10);
-  // Skydiving goggles: dark lenses with a warm strap.
-  sphere(model, [-0.083, 0.80, -0.16], [0.075, 0.055, 0.035], VISOR);
-  sphere(model, [0.083, 0.80, -0.16], [0.075, 0.055, 0.035], VISOR);
-  capsuleBetween(model, [-0.16, 0.81, -0.12], [0.16, 0.81, -0.12], 0.018, ACCENT, 7);
-
-  const arms = [makeArm(model, -1), makeArm(model, 1)];
-  const legs = [makeLeg(model, -1), makeLeg(model, 1)];
-
-  // Small shoulder and knee seams add readable suit detail.
-  for (const side of [-1, 1]) {
-    sphere(model, [side * 0.25, 0.28, 0], [0.13, 0.13, 0.13], SUIT);
-    box(model, [side * 0.16, -0.58, -0.11], [0.09, 0.16, 0.025], ACCENT);
-  }
-
-  model.traverse((node) => {
-    if (node.isMesh) {
-      node.castShadow = true;
-      node.receiveShadow = true;
-    }
-  });
-  return { model, arms, legs };
+function build(){
+ const model=new THREE.Group();model.name="StylizedFreefallSkydiver";
+ // Rounded torso and waist, with a clear silhouette.
+ ellipsoid(model,[0,-.28,0],[.265,.28,.245],M.suit);
+ capsule(model,[0,-.37,0],[0,.43,0],.235,M.suitLight,14);
+ ellipsoid(model,[0,.27,-.015],[.28,.23,.25],M.suitLight);
+ // Parachute pack and bright harness details on the back.
+ block(model,[0,.02,.245],[.4,.58,.22],M.seam);
+ block(model,[0,.13,.37],[.31,.25,.045],M.suitLight);
+ block(model,[0,-.17,.37],[.31,.13,.045],M.accent);
+ capsule(model,[-.19,.36,-.02],[-.11,-.22,-.2],.027,M.accent,8);
+ capsule(model,[.19,.36,-.02],[.11,-.22,-.2],.027,M.accent,8);
+ block(model,[0,-.04,-.225],[.13,.11,.04],M.buckle);
+ // Head, helmet cap and large stylized visor.
+ capsule(model,[0,.42,0],[0,.59,0],.09,M.skin);
+ ellipsoid(model,[0,.72,0],[.19,.23,.19],M.skin,20);
+ ellipsoid(model,[0,.855,.015],[.195,.105,.195],M.seam,20);
+ ellipsoid(model,[0,.80,-.155],[.155,.075,.055],M.visor,20);
+ capsule(model,[-.17,.81,-.12],[.17,.81,-.12],.018,M.accent,8);
+ ellipsoid(model,[-.185,.72,0],[.045,.07,.055],M.skin);
+ ellipsoid(model,[.185,.72,0],[.045,.07,.055],M.skin);
+ const arms=[arm(model,-1),arm(model,1)],legs=[leg(model,-1),leg(model,1)];
+ for(const side of [-1,1]){
+  ellipsoid(model,[side*.25,.25,0],[.14,.14,.14],M.suit);
+  block(model,[side*.16,-.58,-.11],[.09,.16,.025],M.accent);
+ }
+ model.traverse(n=>{if(n.isMesh){n.castShadow=true;n.receiveShadow=true;}});
+ return{model,arms,legs};
 }
-
-/**
- * Self-contained Three.js skydiver. No external model or texture downloads.
- * The character is posed belly-down with arms and legs spread in freefall.
- */
-export class Skydiver {
-  constructor(scene) {
-    this.root = new THREE.Group();
-    this.root.name = "SkydiverFollowRoot";
-    this.scene = scene;
-    this.phase = Math.random() * Math.PI * 2;
-    this.parts = buildSkydiver();
-    this.model = this.parts.model;
-    this.model.scale.setScalar(1.45);
-    this.model.rotation.x = -0.10;
-    this.root.add(this.model);
-    scene.add(this.root);
-    this.ready = true;
-  }
-
-  async load() {
-    // Keep the async interface used by main.js; no GLB is required.
-    return true;
-  }
-
-  update(dt, elapsed, speed = 90) {
-    const gust = Math.sin(elapsed * 1.7 + this.phase);
-    const flutter = Math.sin(elapsed * 3.1 + this.phase);
-    this.parts.arms[0].rotation.z = -0.06 + gust * 0.075;
-    this.parts.arms[1].rotation.z = 0.06 - gust * 0.075;
-    this.parts.arms[0].rotation.x = flutter * 0.035;
-    this.parts.arms[1].rotation.x = -flutter * 0.035;
-    this.parts.legs[0].rotation.x = 0.045 + Math.sin(elapsed * 1.25 + this.phase) * 0.07;
-    this.parts.legs[1].rotation.x = -0.045 + Math.sin(elapsed * 1.25 + this.phase + 1.2) * 0.07;
-    this.root.rotation.z = Math.sin(elapsed * 0.62 + this.phase) * 0.025;
-    this.root.rotation.x = -0.08 + Math.sin(elapsed * 0.43 + this.phase) * 0.018;
-    this.root.rotation.y = Math.sin(elapsed * 0.31) * 0.025;
-    this.root.position.x = Math.sin(elapsed * 0.15) * 0.48;
-    this.root.position.y = Math.sin(elapsed * 0.8) * 0.075;
-    this.root.position.z = -0.5 + Math.sin(elapsed * 0.35) * Math.min(0.06, speed * 0.00035);
-  }
-
-  dispose() {
-    this.root.parent?.remove(this.root);
-    const geometries = new Set();
-    const materials = new Set();
-    this.model.traverse((node) => {
-      if (!node.isMesh) return;
-      geometries.add(node.geometry);
-      for (const material of Array.isArray(node.material) ? node.material : [node.material]) {
-        materials.add(material);
-      }
-    });
-    for (const geometry of geometries) geometry.dispose();
-    for (const material of materials) material.dispose();
-  }
+export class Skydiver{
+ constructor(scene){
+  this.root=new THREE.Group();this.root.name="SkydiverFollowRoot";this.phase=Math.random()*Math.PI*2;
+  this.parts=build();this.model=this.parts.model;this.model.scale.setScalar(1.38);this.root.add(this.model);scene.add(this.root);
+ }
+ async load(){return true;}
+ update(dt,t,speed=90){
+  const gust=Math.sin(t*1.55+this.phase),flutter=Math.sin(t*2.8+this.phase);
+  this.parts.arms[0].rotation.z=-.055+gust*.06;this.parts.arms[1].rotation.z=.055-gust*.06;
+  this.parts.arms[0].rotation.x=flutter*.025;this.parts.arms[1].rotation.x=-flutter*.025;
+  this.parts.legs[0].rotation.x=.035+Math.sin(t*1.1+this.phase)*.055;
+  this.parts.legs[1].rotation.x=-.035+Math.sin(t*1.1+this.phase+1.1)*.055;
+  this.root.rotation.z=Math.sin(t*.48+this.phase)*.022;
+  this.root.rotation.x=-.07+Math.sin(t*.38+this.phase)*.015;
+  this.root.rotation.y=Math.sin(t*.25)*.02;
+  this.root.position.set(Math.sin(t*.13)*.38,Math.sin(t*.65)*.055,-.5+Math.sin(t*.3)*Math.min(.05,speed*.0003));
+ }
+ dispose(){
+  this.root.parent?.remove(this.root);const geometries=new Set(),materials=new Set();
+  this.model.traverse(n=>{if(!n.isMesh)return;geometries.add(n.geometry);for(const m of(Array.isArray(n.material)?n.material:[n.material]))materials.add(m);});
+  geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());
+ }
 }
