@@ -65,16 +65,19 @@ function hashChunk(seed, x, z) {
 
 export function createVegetation({ seed, biome, environment, xOffset, chunkZ, chunkSize, segments, heightAt, seaLevel = -28 }) {
   const types = environment?.vegetation?.types || [];
+  const desert = biome === "desert" && types.includes("desert-shrub");
   const supportsTrees = types.includes("pine") || types.includes("deciduous-trees");
-  if (!supportsTrees || (biome !== "forest" && biome !== "snow") || segments < 32) return null;
+  if ((!supportsTrees && !desert) || (!desert && biome !== "forest" && biome !== "snow") || segments < 32) return null;
 
   const density = THREE.MathUtils.clamp(environment?.vegetation?.density ?? 0.3, 0.08, 0.8);
   const lodFactor = segments >= 128 ? 1 : segments >= 64 ? 0.62 : 0.2;
-  const targetCount = Math.round((biome === "snow" ? 150 : 112) * density * lodFactor);
+  const targetCount = Math.round((desert ? 34 : biome === "snow" ? 150 : 112) * density * lodFactor);
   if (targetCount < 1) return null;
 
   const random = seededRandom(hashChunk(seed, xOffset, chunkZ));
-  const instances = new THREE.InstancedMesh(treeGeometry, treeMaterial, targetCount);
+  const shrubGeometry = desert ? new THREE.DodecahedronGeometry(1, 0) : treeGeometry;
+  const shrubMaterial = desert ? new THREE.MeshStandardMaterial({ color: 0x9b7542, roughness: 1 }) : treeMaterial;
+  const instances = new THREE.InstancedMesh(shrubGeometry, shrubMaterial, targetCount);
   instances.name = "procedural-vegetation";
   instances.frustumCulled = false;
   const dummy = new THREE.Object3D();
@@ -89,19 +92,19 @@ export function createVegetation({ seed, biome, environment, xOffset, chunkZ, ch
     const worldZ = chunkZ + z;
     const rawHeight = heightAt(worldX, worldZ);
     const worldHeight = 20 + rawHeight;
-    if (worldHeight < seaLevel + 24) continue;
+    if (worldHeight < seaLevel + (desert ? 8 : 24)) continue;
 
     const sample = 34;
     const dx = heightAt(worldX + sample, worldZ) - heightAt(worldX - sample, worldZ);
     const dz = heightAt(worldX, worldZ + sample) - heightAt(worldX, worldZ - sample);
     const slope = Math.hypot(dx, dz) / (sample * 2);
-    if (slope > (biome === "snow" ? 0.58 : 0.48)) continue;
+    if (slope > (desert ? 0.34 : biome === "snow" ? 0.58 : 0.48)) continue;
 
     // Keep trees away from the deepest river channel and leave irregular clearings.
     if (environment?.water?.type === "river" && worldHeight < seaLevel + 78) continue;
     if (random() < 0.09) continue;
 
-    const scale = (biome === "snow" ? 3.0 : 3.1) + random() * (biome === "snow" ? 2.1 : 2.4);
+    const scale = desert ? 0.8 + random() * 1.15 : (biome === "snow" ? 3.0 : 3.1) + random() * (biome === "snow" ? 2.1 : 2.4);
     dummy.position.set(x, worldHeight, z);
     dummy.rotation.set(0, random() * Math.PI * 2, 0);
     dummy.scale.set(scale * (0.82 + random() * 0.34), scale, scale * (0.82 + random() * 0.34));
@@ -110,9 +113,9 @@ export function createVegetation({ seed, biome, environment, xOffset, chunkZ, ch
 
     const shade = 0.82 + random() * 0.3;
     tint.setHSL(
-      biome === "snow" ? 0.31 + random() * 0.025 : 0.34 + random() * 0.035,
-      biome === "snow" ? 0.28 : 0.5,
-      (biome === "snow" ? 0.46 : 0.44) * shade
+      desert ? 0.10 + random() * 0.06 : biome === "snow" ? 0.31 + random() * 0.025 : 0.34 + random() * 0.035,
+      desert ? 0.42 : biome === "snow" ? 0.28 : 0.5,
+      (desert ? 0.42 : biome === "snow" ? 0.46 : 0.44) * shade
     );
     instances.setColorAt(placed, tint);
     placed++;
