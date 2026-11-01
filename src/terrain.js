@@ -145,7 +145,7 @@ function makeChunk(noise, seed, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, s
     if (biome === "forest") {
       const rolling = noise(warpX * 0.00034 + 31.0, warpZ * 0.00034 - 17.0);
       const shoulder = noise(warpX * 0.00082 - 9.0, warpZ * 0.00082 + 23.0);
-      h += rolling * 24 + shoulder * 7;
+      h += rolling * 15 + shoulder * 3.5;
     }
     if (biome === "desert") h = h * 0.76 + Math.sin(warpX * 0.0018 + noise(0, warpZ * 0.0008) * 1.6) * 10;
     if (biome === "mountains" || biome === "snow") {
@@ -339,7 +339,7 @@ function createWaterMaterial(seed) {
 
 function createFarRanges(scene, noise) {
   const layers = [];
-  const colors = [0x536f83, 0x7896a8, 0xa4bac5];
+  const colors = [0x718b91, 0x91a9ad, 0xb4c7c9];
   const distances = [10500, 14500, 18500];
   for (let layer = 0; layer < 3; layer++) {
     const positions = [], indices = [];
@@ -352,8 +352,8 @@ function createFarRanges(scene, noise) {
         const r1 = 1.0 - Math.abs(noise(x * (.00027 + layer * .00003), z * .00024 + layer * 2.1));
         const r2 = 1.0 - Math.abs(noise(x * (.00071 + layer * .000035) + 17.0, z * .00061 - layer * 4.7));
         const r3 = 1.0 - Math.abs(noise(x * (.00155 + layer * .00005) - 9.0, z * .0012 + layer));
-        const ridge = Math.pow(r1, 1.9) * 360 + Math.pow(r2, 2.5) * 145 + Math.pow(r3, 3.0) * 48;
-        const base = 72 + Math.sin(x * .00014 + layer) * 32 + Math.sin(z * .0008 + layer) * 12;
+        const ridge = Math.pow(r1, 2.15) * 270 + Math.pow(r2, 2.7) * 105 + Math.pow(r3, 3.2) * 32;
+        const base = 58 + Math.sin(x * .00014 + layer) * 22 + Math.sin(z * .00045 + layer) * 8;
         const y = Math.max(12, (base + ridge) * envelope);
         positions.push(x, y, z);
       }
@@ -464,8 +464,8 @@ export class Terrain {
     const river = this.environment?.water?.type === "river";
     if (distance < 400) return { segments: 128, ring: "near" };
     if (distance < 1500) return { segments: 64, ring: "mid" };
-    if (distance < 5000) return { segments: river ? 64 : 32, ring: "far" };
-    return { segments: river ? 32 : 16, ring: "horizon" };
+    if (distance < 5000) return { segments: river ? 64 : 48, ring: "far" };
+    return { segments: river ? 32 : 32, ring: "horizon" };
   }
 
   ensureGrid(cameraX, cameraZ) {
