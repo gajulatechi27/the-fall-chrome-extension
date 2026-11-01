@@ -1,16 +1,17 @@
 import * as THREE from "three";
-import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
 
 export function createSky(scene, renderer, seed) {
   const skyGeo = new THREE.SphereGeometry(1800, 48, 32);
   const horizonColor = new THREE.Color(0x9fc8d9);
   const zenithColor = new THREE.Color(0x244766);
   const sunColor = new THREE.Color(0xffdfb4);
+  const angle = (seed % 6283) / 1000;
+  const sunDirection = new THREE.Vector3(Math.cos(angle) * 0.45, 0.62, Math.sin(angle) * 0.45).normalize();
   const skyMat = new THREE.ShaderMaterial({
     side: THREE.BackSide,
     depthWrite: false,
     uniforms: {
-      sunDirection: { value: new THREE.Vector3(-0.5, 0.55, -0.7) },
+      sunDirection: { value: sunDirection },
       horizon: { value: horizonColor },
       zenith: { value: zenithColor },
       sunColor: { value: sunColor }
@@ -28,21 +29,16 @@ export function createSky(scene, renderer, seed) {
         float h = clamp(vDirection.y * 0.5 + 0.5, 0.0, 1.0);
         vec3 c = mix(horizon, zenith, smoothstep(0.18, 0.9, h));
         float sunDot = max(dot(normalize(vDirection), normalize(sunDirection)), 0.0);
-        float glow = pow(sunDot, 18.0);
-        float disk = pow(sunDot, 420.0);
-        c += sunColor * (glow * 0.32 + disk * 2.1);
+        c += sunColor * (pow(sunDot, 18.0) * 0.32 + pow(sunDot, 420.0) * 2.1);
         gl_FragColor = vec4(c, 1.0);
       }`
   });
   const sky = new THREE.Mesh(skyGeo, skyMat);
   scene.add(sky);
-
-  const hemi = new THREE.HemisphereLight(0xdcefff, 0x536d69, 1.55);
+  const hemi = new THREE.HemisphereLight(0xdcefff, 0x536d69, 1.45);
   scene.add(hemi);
-
-  const angle = (seed % 6283) / 1000;
-  const sun = new THREE.DirectionalLight(0xffe3c2, 2.5);
-  sun.position.set(Math.cos(angle) * 260, 180 + (seed % 80), Math.sin(angle) * 260);
+  const sun = new THREE.DirectionalLight(0xffe3c2, 2.3);
+  sun.position.copy(sunDirection).multiplyScalar(420);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
   sun.shadow.camera.left = -500;
@@ -50,23 +46,6 @@ export function createSky(scene, renderer, seed) {
   sun.shadow.camera.top = 500;
   sun.shadow.camera.bottom = -500;
   scene.add(sun);
-
-  let environment;
-  const loader = new RGBELoader();
-  loader.load(
-    "/assets/toposcope_sunset_1k.hdr",
-    hdr => {
-      hdr.mapping = THREE.EquirectangularReflectionMapping;
-      const pmrem = new THREE.PMREMGenerator(renderer);
-      environment = pmrem.fromEquirectangular(hdr).texture;
-      scene.environment = environment;
-      hdr.dispose();
-      pmrem.dispose();
-    },
-    undefined,
-    () => console.info("Optional local HDRI not found; blue atmospheric gradient remains active.")
-  );
-
   return {
     horizonColor,
     update() {},
@@ -74,8 +53,6 @@ export function createSky(scene, renderer, seed) {
       scene.remove(sky, hemi, sun);
       skyGeo.dispose();
       skyMat.dispose();
-      environment?.dispose();
-      if (scene.environment === environment) scene.environment = null;
     }
   };
 }
