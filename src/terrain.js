@@ -251,7 +251,7 @@ export class Terrain {
     scene.add(this.group);
     this.chunks = [];
     for (let i = 0; i < 4; i++) {
-      const chunkZ = -i * 1250;
+      const chunkZ = -i * CHUNK_SIZE;
       const chunk = makeChunk(this.noise, chunkZ, biome);
       this.group.add(chunk);
       this.chunks.push(chunk);
@@ -274,8 +274,7 @@ export class Terrain {
     this.group.position.z += movement;
     for (const chunk of this.chunks) {
       if (chunk.position.z + this.group.position.z > 900) {
-        const oldZ = chunk.position.z;
-        chunk.position.z -= 5000;
+        chunk.position.z -= CHUNK_SIZE * 4;
         chunk.geometry.dispose();
         chunk.material.dispose();
         this.group.remove(chunk);
@@ -283,7 +282,6 @@ export class Terrain {
         next.position.z = chunk.position.z;
         this.group.add(next);
         this.chunks[this.chunks.indexOf(chunk)] = next;
-        void oldZ;
       }
     }
     if (this.water) {
