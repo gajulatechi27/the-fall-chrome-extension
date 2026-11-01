@@ -279,7 +279,7 @@ if (testMode) {
  el("apply").addEventListener("click",()=>{
   testSettings.scene=el("scene").value; testSettings.seed=Number(el("seed").value)||1; testSettings.time=el("time").value; testSettings.weather=el("weather").value; testSettings.speed=el("speed").value===""?null:Math.max(0,Number(el("speed").value)); testSettings.freeze=el("freeze").checked;
   const selected=sceneTypes.find(item=>item.id===sceneAliases[testSettings.scene])||sceneTypes[1]; const x=camera.position.x,z=camera.position.z;
-  disposeScene(); camera.position.set(x,0,z); camera.rotation.set(0,0,0); createScene(selected,testSettings.seed,weatherParam(testSettings.weather));
+  disposeScene(); camera.position.set(x,0,z); camera.rotation.set(0,0,0); createScene(selected,testSettings.seed,weatherParam(testSettings.weather)); terrain?.setDebugOptions(terrainDebugOptions);
   if(testSettings.freeze){camera.position.y=Math.max(terrain.getHeightAt(x,z)+80,terrain.getWaterLevel()+40);camera.lookAt(x+1350,camera.position.y-Math.tan(THREE.MathUtils.degToRad(25))*1350,z-1350);speed=testSettings.speed??0;}
  });
  el("copy").addEventListener("click",async()=>{
