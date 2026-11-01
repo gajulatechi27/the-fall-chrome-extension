@@ -104,7 +104,7 @@ diffuseColor.rgb = mix(diffuseColor.rgb, fallGround, 0.98);`
   material.customProgramCacheKey = () => "the-fall-terrain-shore-v2-" + biome + "-" + (environment?.paletteTint || "default") + "-" + (environment?.materialMix?.snow?.[0] || 145);
 }
 
-function makeChunk(noise, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, segments = SEGMENTS, environment = null) {
+function makeChunk(noise, seed, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, segments = SEGMENTS, environment = null) {
   const positions = [];
   const indices = [];
   const heights = new Float32Array((segments + 1) * (segments + 1));
@@ -219,7 +219,7 @@ function makeChunk(noise, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, segment
   makeTerrainShader(material, biome, environment);
   const mesh = new THREE.Mesh(geometry, material);
   const vegetation = createVegetation({
-    seed: noise.seed ?? 0,
+    seed,
     biome,
     environment,
     xOffset,
@@ -484,7 +484,7 @@ export class Terrain {
             chunk.geometry.dispose(); chunk.material.dispose();
             this.group.remove(chunk); keep.delete(key);
           }
-          chunk = makeChunk(this.noise, z, this.biome, x, this.chunkSize, lod.segments, this.environment);
+          chunk = makeChunk(this.noise, this.seed, z, this.biome, x, this.chunkSize, lod.segments, this.environment);
           chunk.userData.worldX = x;
           chunk.userData.gridKey = key;
         }
