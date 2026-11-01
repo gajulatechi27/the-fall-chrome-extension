@@ -1,11 +1,11 @@
 import * as THREE from "three";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
 
-export function createSky(scene, renderer, seed) {
+export function createSky(scene, renderer, seed, environment = null) {
   const skyGeo = new THREE.SphereGeometry(1800, 48, 32);
-  const horizonColor = new THREE.Color(0x9fc8d9);
-  const zenithColor = new THREE.Color(0x244766);
-  const sunColor = new THREE.Color(0xffdfb4);
+  const horizonColor = new THREE.Color(environment?.sky?.horizon || 0x9fc8d9);
+  const zenithColor = new THREE.Color(environment?.sky?.zenith || 0x244766);
+  const sunColor = new THREE.Color(environment?.sky?.sun || 0xffdfb4);
   const skyMat = new THREE.ShaderMaterial({
     side: THREE.BackSide,
     depthWrite: false,
@@ -41,8 +41,8 @@ export function createSky(scene, renderer, seed) {
   scene.add(hemi);
 
   const angle = (seed % 6283) / 1000;
-  const sun = new THREE.DirectionalLight(0xffe3c2, 2.5);
-  sun.position.set(Math.cos(angle) * 260, 180 + (seed % 80), Math.sin(angle) * 260);
+  const sun = new THREE.DirectionalLight(0xffe3c2, environment?.sun?.intensity ?? 2.5);
+  sun.position.set(...(environment?.sun?.position || [Math.cos(angle) * 260, 180 + (seed % 80), Math.sin(angle) * 260]));
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
   sun.shadow.camera.left = -500;
@@ -74,6 +74,8 @@ export function createSky(scene, renderer, seed) {
 
   return {
     horizonColor,
+    zenithColor,
+    sunColor,
     update(camera) {
       if (camera) sky.position.copy(camera.position);
     },
