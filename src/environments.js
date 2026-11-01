@@ -34,7 +34,7 @@ export const ENVIRONMENTS = [
     biome: "snow", paletteTint: "vec3(1.08,1.12,1.16)", terrain: { biome: "snow", mountainProfile: "himalayan", baseHeight: 300, noiseOctaves: 7, ridgeWeight: 1.22, valleyCarving: 0.2, seaLevel: -28 },
     materialMix: { rock: [145, 340], grass: [-12, 55], dryGrass: [42, 105], sand: [-28, -10], snow: [78, 245] },
     water: { type: "none", level: -28, width: 0 },
-    vegetation: { types: ["pine", "alpine-grass"], density: 0.48, clumpSize: 62, maxElevation: 92, maxSlope: 0.34 },
+    vegetation: { types: ["pine", "alpine-grass"], density: 0.48, clumpSize: 62, maxElevation: 58, maxSlope: 0.26 },
     sun: { position: [-340, 560, -300], intensity: 3.1 }, sky: { horizon: "#d9edfa", zenith: "#2878b7", sun: "#fff8e8" },
     fog: { color: "#c6deed", density: 0.000052 }, clouds: { cover: 0.28, speed: 0.78 }, weather: "clear", particles: "mist",
     camera: { altitude: 520, speed: 40 }, duration: 25
