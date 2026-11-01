@@ -228,6 +228,7 @@ function mergeTreeParts(parts, palette = [0x25442c, 0x477747, 0x83a95a]) {
     colors.push(c.r, c.g, c.b);
   }
   geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  parts.forEach(item => item.geometry.dispose());
   geometry.computeVertexNormals();
   geometry.computeBoundingSphere();
   return geometry;
@@ -659,10 +660,20 @@ export class Terrain {
 
   getDebugInfo() {
     const chunks = [...this.chunks.values()];
+    const vegetation = { pine: 0, broadleaf: 0, bush: 0, total: 0 };
+    for (const chunk of chunks) {
+      const stats = chunk.userData.vegetationStats;
+      if (!stats) continue;
+      vegetation.pine += stats.pine || 0;
+      vegetation.broadleaf += stats.broadleaf || 0;
+      vegetation.bush += stats.bush || 0;
+    }
+    vegetation.total = vegetation.pine + vegetation.broadleaf + vegetation.bush;
     return {
       chunkCount: chunks.length,
       viewDistance: GRID_RADIUS * CHUNK_SIZE,
       noiseOctaves: 2,
+      vegetation,
       minHeight: chunks.length ? Math.min(...chunks.map(c => c.userData.minHeight)) : 0,
       maxHeight: chunks.length ? Math.max(...chunks.map(c => c.userData.maxHeight)) : 0
     };
