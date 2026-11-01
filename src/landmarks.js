@@ -21,7 +21,7 @@ function addTheme(p,t,seed,z){let s=seed>>>0;const rand=()=>{s=(Math.imul(s,1664
  if(t==="temple"){for(let i=0;i<7;i++)tower(p,(i-3)*100,z-650-Math.abs(i-3)*45,i===3?2:1.15);for(let i=0;i<18;i++)box(p,(rand()-.5)*700,-60,z-200-rand()*650,26,18,26,M.white);}
 }
 export class Landmarks{
- constructor(scene,seed,theme){this.group=new THREE.Group();scene.add(this.group);this.segments=[];this.theme=theme;for(let i=0;i<3;i++){const g=new THREE.Group();g.position.z=-i*2600;addTheme(g,theme,seed+i*137,0);this.group.add(g);this.segments.push(g);}}
+ constructor(scene,seed,theme){this.group=new THREE.Group();this.group.position.y=135;scene.add(this.group);this.segments=[];this.theme=theme;for(let i=0;i<3;i++){const g=new THREE.Group();g.position.z=-i*2600;addTheme(g,theme,seed+i*137,0);this.group.add(g);this.segments.push(g);}}
  update(dt,speed){this.group.position.z+=dt*(speed*1.65+70);for(const g of this.segments)if(g.position.z+this.group.position.z>950)g.position.z-=7800;}
  dispose(){this.group.parent?.remove(this.group);this.group.traverse(o=>{if(o.isMesh)o.geometry.dispose();});}
 }
