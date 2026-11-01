@@ -97,6 +97,11 @@ function makeChunk(noise, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, segment
     const warpZ = worldZ + noise((x + 900) * 0.0007, (worldZ - 400) * 0.0007) * 115;
     let h = fbm(noise, warpX, warpZ, environment?.terrain?.noiseOctaves ?? 6) * amplitude;
     if (environment?.terrain?.valleyCarving) h -= Math.abs(noise(warpX * 0.00048, warpZ * 0.00048)) * environment.terrain.valleyCarving * amplitude * 0.34;
+    if (environment?.water?.type === "lake") {
+      const lakeRadius = Math.hypot(worldX, worldZ + 2500);
+      const basin = 1.0 - THREE.MathUtils.smoothstep(lakeRadius, 1100, 4300);
+      h -= basin * 145;
+    }
     if (biome === "islands") {
       const ridgeA = 1.0 - Math.abs(noise(warpX * 0.00145, warpZ * 0.00145));
       const ridgeB = 1.0 - Math.abs(noise(warpX * 0.0031 + 17.0, warpZ * 0.0031 - 9.0));
@@ -202,7 +207,8 @@ function createWaterMaterial(seed) {
     uniforms: {
       uTime: { value: 0 },
       uSunDirection: { value: new THREE.Vector3(-0.45, 0.78, -0.42).normalize() },
-      uSeed: { value: (seed % 10000) * 0.013 }
+      uSeed: { value: (seed % 10000) * 0.013 },
+      uWaterLevel: { value: -28.0 }
     },
     vertexShader: `
       varying vec3 vWorldPosition;
@@ -220,6 +226,7 @@ function createWaterMaterial(seed) {
     fragmentShader: `
       uniform float uTime;
       uniform float uSeed;
+      uniform float uWaterLevel;
       uniform vec3 uSunDirection;
       varying vec3 vWorldPosition;
       varying vec3 vViewDirection;
@@ -236,7 +243,7 @@ function createWaterMaterial(seed) {
         return n;
       }
       void main(){
-        if (vTerrainHeight >= -28.0) discard;
+        if (vTerrainHeight >= uWaterLevel) discard;
         vec2 p=vWorldPosition.xz;
         float t=uTime;
         float n1=fbm2(p*.012+vec2(t*.045,-t*.026));
@@ -246,7 +253,7 @@ function createWaterMaterial(seed) {
         float viewDot=max(dot(normalize(vViewDirection),normal),0.0);
         float fresnel=pow(1.0-viewDot,4.0);
         // Estimate shoreline from the same broad world-space noise field as terrain.
-        float waterDepth=max(0.0,-28.0-vTerrainHeight);
+        float waterDepth=max(0.0,uWaterLevel-vTerrainHeight);
         float shore=1.0-smoothstep(0.0,1.8,waterDepth);
         float shallow=smoothstep(0.0,20.0,waterDepth);
         float lowNoise=fbm2(p*.00042+vec2(uTime*.002,.37));
@@ -375,6 +382,7 @@ export class Terrain {
       this.waterCenterX = Number.NaN;
       this.waterCenterZ = Number.NaN;
       this.waterMaterial = createWaterMaterial(seed);
+      this.waterMaterial.uniforms.uWaterLevel.value = this.seaLevel;
       this.water = new THREE.Mesh(geometry, this.waterMaterial);
       this.water.rotation.x = -Math.PI / 2;
       this.water.position.y = this.seaLevel;
@@ -439,10 +447,15 @@ export class Terrain {
     const warpZ = z + this.noise((x + 900) * 0.0007, (z - 400) * 0.0007) * 115;
     let h = fbm(this.noise, warpX, warpZ, this.environment?.terrain?.noiseOctaves ?? 6) * (this.environment?.terrain?.baseHeight ?? BIOME_HEIGHT[this.biome] ?? 145);
     if (this.environment?.terrain?.valleyCarving) h -= Math.abs(this.noise(warpX * 0.00048, warpZ * 0.00048)) * this.environment.terrain.valleyCarving * (this.environment.terrain.baseHeight || 145) * 0.34;
+    if (this.environment?.water?.type === "lake") {
+      const lakeRadius = Math.hypot(x, z + 2500);
+      const basin = 1.0 - THREE.MathUtils.smoothstep(lakeRadius, 1100, 4300);
+      h -= basin * 145;
+    }
     if (this.biome === "islands") {
       const ridgeA = 1.0 - Math.abs(this.noise(warpX * 0.00145, warpZ * 0.00145));
       const ridgeB = 1.0 - Math.abs(this.noise(warpX * 0.0031 + 17.0, warpZ * 0.0031 - 9.0));
-      h += (Math.pow(Math.max(0.0, ridgeA), 2.0) * 34 + Math.pow(Math.max(0.0, ridgeB), 2.4) * 13) * (environment?.terrain?.ridgeWeight ?? 1);
+      h += (Math.pow(Math.max(0.0, ridgeA), 2.0) * 34 + Math.pow(Math.max(0.0, ridgeB), 2.4) * 13) * (this.environment?.terrain?.ridgeWeight ?? 1);
       const shoreZ = Math.sin(x * 0.00022) * 1150 + Math.sin(x * 0.00061 + 1.7) * 360 +
         this.noise(x * 0.00048, z * 0.00031) * 260;
       const coast = THREE.MathUtils.smoothstep(shoreZ - z, -720, 260);
