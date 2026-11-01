@@ -1,8 +1,10 @@
 import * as THREE from "three";
 import { createNoise2D } from "simplex-noise";
 
-const CHUNK_SIZE = 1500;
+const CHUNK_SIZE = 3000;
 const SEGMENTS = 128;
+const GRID_RADIUS = 7;
+const GRID_DIAMETER = GRID_RADIUS * 2 + 1;
 const WATER_LEVEL = -28;
 const WATER_SIZE = 6200;
 const HEIGHT_BASE = 20;
@@ -82,12 +84,12 @@ diffuseColor.rgb = mix(diffuseColor.rgb, fallGround, 0.98);`
   material.customProgramCacheKey = () => "the-fall-terrain-shore-v1-" + biome;
 }
 
-function makeChunk(noise, z, biome) {
+function makeChunk(noise, z, biome, xOffset = 0, chunkSize = chunkSize, segments = segments) {
   const positions = [];
   const indices = [];
-  const heights = new Float32Array((SEGMENTS + 1) * (SEGMENTS + 1));
+  const heights = new Float32Array((segments + 1) * (segments + 1));
   let minHeight = Infinity, maxHeight = -Infinity;
-  const step = CHUNK_SIZE / SEGMENTS;
+  const step = chunkSize / segments;
   const amplitude = BIOME_HEIGHT[biome] || 145;
 
   const heightAt = (x, worldZ) => {
@@ -103,13 +105,13 @@ function makeChunk(noise, z, biome) {
     return h;
   };
 
-  for (let row = 0; row <= SEGMENTS; row++) {
-    for (let col = 0; col <= SEGMENTS; col++) {
-      const x = -CHUNK_SIZE * 0.5 + col * step;
-      const localZ = -CHUNK_SIZE * 0.5 + row * step;
+  for (let row = 0; row <= segments; row++) {
+    for (let col = 0; col <= segments; col++) {
+      const x = xOffset - chunkSize * 0.5 + col * step;
+      const localZ = -chunkSize * 0.5 + row * step;
       const worldZ = z + localZ;
       const h = heightAt(x, worldZ);
-      heights[row * (SEGMENTS + 1) + col] = h;
+      heights[row * (segments + 1) + col] = h;
       const worldHeight = HEIGHT_BASE + h;
       minHeight = Math.min(minHeight, worldHeight);
       maxHeight = Math.max(maxHeight, worldHeight);
@@ -117,11 +119,11 @@ function makeChunk(noise, z, biome) {
     }
   }
 
-  for (let row = 0; row < SEGMENTS; row++) {
-    for (let col = 0; col < SEGMENTS; col++) {
-      const a = row * (SEGMENTS + 1) + col;
+  for (let row = 0; row < segments; row++) {
+    for (let col = 0; col < segments; col++) {
+      const a = row * (segments + 1) + col;
       const b = a + 1;
-      const c = a + SEGMENTS + 1;
+      const c = a + segments + 1;
       const d = c + 1;
       indices.push(a, c, b, b, c, d);
     }
@@ -129,10 +131,10 @@ function makeChunk(noise, z, biome) {
 
   // A narrow skirt closes the outer silhouette and hides sub-pixel cracks.
   const edge = [];
-  for (let x = 0; x <= SEGMENTS; x++) edge.push(x);
-  for (let y = 1; y <= SEGMENTS; y++) edge.push(y * (SEGMENTS + 1) + SEGMENTS);
-  for (let x = SEGMENTS - 1; x >= 0; x--) edge.push(SEGMENTS * (SEGMENTS + 1) + x);
-  for (let y = SEGMENTS - 1; y > 0; y--) edge.push(y * (SEGMENTS + 1));
+  for (let x = 0; x <= segments; x++) edge.push(x);
+  for (let y = 1; y <= segments; y++) edge.push(y * (segments + 1) + segments);
+  for (let x = segments - 1; x >= 0; x--) edge.push(segments * (segments + 1) + x);
+  for (let y = segments - 1; y > 0; y--) edge.push(y * (segments + 1));
   const skirtStart = positions.length / 3;
   for (const index of edge) {
     const x = positions[index * 3], y = positions[index * 3 + 1], zLocal = positions[index * 3 + 2];
@@ -169,11 +171,14 @@ function makeChunk(noise, z, biome) {
   const material = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.94, metalness: 0.0, side: THREE.DoubleSide });
   makeTerrainShader(material, biome);
   const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.x = xOffset;
   mesh.position.z = z;
   mesh.receiveShadow = true;
   mesh.castShadow = false;
   mesh.userData.biome = biome;
   mesh.userData.baseZ = z;
+  mesh.userData.chunkSize = chunkSize;
+  mesh.userData.lodSegments = segments;
   mesh.userData.minHeight = minHeight;
   mesh.userData.maxHeight = maxHeight;
   mesh.userData.heightAt = heightAt;
@@ -260,13 +265,11 @@ export class Terrain {
     this.group = new THREE.Group();
     scene.add(this.group);
     this.chunks = [];
-    // Build a 9 km runway synchronously before the first render frame.
-    for (let i = 0; i < 6; i++) {
-      const chunkZ = -i * CHUNK_SIZE;
-      const chunk = makeChunk(this.noise, chunkZ, biome);
-      this.group.add(chunk);
-      this.chunks.push(chunk);
-    }
+    this.chunkSize = CHUNK_SIZE;
+    this.gridCenterX = Number.NaN;
+    this.gridCenterZ = Number.NaN;
+    this.ringCounts = { near: 0, mid: 0, far: 0, horizon: 0 };
+    this.ensureGrid(0, 0);
 
     this.water = null;
     if (biome === "islands") {
@@ -280,41 +283,77 @@ export class Terrain {
     }
   }
 
-  update(dt, speed, altitude, camera) {
-    const movement = dt * (speed * 1.65 + 70);
-    this.group.position.z += movement;
-    if (camera) this.group.position.x = camera.position.x * 0.82;
-    for (const chunk of this.chunks) {
-      if (chunk.position.z + this.group.position.z > 900) {
-        chunk.position.z -= CHUNK_SIZE * this.chunks.length;
-        chunk.geometry.dispose();
-        chunk.material.dispose();
-        this.group.remove(chunk);
-        const next = makeChunk(this.noise, chunk.position.z, this.biome);
-        next.position.z = chunk.position.z;
-        this.group.add(next);
-        this.chunks[this.chunks.indexOf(chunk)] = next;
+  lodForDistance(distance) {
+    if (distance < 400) return { segments: 128, ring: "near" };
+    if (distance < 1500) return { segments: 64, ring: "mid" };
+    if (distance < 5000) return { segments: 32, ring: "far" };
+    return { segments: 16, ring: "horizon" };
+  }
+
+  ensureGrid(cameraX, cameraZ) {
+    const cx = Math.round(cameraX / this.chunkSize) * this.chunkSize;
+    const cz = Math.round(cameraZ / this.chunkSize) * this.chunkSize;
+    if (cx === this.gridCenterX && cz === this.gridCenterZ && this.chunks.length) return;
+    this.gridCenterX = cx;
+    this.gridCenterZ = cz;
+    const next = [];
+    const counts = { near: 0, mid: 0, far: 0, horizon: 0 };
+    const keep = new Map(this.chunks.map(c => [c.userData.gridKey, c]));
+    for (let gz = -GRID_RADIUS; gz <= GRID_RADIUS; gz++) {
+      for (let gx = -GRID_RADIUS; gx <= GRID_RADIUS; gx++) {
+        const x = cx + gx * this.chunkSize;
+        const z = cz + gz * this.chunkSize;
+        const distance = Math.hypot(x - cameraX, z - cameraZ);
+        const lod = this.lodForDistance(distance);
+        counts[lod.ring]++;
+        const key = gx + ":" + gz;
+        let chunk = keep.get(key);
+        if (chunk && chunk.userData.lodSegments === lod.segments &&
+            chunk.userData.worldX === x && chunk.userData.baseZ === z) {
+          keep.delete(key);
+        } else {
+          if (chunk) {
+            chunk.geometry.dispose(); chunk.material.dispose();
+            this.group.remove(chunk); keep.delete(key);
+          }
+          chunk = makeChunk(this.noise, z, this.biome, x, this.chunkSize, lod.segments);
+          chunk.userData.worldX = x;
+          chunk.userData.gridKey = key;
+        }
+        chunk.position.set(x - cx, 0, z - cz);
+        this.group.add(chunk);
+        next.push(chunk);
       }
     }
+    for (const old of keep.values()) {
+      old.geometry.dispose(); old.material.dispose(); this.group.remove(old);
+    }
+    this.group.position.set(cx, 0, cz);
+    this.chunks = next;
+    this.ringCounts = counts;
+  }
+
+  update(dt, speed, altitude, camera) {
+    if (camera) this.ensureGrid(camera.position.x, camera.position.z);
     if (this.water) {
       this.water.position.x = camera?.position.x || 0;
-      this.water.position.z = (camera?.position.z || 0) + this.group.position.z;
+      this.water.position.z = camera?.position.z || 0;
       this.waterMaterial.uniforms.uTime.value += dt;
     }
   }
 
   isReady() {
-    return this.chunks.length >= 6 &&
-      this.chunks.every(chunk => chunk.geometry?.attributes?.position?.count > 0 &&
-        chunk.geometry.boundingBox && chunk.geometry.boundingSphere);
+    return this.chunks.length === GRID_DIAMETER * GRID_DIAMETER &&
+      this.chunks.every(c => c.geometry?.attributes?.position?.count > 0 &&
+        c.geometry.boundingBox && c.geometry.boundingSphere);
   }
 
   hasChunkNear(x, z, radius = 500) {
     return this.chunks.some(chunk => {
       const box = chunk.geometry.boundingBox;
       if (!box) return false;
-      const minX = box.min.x + this.group.position.x;
-      const maxX = box.max.x + this.group.position.x;
+      const minX = box.min.x + chunk.position.x + this.group.position.x;
+      const maxX = box.max.x + chunk.position.x + this.group.position.x;
       const minZ = box.min.z + chunk.position.z + this.group.position.z;
       const maxZ = box.max.z + chunk.position.z + this.group.position.z;
       const dx = Math.max(minX - x, 0, x - maxX);
@@ -323,36 +362,40 @@ export class Terrain {
     });
   }
 
+  hasCoverage(radius = 20000) {
+    const step = 1500;
+    for (let a = 0; a < 360; a += 15) {
+      const r = a * Math.PI / 180;
+      const x = Math.sin(r) * radius, z = Math.cos(r) * radius;
+      if (!this.hasChunkNear(this.gridCenterX + x, this.gridCenterZ + z, step * 0.72)) return false;
+    }
+    return true;
+  }
+
   sampleHeight(x, worldZ) {
     for (const chunk of this.chunks) {
       const box = chunk.geometry.boundingBox;
       if (!box) continue;
-      const localX = x - this.group.position.x;
+      const localX = x - this.group.position.x - chunk.position.x;
       const localZ = worldZ - this.group.position.z - chunk.position.z;
-      if (localX < box.min.x || localX > box.max.x ||
-          localZ < box.min.z || localZ > box.max.z) continue;
+      if (localX < box.min.x || localX > box.max.x || localZ < box.min.z || localZ > box.max.z) continue;
       const heightAt = chunk.userData.heightAt;
       if (typeof heightAt !== "function") continue;
-      return HEIGHT_BASE + heightAt(localX, chunk.userData.baseZ + localZ);
+      return HEIGHT_BASE + heightAt(chunk.userData.worldX + localX, chunk.userData.baseZ + localZ);
     }
     return null;
   }
 
   getDebugInfo(camera) {
-    const chunksUnderCamera = camera
-      ? this.chunks.filter(chunk => {
-          const b = chunk.geometry.boundingBox;
-          if (!b) return false;
-          const x = camera.position.x - this.group.position.x;
-          const z = camera.position.z - this.group.position.z - chunk.position.z;
-          return x >= b.min.x && x <= b.max.x && z >= b.min.z && z <= b.max.z;
-        }).length
-      : 0;
+    const chunksUnderCamera = camera ? this.chunks.filter(c => this.hasChunkNear(camera.position.x, camera.position.z, 1) &&
+      camera.position.x >= this.group.position.x + c.position.x - this.chunkSize * .5 &&
+      camera.position.x <= this.group.position.x + c.position.x + this.chunkSize * .5 &&
+      camera.position.z >= this.group.position.z + c.position.z - this.chunkSize * .5 &&
+      camera.position.z <= this.group.position.z + c.position.z + this.chunkSize * .5).length : 0;
     return {
-      chunkCount: this.chunks.length,
-      chunksUnderCamera,
-      seaLevel: WATER_LEVEL,
-      waterEnabled: Boolean(this.water),
+      chunkCount: this.chunks.length, chunksUnderCamera,
+      ringCounts: { ...this.ringCounts }, coverage20km: this.hasCoverage(20000),
+      seaLevel: WATER_LEVEL, waterEnabled: Boolean(this.water),
       minHeight: Math.min(...this.chunks.map(c => c.userData.minHeight ?? Infinity)),
       maxHeight: Math.max(...this.chunks.map(c => c.userData.maxHeight ?? -Infinity))
     };
@@ -360,14 +403,11 @@ export class Terrain {
 
   dispose() {
     for (const chunk of this.chunks) {
-      chunk.geometry.dispose();
-      chunk.material.dispose();
+      chunk.geometry.dispose(); chunk.material.dispose();
     }
     this.group.parent?.remove(this.group);
     if (this.water) {
-      this.scene.remove(this.water);
-      this.water.geometry.dispose();
-      this.water.material.dispose();
+      this.scene.remove(this.water); this.water.geometry.dispose(); this.water.material.dispose();
     }
   }
 }
