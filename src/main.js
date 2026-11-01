@@ -104,7 +104,7 @@ function createScene(nextScene, nextSeed, forcedWeather = null) {
   verticalVelocity = 0;
   sky = createSky(scene, renderer, seed, activeScene.id, weather, testMode ? testSettings.time : "noon");
   scene.background = sky.horizonColor.clone();
-  scene.fog = new THREE.Fog(sky.horizonColor, 900, weather === "mist" || weather === "storm" ? 8500 : 18500);
+  scene.fog = activeScene.id === "himalayas" ? new THREE.FogExp2(sky.horizonColor, weather === "mist" ? 0.000052 : 0.000027) : new THREE.Fog(sky.horizonColor, 900, weather === "mist" || weather === "storm" ? 8500 : 18500);
   terrain = new Terrain(scene, seed, activeScene.id);
   const initialGround = Math.max(terrain.getHeightAt(camera.position.x, camera.position.z), terrain.getWaterLevel());
   camera.position.y = initialGround + (testMode && testSettings.freeze ? 80 : 400);
@@ -215,8 +215,13 @@ function animate() {
   try { clouds?.update(dt, speed, camera, altitude); } catch (error) { console.error("Cloud update failed", error); }
   if (scene.fog) {
     scene.fog.color.copy(sky.horizonColor);
-    const targetFar = weather === "mist" || weather === "storm" ? 8500 : weather === "heavy clouds" ? 12500 : 18500;
-    scene.fog.far = THREE.MathUtils.damp(scene.fog.far, targetFar, 0.8, dt);
+    if (scene.fog.isFogExp2) {
+      const targetDensity = weather === "mist" ? 0.000052 : weather === "storm" ? 0.000044 : 0.000027;
+      scene.fog.density = THREE.MathUtils.damp(scene.fog.density, targetDensity, 0.8, dt);
+    } else {
+      const targetFar = weather === "mist" || weather === "storm" ? 8500 : weather === "heavy clouds" ? 12500 : 18500;
+      scene.fog.far = THREE.MathUtils.damp(scene.fog.far, targetFar, 0.8, dt);
+    }
   }
   try {
     effects?.update(dt, speed, elapsed, camera, weather);
