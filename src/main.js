@@ -166,6 +166,7 @@ async function beginDescent() {
       orderMode = saved.theFallLandscapeOrder || "In order";
       orderControl.value = orderMode;
       index = nextIndex(sequenceIndex);
+      if (skipOnLoad) index = nextIndex(index);
     } else if (directEnvironment) index = Math.max(0, ENVIRONMENTS.findIndex(item => item.id === directEnvironment.id));
   } catch { index = directEnvironment ? Math.max(0, ENVIRONMENTS.findIndex(item => item.id === directEnvironment.id)) : 0; }
   fade.classList.add("white"); fade.style.opacity = "1";
