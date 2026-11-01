@@ -48,7 +48,7 @@ const testSettings={
  weather:weatherTypes.includes(params.get("weather"))?params.get("weather"):params.get("weather")==="clouds"?"scattered clouds":"clear",
  freeze:params.get("freeze")==="1",
  speed:params.has("speed")&&Number.isFinite(Number(params.get("speed")))?Math.max(0,Number(params.get("speed"))):null,
- phase:phaseAliases[(params.get("phase")||"").toLowerCase()]||"FREEFALL"
+ phase:phaseAliases[(params.get("phase")||"").toLowerCase()]||(params.has("scene")||params.has("biome")?"TRAVELLER FLIGHT":"FREEFALL")
 };
 const label=document.createElement("div");label.id="scene-label";document.body.appendChild(label);
 const debug=document.createElement("pre");debug.id="fall-debug";debug.style.cssText="display:none;position:fixed;z-index:30;left:12px;top:12px;margin:0;padding:12px 14px;max-width:min(520px,calc(100vw - 24px));background:rgba(3,12,20,.84);color:#d8f3ff;border:1px solid rgba(180,220,240,.35);border-radius:8px;font:12px/1.55 ui-monospace,monospace;white-space:pre-wrap;pointer-events:none";document.body.appendChild(debug);
@@ -60,7 +60,7 @@ const audio=new JourneyAudio();
 let seed=testSettings.seed,activeScene=sceneTypes[0],weather=testSettings.weather,timeOfDay=testSettings.time;
 let phaseIndex=0,phaseElapsed=0,journeyElapsed=0,phaseTimeLeft=7,phaseName="FREEFALL";
 let speed=0,altitude=5000,pitchDegrees=-60,windSpeed=0,fps=0,fpsFrames=0,fpsElapsed=0,eyeHeight=3,pathCurvature=0,horizonVisible=false;
-let running=false,paused=false,frame=0,verticalVelocity=0,worldDistance=0,terrainHeightUnder=0,cameraClearance=0,groundWarning="";
+let running=false,paused=false,frame=0,verticalVelocity=0,worldDistance=0,terrainHeightUnder=0,cameraClearance=0,groundWarning="",adaptiveScale=1,qualityCheckElapsed=0;
 let previousBiome="",previousWeather="",transitionTriggered=false,phaseForced=testMode?testSettings.phase:null;
 let debugVisible=false,devPanel=null,lastFrameTime=performance.now(),lightningWasActive=false;
 const sceneRandom=(s)=>{let v=s>>>0;return()=>((v=Math.imul(v,1664525)+1013904223>>>0)/4294967296);};
@@ -80,7 +80,7 @@ function disposeScene(){
 function weatherForBiome(biome, requested){
  if(biome==="rainforest")return "heavy rain";
  if(biome==="desert")return "dust haze";
- if(biome==="himalayas")return requested==="storm"?"storm":"overcast";
+ if(biome==="himalayas")return requested==="overcast"?"clear":requested;
  return requested;
 }
 function createScene(nextScene,nextSeed,nextWeather,nextTime){
@@ -88,11 +88,12 @@ function createScene(nextScene,nextSeed,nextWeather,nextTime){
  previousBiome=activeScene.id;previousWeather=weather;
  sky=createSky(scene,renderer,seed,activeScene.id,normalizeWeather(weather),timeOfDay);
  scene.background=sky.horizonColor.clone();
- const fogDensity=weather==="mist"?.000052:weather==="storm"||weather==="heavy rain"?.000044:.000027;
- scene.fog=new THREE.FogExp2(sky.horizonColor,fogDensity);
+ const fogColor=activeScene.id==="himalayas"?new THREE.Color(0xc8dce7):activeScene.id==="desert"?new THREE.Color(0xf2c9a5):sky.horizonColor.clone();
+ const fogDensity=activeScene.id==="himalayas"?.000075:activeScene.id==="desert"?.000045:weather==="mist"?.000052:weather==="storm"||weather==="heavy rain"?.000044:.000027;
+ scene.fog=new THREE.FogExp2(fogColor,fogDensity);
  terrain=new Terrain(scene,seed,activeScene.id);
  const ground=Math.max(terrain.getHeightAt(camera.position.x,camera.position.z),terrain.getWaterLevel());
- camera.position.y=ground+500;
+ camera.position.y=ground+(activeScene.id==="himalayas"?145:110);
  clouds=new CloudField(scene,seed,normalizeWeather(weather));
  weatherSystem=new WeatherSystem(scene,seed,weather,quality);
  try{effects=new CinematicEffects(renderer,scene,camera,quality,"clear");}catch(e){console.warn("Post effects unavailable",e);effects=undefined;}
@@ -106,7 +107,7 @@ function getPhaseMotion(dt){
  if(p==="FREEFALL")return{speed:THREE.MathUtils.lerp(200,155,f),clearance:THREE.MathUtils.lerp(500,220,f),pitch:THREE.MathUtils.lerp(-60,-55,f),fov:THREE.MathUtils.lerp(82,85,f)};
  if(p==="STORM LAYER")return{speed:THREE.MathUtils.lerp(155,125,f),clearance:THREE.MathUtils.lerp(220,115,f),pitch:-60,fov:84};
  if(p==="BREAKTHROUGH")return{speed:THREE.MathUtils.lerp(125,90,f),clearance:THREE.MathUtils.lerp(115,55,f),pitch:THREE.MathUtils.lerp(-60,-20,f),fov:THREE.MathUtils.lerp(82,72,f)};
- if(p==="TRAVELLER FLIGHT"){const lowFlight=activeScene.id==="himalayas";return{speed:lowFlight?78+Math.sin(t*.19)*12:35+Math.sin(t*.19)*4,clearance:lowFlight?85:3,pitch:-5+Math.sin(t*.21)*.7,fov:THREE.MathUtils.clamp(70+(lowFlight?speed*.06:speed*.12),70,82)};}
+ if(p==="TRAVELLER FLIGHT"){const lowFlight=true;return{speed:(activeScene.id==="himalayas"?68:56)+Math.sin(t*.19)*7,clearance:activeScene.id==="himalayas"?145:110,pitch:-5+Math.sin(t*.21)*.45,fov:THREE.MathUtils.clamp(72+speed*.045,72,80)};}
  return{speed:THREE.MathUtils.lerp(85,145,f),clearance:THREE.MathUtils.lerp(55,260,f),pitch:THREE.MathUtils.lerp(-20,-52,f),fov:THREE.MathUtils.lerp(70,82,f)};
 }
 function setPhaseWeather(){
@@ -204,7 +205,7 @@ function animate(){
    if(forcedRain)weatherSystem.setState("storm");
    else if(activeScene.id==="rainforest")weatherSystem.setState("heavy rain");
    else if(activeScene.id==="desert")weatherSystem.setState("dust haze");
-   else if(activeScene.id==="himalayas")weatherSystem.setState("overcast");
+   else if(activeScene.id==="himalayas"&&weather==="overcast")weatherSystem.setState("clear");
    const lightning=weatherSystem.update(dt,camera,speed);
    if(lightning&&audio.started)audio.thunder(900+Math.random()*1700);
    windSpeed=weatherSystem.wind.length();
@@ -217,17 +218,28 @@ function animate(){
  clouds?.update(dt,speed,camera,altitude);
  if(scene.fog){
    scene.fog.color.copy(sky.horizonColor);
-   const target=weather==="mist"?.000052:phaseName==="STORM LAYER"?.000047:weather==="storm"?.00004:.000027;
+   const target=activeScene.id==="himalayas"?.000075:activeScene.id==="desert"?.000045:weather==="mist"?.000052:phaseName==="STORM LAYER"?.000047:weather==="storm"?.00004:.000027;
    scene.fog.density=THREE.MathUtils.damp(scene.fog.density,target,.55,dt);
  }
  try{effects?.update(dt,speed,journeyElapsed,camera,"clear");if(effects)effects.render(dt);else renderer.render(scene,camera);}
  catch(e){console.warn("Render fallback",e);try{effects?.dispose();}catch{}effects=undefined;renderer.render(scene,camera);}
- fpsFrames++;fpsElapsed+=dt;if(fpsElapsed>=.5){fps=fpsFrames/fpsElapsed;fpsFrames=0;fpsElapsed=0;}
+ fpsFrames++;fpsElapsed+=dt;if(fpsElapsed>=1){fps=fpsFrames/fpsElapsed;fpsFrames=0;fpsElapsed=0;
+   qualityCheckElapsed+=1;
+   if(qualityCheckElapsed>=2){
+     qualityCheckElapsed=0;
+     if(fps<48)adaptiveScale=Math.max(.68,adaptiveScale-.08);
+     else if(fps>58)adaptiveScale=Math.min(1,adaptiveScale+.035);
+     const nextPixelRatio=Math.min(devicePixelRatio,1.6)*adaptiveScale;
+     if(Math.abs(renderer.getPixelRatio()-nextPixelRatio)>.025){
+       renderer.setPixelRatio(nextPixelRatio);renderer.setSize(innerWidth,innerHeight,false);effects?.resize();
+     }
+   }
+ }
  if(debugVisible){
   const stats=terrain?.getDebugInfo?.()||{};
   const slowFlight=phaseName==="TRAVELLER FLIGHT"&&speed<20;
   debug.style.color=slowFlight?"#ff5555":"#d8f3ff";
-  debug.textContent="THE FALL — JOURNEY DEBUG\nPhase: "+phaseName+" | left "+phaseTimeLeft.toFixed(1)+" s\nBiome: "+activeScene.param+" | Weather: "+weather+"\nSpeed: "+speed.toFixed(1)+" m/s | Eye height: "+eyeHeight.toFixed(1)+" m\nPath curvature: "+pathCurvature.toFixed(5)+" | Horizon visible: "+horizonVisible+"\nTime left: "+phaseTimeLeft.toFixed(1)+" s\nCamera: x "+camera.position.x.toFixed(1)+" / y "+camera.position.y.toFixed(1)+" / z "+camera.position.z.toFixed(1)+"\nChunks: "+(stats.chunkCount||0)+" | FPS: "+fps.toFixed(1);
+  debug.textContent="THE FALL — JOURNEY DEBUG\nPhase: "+phaseName+" | left "+phaseTimeLeft.toFixed(1)+" s\nBiome: "+activeScene.param+" | Weather: "+weather+"\nSpeed: "+speed.toFixed(1)+" m/s | Eye height: "+eyeHeight.toFixed(1)+" m\nPath curvature: "+pathCurvature.toFixed(5)+" | Horizon visible: "+horizonVisible+"\nTime left: "+phaseTimeLeft.toFixed(1)+" s\nCamera: x "+camera.position.x.toFixed(1)+" / y "+camera.position.y.toFixed(1)+" / z "+camera.position.z.toFixed(1)+"\nChunks: "+(stats.chunkCount||0)+" | FPS: "+fps.toFixed(1)+" | Render scale: "+adaptiveScale.toFixed(2);
  }
  label.style.opacity=String(THREE.MathUtils.smoothstep(phaseElapsed,.2,1.8)*(1-THREE.MathUtils.smoothstep(phaseElapsed,phaseFor(phaseIndex).duration-1.2,phaseFor(phaseIndex).duration)));
  if(phaseName==="TRANSITION"&&phaseTimeLeft<1.8&&!transitionTriggered){transitionTriggered=true;fade.classList.add("dissolve");}
