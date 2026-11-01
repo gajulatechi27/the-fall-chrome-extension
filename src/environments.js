@@ -50,6 +50,17 @@ export const ENVIRONMENTS = [
     camera: { altitude: 390, speed: 43 }, duration: 25
   },
   {
+    id: "waterfall-valley", name: "Waterfall valley", timeOfDay: "bright forest daylight",
+    biome: "forest", paletteTint: "vec3(0.92,1.08,0.96)",
+    terrain: { biome: "forest", baseHeight: 205, noiseOctaves: 7, ridgeWeight: 0.62, valleyCarving: 0.34, seaLevel: -28 },
+    materialMix: { rock: [95, 220], grass: [-10, 78], dryGrass: [65, 118], sand: [-28, -10], snow: [650, 1050] },
+    water: { type: "waterfall", level: -28, width: 0, color: "#b9edf2" },
+    vegetation: { types: ["pine", "deciduous-trees"], density: 0.38, clumpSize: 58 },
+    sun: { position: [-180, 360, -280], intensity: 2.85 }, sky: { horizon: "#c5e2e8", zenith: "#39749a", sun: "#fff4d9" },
+    fog: { color: "#b9d4d7", density: 0.000055 }, clouds: { cover: 0.2, speed: 0.78 }, weather: "clear", particles: "mist",
+    camera: { altitude: 390, speed: 41 }, duration: 25
+  },
+  {
     id: "alpine-lake", name: "Alpine lake with mountains", timeOfDay: "bright afternoon",
     biome: "snow", paletteTint: "vec3(1.04,1.12,1.08)", terrain: { biome: "snow", baseHeight: 230, noiseOctaves: 7, ridgeWeight: 0.78, valleyCarving: 0.22, seaLevel: -28 },
     materialMix: { rock: [180, 360], grass: [-8, 90], dryGrass: [60, 120], sand: [-28, -12], snow: [175, 900] },
@@ -65,6 +76,6 @@ export const ENVIRONMENT_BY_ID = Object.fromEntries(ENVIRONMENTS.map((environmen
 
 export function resolveEnvironment(value) {
   if (!value) return null;
-  const aliases = { hills: "green-hills", meadow: "green-hills", valley: "river-valley", beach: "tropical-beach", islands: "tropical-beach", lake: "alpine-lake", himalaya: "himalayan-range", mountains: "himalayan-range", desert: "desert-dunes", dunes: "desert-dunes" };
+  const aliases = { hills: "green-hills", meadow: "green-hills", valley: "river-valley", beach: "tropical-beach", islands: "tropical-beach", lake: "alpine-lake", waterfall: "waterfall-valley", himalaya: "himalayan-range", mountains: "himalayan-range", desert: "desert-dunes", dunes: "desert-dunes" };
   return ENVIRONMENT_BY_ID[aliases[value] || value] || null;
 }
