@@ -5,9 +5,9 @@ const CHUNK_SIZE = 2500;
 const GRID_RADIUS = 2; // 5 x 5 chunks: keep terrain generation and draw calls bounded
 const WATER_LEVEL = -12;
 const WATER_SIZE = 52000;
-const HIGH_SEGMENTS = 32;
-const MID_SEGMENTS = 16;
-const LOW_SEGMENTS = 8;
+const HIGH_SEGMENTS = 96;
+const MID_SEGMENTS = 48;
+const LOW_SEGMENTS = 16;
 const SKIRT_DEPTH = 55;
 const NORMAL_SAMPLE = 8;
 
@@ -111,7 +111,25 @@ function terrainHeight(noise, x, z, biome) {
   const flowDistance = Math.abs(warpX - flow * 100000);
   const flowCut = Math.exp(-Math.pow(flowDistance / (biome === "delta" ? 270 : 115), 2));
   if (["green", "delta", "forest", "rainforest"].includes(biome)) h -= flowCut * (biome === "delta" ? 18 : 9);
-  return smoothLimit(h, biome === "himalayas" ? 780 : 520);
+  h = smoothLimit(h, biome === "himalayas" ? 780 : 520);
+
+  // Procedural travel corridor: match JourneyPath.routePoint() so the route
+  // stays inside a shallow valley instead of disappearing beneath terrain.
+  if (biome !== "himalayas") {
+    const distance = -z;
+    const n = distance / 240;
+    const a = Math.sin(n * 0.47 + (seed % 997) * 0.013);
+    const b = Math.sin(n * 0.19 + (seed % 313) * 0.021);
+    const c = Math.sin(n * 0.083 + (seed % 127) * 0.031);
+    const amplitude = biome === "coast" ? 150 : 105;
+    const pathCenterX = a * amplitude + b * amplitude * 0.42 + c * amplitude * 0.2;
+    const lateral = Math.abs(x - pathCenterX);
+    const corridor = 1 - THREE.MathUtils.smoothstep(lateral, 28, 150);
+    // Gently grade the route floor while blending into the original terrain.
+    const routeFloor = biome === "coast" || biome === "lake" ? Math.max(-8, WATER_LEVEL + 5) : -5;
+    h = THREE.MathUtils.lerp(h, Math.min(h, routeFloor), corridor * 0.94);
+  }
+  return h;
 }
 
 function makeTerrainMaterial(biome) {
