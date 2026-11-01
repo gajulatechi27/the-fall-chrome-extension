@@ -59,15 +59,26 @@ function mountainRelief(noise, x, z, ridgeWeight = 1, himalayan = false) {
   const primary = 1 - Math.abs(noise(x * (himalayan ? 0.00082 : 0.00105), z * (himalayan ? 0.00082 : 0.00105)));
   const secondary = 1 - Math.abs(noise(x * 0.00215 + 13, z * 0.00215 - 7));
   if (himalayan) {
-    const fine = 1 - Math.abs(noise(x * 0.0028 - 29, z * 0.0028 + 41));
-    const shoulder = noise(x * 0.00027 + 7, z * 0.00027 - 11);
-    const glacialCut = Math.pow(Math.abs(noise(x * 0.00042 + 53, z * 0.00042 - 37)), 1.25);
-    const massif = Math.max(0, noise(x * 0.00024 - 17, z * 0.00024 + 23) + 0.18);
+    // Broad, warped ridge systems create connected mountain massifs rather
+    // than a repeated field of isolated pointed peaks.
+    const warpX = x + noise(x * 0.00022 + 31, z * 0.00022 - 17) * 520;
+    const warpZ = z + noise(x * 0.00019 - 23, z * 0.00019 + 41) * 460;
+    const broadRidge = 1 - Math.abs(noise(warpX * 0.00057 + 7, warpZ * 0.00057 - 11));
+    const secondaryRidge = 1 - Math.abs(noise(warpX * 0.00135 - 29, warpZ * 0.00135 + 41));
+    const fine = 1 - Math.abs(noise(warpX * 0.0026 + 13, warpZ * 0.0026 - 7));
+    const shoulder = noise(warpX * 0.00024 + 17, warpZ * 0.00024 - 23);
+    const glacialCut = Math.pow(Math.abs(noise(warpX * 0.00039 + 53, warpZ * 0.00039 - 37)), 1.15);
+    // A low-frequency contour field carves broad U-shaped glacial valleys.
+    const valleyField = Math.abs(noise(warpX * 0.00034 - 61, warpZ * 0.00034 + 47));
+    const valley = 1 - THREE.MathUtils.smoothstep(valleyField, 0.025, 0.22);
+    const massif = Math.max(0, noise(warpX * 0.00018 - 17, warpZ * 0.00018 + 23) + 0.2);
     return (
-      Math.pow(Math.max(0, primary), 1.72) * 112 +
-      Math.pow(Math.max(0, secondary), 2.35) * 19 +
-      Math.pow(Math.max(0, fine), 2.9) * 3 +
-      massif * 48 + shoulder * 9 - glacialCut * 11
+      Math.pow(Math.max(0, broadRidge), 1.38) * 116 +
+      Math.pow(Math.max(0, primary), 2.05) * 28 +
+      Math.pow(Math.max(0, secondaryRidge), 2.25) * 13 +
+      Math.pow(Math.max(0, secondary), 3.0) * 4 +
+      Math.pow(Math.max(0, fine), 3.0) * 2 +
+      massif * 42 + shoulder * 8 - glacialCut * 9 - valley * 34
     ) * ridgeWeight;
   }
   return (
@@ -425,7 +436,10 @@ function createFarRanges(scene, noise, environment = null) {
             ? Math.pow(r1, 1.55) * 920 + Math.pow(r2, 2.15) * 310 + Math.pow(r3, 2.7) * 90
             : Math.pow(r1, 2.0) * 410 + Math.pow(r2, 2.15) * 165 + Math.pow(r3, 2.7) * 52;
         const base = (alpine || himalayan ? 118 : 72) + Math.sin(x * .00014 + layer) * (alpine || himalayan ? 34 : 26) + Math.sin(z * .00045 + layer) * 9;
-        const y = Math.max(0.5, (base + ridge) * envelope);
+        const foothill = himalayan
+          ? noise(x * 0.00016 + layer * 8.1, z * 0.00018 - layer * 5.7) * 46
+          : 0;
+        const y = Math.max(0.5, (base + ridge + foothill) * envelope);
         positions.push(x, y, z);
       }
     }
@@ -439,10 +453,14 @@ function createFarRanges(scene, noise, environment = null) {
       const slopeHint = Math.abs(Math.sin(positions[i] * .0013 + layer) * Math.cos(positions[i + 2] * .0008));
       const rock = THREE.MathUtils.smoothstep(slopeHint, .42, .88);
       const high = THREE.MathUtils.smoothstep(height, alpine || himalayan ? 390 : 420, alpine || himalayan ? 760 : 820);
-      const tint = new THREE.Color([0x849889, 0x91a5a8, 0xa9b9bd][layer]);
-      tint.lerp(new THREE.Color([0x65756f, 0x78888b, 0x929fa3][layer]), rock);
-      tint.lerp(new THREE.Color(alpine || himalayan ? 0xeaf4fa : 0xc5d0d0), high);
-      tint.lerp(new THREE.Color(0xd0dadd), [0.12, 0.25, 0.42][layer]);
+      const tint = new THREE.Color(
+        himalayan
+          ? [0x9aafc0, 0xb0c4d3, 0xc8d8e4][layer]
+          : [0x849889, 0x91a5a8, 0xa9b9bd][layer]
+      );
+      tint.lerp(new THREE.Color(himalayan ? 0x8298aa : 0x65756f), rock * (himalayan ? 0.34 : 1));
+      tint.lerp(new THREE.Color(alpine || himalayan ? 0xf0f6fa : 0xc5d0d0), high);
+      tint.lerp(new THREE.Color(himalayan ? [0xc2d4e2, 0xd1dfeb, 0xe0eaf1][layer] : 0xd0dadd), [0.22, 0.42, 0.62][layer]);
       colorValues.push(tint.r, tint.g, tint.b);
     }
     const geometry = new THREE.BufferGeometry();
