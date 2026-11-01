@@ -107,10 +107,11 @@ function makeChunk(noise, z, biome, xOffset = 0, chunkSize = chunkSize, segments
 
   for (let row = 0; row <= segments; row++) {
     for (let col = 0; col <= segments; col++) {
-      const x = xOffset - chunkSize * 0.5 + col * step;
+      const x = -chunkSize * 0.5 + col * step;
+      const worldX = xOffset + x;
       const localZ = -chunkSize * 0.5 + row * step;
       const worldZ = z + localZ;
-      const h = heightAt(x, worldZ);
+      const h = heightAt(worldX, worldZ);
       heights[row * (segments + 1) + col] = h;
       const worldHeight = HEIGHT_BASE + h;
       minHeight = Math.min(minHeight, worldHeight);
@@ -154,9 +155,9 @@ function makeChunk(noise, z, biome, xOffset = 0, chunkSize = chunkSize, segments
   const normals = new Float32Array(positions.length);
   const normalStep = 2.0;
   for (let i = 0; i < skirtStart; i++) {
-    const x = positions[i * 3], localZ = positions[i * 3 + 2], worldZ = z + localZ;
-    const dx = heightAt(x + normalStep, worldZ) - heightAt(x - normalStep, worldZ);
-    const dz = heightAt(x, worldZ + normalStep) - heightAt(x, worldZ - normalStep);
+    const x = positions[i * 3], worldX = xOffset + x, localZ = positions[i * 3 + 2], worldZ = z + localZ;
+    const dx = heightAt(worldX + normalStep, worldZ) - heightAt(worldX - normalStep, worldZ);
+    const dz = heightAt(worldX, worldZ + normalStep) - heightAt(worldX, worldZ - normalStep);
     const n = new THREE.Vector3(-dx / (2 * normalStep), 1, -dz / (2 * normalStep)).normalize();
     normals[i * 3] = n.x; normals[i * 3 + 1] = n.y; normals[i * 3 + 2] = n.z;
   }
@@ -171,7 +172,7 @@ function makeChunk(noise, z, biome, xOffset = 0, chunkSize = chunkSize, segments
   const material = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.94, metalness: 0.0, side: THREE.DoubleSide });
   makeTerrainShader(material, biome);
   const mesh = new THREE.Mesh(geometry, material);
-  mesh.position.x = xOffset;
+  mesh.position.x = 0;
   mesh.position.z = z;
   mesh.receiveShadow = true;
   mesh.castShadow = false;
@@ -182,6 +183,7 @@ function makeChunk(noise, z, biome, xOffset = 0, chunkSize = chunkSize, segments
   mesh.userData.minHeight = minHeight;
   mesh.userData.maxHeight = maxHeight;
   mesh.userData.heightAt = heightAt;
+  mesh.userData.worldX = xOffset;
   return mesh;
 }
 
