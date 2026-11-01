@@ -188,47 +188,50 @@ float terrainNoise(vec2 p) {
 
 
 function mergeTreeParts(parts, palette = [0x25442c, 0x477747, 0x83a95a]) {
-  const geometries = [];
+  // Merge component buffers directly. BufferGeometryUtils is an examples-module
+  // helper and is not exported from the core THREE namespace.
+  const positions = [], normals = [], indices = [];
   for (const item of parts) {
     const geometry = item.geometry.clone();
     geometry.applyMatrix4(item.matrix);
-    geometries.push(geometry);
-  }
-  const merged = THREE.BufferGeometryUtils
-    ? THREE.BufferGeometryUtils.mergeGeometries(geometries, false)
-    : null;
-  let geometry = merged;
-  if (!geometry) {
-    const positions = [], normals = [], indices = [];
-    for (const g of geometries) {
-      const p = g.getAttribute("position"), n = g.getAttribute("normal");
-      const offset = positions.length / 3;
-      for (let i = 0; i < p.count; i++) {
-        positions.push(p.getX(i), p.getY(i), p.getZ(i));
-        normals.push(n.getX(i), n.getY(i), n.getZ(i));
-      }
-      const idx = g.index ? g.index.array : Array.from({ length: p.count }, (_, i) => i);
-      for (const value of idx) indices.push(value + offset);
-      g.dispose();
+    const p = geometry.getAttribute("position");
+    const n = geometry.getAttribute("normal");
+    const offset = positions.length / 3;
+    for (let i = 0; i < p.count; i++) {
+      positions.push(p.getX(i), p.getY(i), p.getZ(i));
+      normals.push(n.getX(i), n.getY(i), n.getZ(i));
     }
-    geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
-    geometry.setIndex(indices);
-  } else geometries.forEach(g => g.dispose());
+    const sourceIndices = geometry.index
+      ? geometry.index.array
+      : Array.from({ length: p.count }, (_, i) => i);
+    for (const index of sourceIndices) indices.push(index + offset);
+    geometry.dispose();
+    item.geometry.dispose();
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
+  geometry.setIndex(indices);
 
   const p = geometry.getAttribute("position");
   const colors = [];
-  const low = new THREE.Color(palette[0]), mid = new THREE.Color(palette[1]), high = new THREE.Color(palette[2]);
+  const low = new THREE.Color(palette[0]);
+  const mid = new THREE.Color(palette[1]);
+  const high = new THREE.Color(palette[2]);
   let minY = Infinity, maxY = -Infinity;
-  for (let i = 0; i < p.count; i++) { minY = Math.min(minY, p.getY(i)); maxY = Math.max(maxY, p.getY(i)); }
+  for (let i = 0; i < p.count; i++) {
+    minY = Math.min(minY, p.getY(i));
+    maxY = Math.max(maxY, p.getY(i));
+  }
   for (let i = 0; i < p.count; i++) {
     const t = THREE.MathUtils.clamp((p.getY(i) - minY) / Math.max(0.001, maxY - minY), 0, 1);
-    const c = t < 0.55 ? low.clone().lerp(mid, t / 0.55) : mid.clone().lerp(high, (t - 0.55) / 0.45);
-    colors.push(c.r, c.g, c.b);
+    const color = t < 0.55
+      ? low.clone().lerp(mid, t / 0.55)
+      : mid.clone().lerp(high, (t - 0.55) / 0.45);
+    colors.push(color.r, color.g, color.b);
   }
   geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-  parts.forEach(item => item.geometry.dispose());
   geometry.computeVertexNormals();
   geometry.computeBoundingSphere();
   return geometry;
