@@ -132,7 +132,15 @@ async function activateLandscape(index, stagedTerrain = null) {
   if (!terrain.isReady()) throw new Error("Landscape terrain preload incomplete: " + config.name);
   clouds = new CloudField(scene, seed, config);
   clouds.group.position.y = 1900;
-  try { effects = new CinematicEffects(renderer, scene, camera, quality); }
+  try {
+    effects = new CinematicEffects(renderer, scene, camera, quality);
+    // The generic white flight-wind points are not meadow vegetation.
+    // In Green Hills they read as pale, floating tree silhouettes across
+    // distant ridges, so suppress that generic particle layer for this view.
+    if (config.id === "green-hills" && effects.wind) {
+      effects.wind.visible = false;
+    }
+  }
   catch (error) { console.error("Post-processing setup failed; using direct renderer.", error); effects = undefined; }
   landscapeLabel.textContent = config.name;
   landscapeLabel.style.opacity = "1";
