@@ -30,13 +30,13 @@ export const ENVIRONMENTS = [
     camera: { altitude: 330, speed: 46 }, duration: 42
   },
   {
-    id: "alpine-lake", name: "Alpine lake with mountains", timeOfDay: "golden hour",
-    biome: "snow", paletteTint: "vec3(0.84,0.98,1.12)", terrain: { biome: "snow", baseHeight: 230, noiseOctaves: 7, ridgeWeight: 0.78, valleyCarving: 0.22, seaLevel: -28 },
+    id: "alpine-lake", name: "Alpine lake with mountains", timeOfDay: "bright afternoon",
+    biome: "snow", paletteTint: "vec3(0.98,1.08,1.16)", terrain: { biome: "snow", baseHeight: 230, noiseOctaves: 7, ridgeWeight: 0.78, valleyCarving: 0.22, seaLevel: -28 },
     materialMix: { rock: [180, 360], grass: [-8, 90], dryGrass: [60, 120], sand: [-28, -12], snow: [175, 900] },
     water: { type: "lake", level: -28, width: 8500, color: "#3b929e" },
     vegetation: { types: ["pine", "alpine-grass"], density: 0.28, clumpSize: 76 },
-    sun: { position: [-300, 180, -260], intensity: 2.0 }, sky: { horizon: "#d7a77f", zenith: "#304968", sun: "#ffd39d" },
-    fog: { color: "#b9c3c7", density: 0.0001 }, clouds: { cover: 0.2, speed: 0.72 }, weather: "clear", particles: "mist",
+    sun: { position: [-300, 260, -260], intensity: 2.85 }, sky: { horizon: "#c8e0ec", zenith: "#3d7196", sun: "#fff0cf" },
+    fog: { color: "#c3d7df", density: 0.000065 }, clouds: { cover: 0.2, speed: 0.72 }, weather: "clear", particles: "mist",
     camera: { altitude: 480, speed: 38 }, duration: 42
   }
 ];
