@@ -50,9 +50,12 @@ function applyRiverChannel(height, x, worldZ, noise, environment) {
   if (environment?.water?.type !== "river") return height;
   const width = riverWidthAt(noise, worldZ, environment.water.width || 120);
   const distance = Math.abs(x - riverCenterX(noise, worldZ));
-  const channel = 1.0 - THREE.MathUtils.smoothstep(distance, width * 0.48, width * 1.8);
-  // A broad, smoothly sloped bank makes the channel survive terrain LOD changes.
-  return height - channel * 126;
+  const riverValley = environment.id === "river-valley";
+  const innerBank = riverValley ? 0.58 : 0.48;
+  const outerBank = riverValley ? 2.25 : 1.8;
+  const channel = 1.0 - THREE.MathUtils.smoothstep(distance, width * innerBank, width * outerBank);
+  // River Valley gets a broader, deeper channel with a long floodplain shoulder.
+  return height - channel * (riverValley ? 148 : 126);
 }
 
 function mountainRelief(noise, x, z, ridgeWeight = 1, himalayan = false) {
@@ -168,6 +171,9 @@ float fallSlope = 1.0 - clamp(abs(normalize(vFallWorldNormal).y), 0.0, 1.0);
 float fallHeight = vFallWorldPosition.y;
 float fallNoiseValue = fallDetail(vFallWorldPosition.xz * 0.012);
 float fallMicro = fallDetail(vFallWorldPosition.xz * 0.045);
+float fallFieldNoise = fallDetail(vFallWorldPosition.xz * 0.00062);
+float fallFieldPatch = smoothstep(-0.12, 0.16, fallFieldNoise);
+float fallFieldRows = 0.5 + 0.5 * sin((vFallWorldPosition.x * 0.0017 + vFallWorldPosition.z * 0.0009) + fallNoiseValue * 2.0);
 float fallWet = 1.0 - smoothstep(-34.0, -23.0, fallHeight + fallNoiseValue * 5.0);
 float fallDry = smoothstep(-31.0, -8.0, fallHeight + fallNoiseValue * 5.0);
 float fallGrass = smoothstep(-12.0, 24.0, fallHeight);
@@ -178,7 +184,7 @@ float fallValleySnow = ${environment?.id === "himalayan-range" ? "smoothstep(0.1
 fallSnowCoverage = max(fallSnowCoverage, fallValleySnow);
 vec3 fallWetSand = ${environment?.id === "himalayan-range" ? "vec3(0.24, 0.31, 0.37)" : biome === "desert" ? "vec3(0.48, 0.34, 0.20)" : "vec3(0.34, 0.42, 0.39)"};
 vec3 fallDrySand = ${environment?.id === "himalayan-range" ? "vec3(0.36, 0.42, 0.47)" : biome === "desert" ? "vec3(0.88, 0.62, 0.30)" : "vec3(0.72, 0.57, 0.37)"};
-vec3 fallGrassColor = ${environment?.id === "himalayan-range" ? "vec3(0.27, 0.33, 0.36)" : environment?.id === "green-hills" ? "vec3(0.25, 0.46, 0.22)" : biome === "desert" ? "vec3(0.79, 0.52, 0.23)" : biome === "snow" ? "vec3(0.31, 0.37, 0.32)" : "vec3(0.23, 0.39, 0.23)"};
+vec3 fallGrassColor = ${environment?.id === "himalayan-range" ? "vec3(0.27, 0.33, 0.36)" : environment?.id === "green-hills" ? "vec3(0.25, 0.46, 0.22)" : environment?.id === "river-valley" ? "mix(vec3(0.25, 0.39, 0.20), vec3(0.39, 0.43, 0.23), fallFieldPatch * 0.72 + fallFieldRows * 0.12)" : biome === "desert" ? "vec3(0.79, 0.52, 0.23)" : biome === "snow" ? "vec3(0.31, 0.37, 0.32)" : "vec3(0.23, 0.39, 0.23)"};
 vec3 fallForestFloor = ${environment?.id === "himalayan-range" ? "vec3(0.20, 0.26, 0.30)" : environment?.id === "green-hills" ? "vec3(0.16, 0.30, 0.17)" : biome === "desert" ? "vec3(0.66, 0.43, 0.22)" : biome === "snow" ? "vec3(0.19, 0.23, 0.22)" : "vec3(0.14, 0.25, 0.17)"};
 vec3 fallRockColor = ${environment?.id === "himalayan-range" ? "vec3(0.29, 0.34, 0.39)" : environment?.id === "green-hills" ? "vec3(0.31, 0.36, 0.29)" : biome === "desert" ? "vec3(0.55, 0.37, 0.25)" : "vec3(0.37, 0.39, 0.40)"};
 vec3 fallSnowColor = vec3(0.91, 0.94, 0.97);
@@ -230,6 +236,12 @@ function makeChunk(noise, seed, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, s
         const hillShoulder = noise(warpX * 0.00053 - 29.0, warpZ * 0.00061 + 11.0);
         const softRidge = 1.0 - Math.abs(noise(warpX * 0.00072 + 83.0, warpZ * 0.00064 - 37.0));
         h += broadMeadow * 43 + rolling * 12 + hillShoulder * 4.5 + Math.pow(Math.max(0, softRidge), 2.8) * 4 + shoulder * 2.0;
+      } else if (environment?.id === "river-valley") {
+        const broadValley = noise(warpX * 0.00017 + 19.0, warpZ * 0.00016 - 37.0);
+        const valleyShoulder = noise(warpX * 0.00031 - 51.0, warpZ * 0.00034 + 13.0);
+        const lowRelief = 1.0 - Math.abs(noise(warpX * 0.00046 + 73.0, warpZ * 0.00042 - 29.0));
+        h += broadValley * 19 + rolling * 6 + valleyShoulder * 4 +
+          Math.pow(Math.max(0, lowRelief), 2.2) * 3.5 + shoulder * 1.5;
       } else { h += rolling * 15 + shoulder * 3.5; }
     }
     if (biome === "desert") {
