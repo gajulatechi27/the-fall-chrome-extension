@@ -118,9 +118,9 @@ function terrainHeight(noise, x, z, biome) {
   if (biome !== "himalayas") {
     const distance = -z;
     const n = distance / 240;
-    const a = Math.sin(n * 0.47 + (seed % 997) * 0.013);
-    const b = Math.sin(n * 0.19 + (seed % 313) * 0.021);
-    const c = Math.sin(n * 0.083 + (seed % 127) * 0.031);
+    const a = Math.sin(n * 0.47);
+    const b = Math.sin(n * 0.19);
+    const c = Math.sin(n * 0.083);
     const amplitude = biome === "coast" ? 150 : 105;
     const pathCenterX = a * amplitude + b * amplitude * 0.42 + c * amplitude * 0.2;
     const lateral = Math.abs(x - pathCenterX);
