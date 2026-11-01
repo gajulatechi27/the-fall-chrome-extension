@@ -4,7 +4,7 @@ import { createVegetation } from "./vegetation.js";
 
 const CHUNK_SIZE = 3000;
 const SEGMENTS = 128;
-const GRID_RADIUS = 7;
+const GRID_RADIUS = 5;
 const GRID_DIAMETER = GRID_RADIUS * 2 + 1;
 const WATER_LEVEL = -28;
 const WATER_SIZE = 30000;
@@ -229,7 +229,7 @@ function makeChunk(noise, seed, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, s
       const ridgeB = 1.0 - Math.abs(noise(warpX * 0.0031 + 17.0, warpZ * 0.0031 - 9.0));
       h += (Math.pow(Math.max(0.0, ridgeA), 2.0) * 34 + Math.pow(Math.max(0.0, ridgeB), 2.4) * 13) * (environment?.terrain?.ridgeWeight ?? 1);
       const shoreZ = Math.sin(x * 0.00022) * 1150 + Math.sin(x * 0.00061 + 1.7) * 360 + noise(x * 0.00048, worldZ * 0.00031) * 260;
-      const coast = THREE.MathUtils.smoothstep(shoreZ - worldZ, -720, 260);
+      const coast = THREE.MathUtils.smoothstep(shoreZ + worldZ + 900, -720, 260);
       const headland = Math.pow(Math.max(0, Math.sin(x * 0.00016 + 0.8)), 5) * 95;
       const dune = Math.max(0, noise(x * 0.0013, worldZ * 0.0011)) * 18;
       h = THREE.MathUtils.lerp(-100 + h * 0.12, 80 + h * 0.48 + headland + dune, coast);
@@ -253,11 +253,16 @@ function makeChunk(noise, seed, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, s
       } else { h += rolling * 15 + shoulder * 3.5; }
     }
     if (biome === "desert") {
+      const windWarp = noise(warpX * 0.00024 + 19.0, warpZ * 0.00018 - 7.0);
       const duneField = warpZ * 0.00034 + noise(warpX * 0.00028, warpZ * 0.00016) * 1.25 +
-        Math.sin(warpX * 0.00022) * 0.38;
-      const broadDune = Math.sin(duneField) * 62 + Math.sin(duneField * 0.52 + 1.3) * 34;
-      const ripple = Math.sin(duneField * 3.7 + warpX * 0.00055) * 5;
-      h = h * 0.48 + broadDune + ripple;
+        Math.sin(warpX * 0.00022 + windWarp * 1.4) * 0.38;
+      const broadDune = Math.sin(duneField) * 58 + Math.sin(duneField * 0.52 + 1.3 + windWarp * 0.3) * 30;
+      const duneletsField = duneField * 2.65 + noise(warpX * 0.00072 + 41.0, warpZ * 0.00058) * 0.9;
+      const dunelets = Math.sin(duneletsField) * (10 + noise(warpX * 0.0009, warpZ * 0.00075) * 4.5);
+      const smallDunesField = duneField * 6.2 + noise(warpX * 0.00145 - 13.0, warpZ * 0.0012 + 29.0) * 0.65;
+      const smallDunes = Math.sin(smallDunesField) * 4.2;
+      const windRipples = Math.sin(duneField * 11.5 + warpX * 0.0011) * 1.35;
+      h = h * 0.32 + broadDune + dunelets + smallDunes + windRipples;
     }
     if (biome === "mountains" || biome === "snow") {
       const ridgeWeight = environment?.terrain?.ridgeWeight ?? 1;
@@ -429,8 +434,8 @@ function createWaterMaterial(seed) {
         vec3 skyReflection=mix(vec3(.018,.12,.25),vec3(.48,.76,.88),.5+.5*normal.y);
         color=mix(color,skyReflection,fresnel*.72);
         float sun=pow(max(dot(reflect(-normalize(uSunDirection),normal),normalize(vViewDirection)),0.0),72.0);
-        float glitter=pow(max(dot(normal,uSunDirection),0.0),24.0)*pow(noise2(p*.22+t*.12),7.0);
-        color+=vec3(1.0,.82,.58)*(sun*.75+glitter*.24);
+        float glitter=pow(max(dot(normal,uSunDirection),0.0),24.0)*pow(noise2(p*.075+t*.045),7.0);
+        color+=vec3(1.0,.82,.58)*(sun*.75+glitter*.10);
         float waveCycle=sin(waterDepth*2.4-t*1.8+lowNoise*5.0);
         float foam=shore*smoothstep(.18,.72,noise2(p*.018+t*.018))*(.42+.58*smoothstep(-.25,.85,waveCycle));
         color=mix(color,vec3(.86,.97,.98),foam*.68);
@@ -457,7 +462,7 @@ function createFarRanges(scene, noise, environment = null) {
   const distances = [10500, 14500, 18500];
   for (let layer = 0; layer < 3; layer++) {
     const positions = [], indices = [];
-    const nx = (alpine || himalayan || greenHills) ? 520 : 320, nz = (alpine || himalayan || greenHills) ? 42 : 28, width = 76000, depth = 7200;
+    const nx = (alpine || himalayan || greenHills) ? 360 : 280, nz = (alpine || himalayan || greenHills) ? 30 : 24, width = 76000, depth = 7200;
     for (let iz = 0; iz <= nz; iz++) {
       for (let ix = 0; ix <= nx; ix++) {
         const x = -width * .5 + width * ix / nx;
@@ -490,14 +495,14 @@ function createFarRanges(scene, noise, environment = null) {
           : alpine
             ? Math.pow(r1, 1.55) * 920 + Math.pow(r2, 2.15) * 310 + Math.pow(r3, 2.7) * 90
             : greenHills ? Math.pow(r1, 2.8) * 105 + Math.pow(r2, 2.8) * 34 + Math.pow(r3, 3.2) * 9 : Math.pow(r1, 2.0) * 410 + Math.pow(r2, 2.15) * 165 + Math.pow(r3, 2.7) * 52;
-        const base = (alpine || himalayan ? 78 : greenHills ? 25 : 72) +
+        const base = (alpine ? 78 : himalayan ? 210 : greenHills ? 25 : 72) +
           Math.sin(x * .00014 + layer * 1.7) * (alpine || himalayan ? 19 : greenHills ? 11 : 26) +
           Math.sin(z * .00045 + layer) * 7 +
           (himalayan ? chainField * 24 : 0);
         const foothill = himalayan
           ? noise(sampleX * 0.00013 + layer * 8.1, sampleZ * 0.00015 - layer * 5.7) * 24
           : 0;
-        const y = Math.max(0.5, (base + ridge + foothill) * envelope);
+        const y = Math.max(0.5, himalayan ? base + (ridge + foothill) * envelope : (base + ridge + foothill) * envelope);
         positions.push(x, y, z);
       }
     }
@@ -586,8 +591,8 @@ export class Terrain {
       // Rivers are narrow strips; keep their long axis detailed without
       // allocating a huge square water grid.
       const isLake = this.environment?.water?.type === "lake";
-      const segmentsX = isRiver ? 32 : (isLake ? 384 : 192);
-      const segmentsZ = isRiver ? 1024 : (isLake ? 384 : 192);
+      const segmentsX = isRiver ? 32 : (isLake ? 224 : 192);
+      const segmentsZ = isRiver ? 1024 : (isLake ? 224 : 192);
       const geometry = new THREE.PlaneGeometry(waterWidth, waterDepth, segmentsX, segmentsZ);
       const heights = new Float32Array(geometry.attributes.position.count);
       geometry.setAttribute("terrainHeight", new THREE.BufferAttribute(heights, 1));
@@ -676,7 +681,7 @@ export class Terrain {
       h += (Math.pow(Math.max(0.0, ridgeA), 2.0) * 34 + Math.pow(Math.max(0.0, ridgeB), 2.4) * 13) * (this.environment?.terrain?.ridgeWeight ?? 1);
       const shoreZ = Math.sin(x * 0.00022) * 1150 + Math.sin(x * 0.00061 + 1.7) * 360 +
         this.noise(x * 0.00048, z * 0.00031) * 260;
-      const coast = THREE.MathUtils.smoothstep(shoreZ - z, -720, 260);
+      const coast = THREE.MathUtils.smoothstep(shoreZ + z + 900, -720, 260);
       const headland = Math.pow(Math.max(0, Math.sin(x * 0.00016 + 0.8)), 5) * 95;
       const dune = Math.max(0, this.noise(x * 0.0013, z * 0.0011)) * 18;
       h = THREE.MathUtils.lerp(-100 + h * 0.12, 80 + h * 0.48 + headland + dune, coast);
@@ -689,6 +694,11 @@ export class Terrain {
         const hillShoulder = this.noise(warpX * 0.00053 - 29.0, warpZ * 0.00061 + 11.0);
         const softRidge = 1.0 - Math.abs(this.noise(warpX * 0.00072 + 83.0, warpZ * 0.00064 - 37.0));
         h += broadMeadow * 43 + rolling * 12 + hillShoulder * 4.5 + Math.pow(Math.max(0, softRidge), 2.8) * 4 + shoulder * 2.0;
+      } else if (this.environment?.id === "river-valley") {
+        const broadValley = this.noise(warpX * 0.00017 + 19.0, warpZ * 0.00016 - 37.0);
+        const valleyShoulder = this.noise(warpX * 0.00031 - 51.0, warpZ * 0.00034 + 13.0);
+        const lowRelief = 1.0 - Math.abs(this.noise(warpX * 0.00046 + 73.0, warpZ * 0.00042 - 29.0));
+        h += broadValley * 11 + rolling * 2.8 + valleyShoulder * 2.2 + Math.pow(Math.max(0, lowRelief), 2.2) * 1.8 + shoulder * 0.8;
       } else { h += rolling * 24 + shoulder * 7; }
     }
     if (this.biome === "desert") {
