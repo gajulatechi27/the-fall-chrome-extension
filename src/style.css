@@ -7,7 +7,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;min-width:0;min-height:0;ove
 #scene-label.visible{display:block}
 @media(prefers-reduced-motion:reduce){#fade{transition:none}}
 
-#dev-test-panel{display:none;position:fixed;z-index:50;right:14px;top:14px;width:220px;padding:13px;background:rgba(5,14,24,.92);border:1px solid rgba(190,220,240,.35);border-radius:9px;color:#e8f4fa;font:12px/1.4 system-ui,sans-serif;box-shadow:0 8px 30px rgba(0,0,0,.3)}
+#dev-test-panel{display:none;position:fixed;z-index:50;right:14px;top:14px;width:250px;max-height:calc(100vh - 28px);overflow:auto;padding:13px;background:rgba(5,14,24,.92);border:1px solid rgba(190,220,240,.35);border-radius:9px;color:#e8f4fa;font:12px/1.4 system-ui,sans-serif;box-shadow:0 8px 30px rgba(0,0,0,.3)}
 #dev-test-panel.open{display:grid;gap:8px}
 #dev-test-panel strong{font-size:11px;letter-spacing:.12em;color:#8ed8ff}
 #dev-test-panel label{display:grid;gap:3px;color:#cbd8e2}
