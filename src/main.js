@@ -142,7 +142,7 @@ function animate() {
   camera.fov = THREE.MathUtils.damp(camera.fov, THREE.MathUtils.clamp(targetFov, 60, 85), 4.5, dt);
   camera.updateProjectionMatrix();
 
-  try { terrain?.update(dt, speed, altitude, camera); } catch (error) { console.error("Terrain update failed", error); }
+  try { sky?.update(camera); terrain?.update(dt, speed, altitude, camera); } catch (error) { console.error("Terrain update failed", error); }
   try { clouds?.update(dt, speed, camera, altitude); } catch (error) { console.error("Cloud update failed", error); }
   if (scene.fog) {
     scene.fog.color.copy(sky.horizonColor);
