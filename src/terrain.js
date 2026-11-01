@@ -431,12 +431,13 @@ function createWaterMaterial(seed) {
 function createFarRanges(scene, noise, environment = null) {
   const alpine = environment?.water?.type === "lake";
   const himalayan = environment?.id === "himalayan-range";
+  const greenHills = environment?.id === "green-hills";
   const layers = [];
   const colors = (alpine || himalayan) ? [0x66869a, 0x87a7bd, 0xb4cbd8] : [0x718b91, 0x91a9ad, 0xb4c7c9];
   const distances = [10500, 14500, 18500];
   for (let layer = 0; layer < 3; layer++) {
     const positions = [], indices = [];
-    const nx = (alpine || himalayan) ? 520 : 320, nz = (alpine || himalayan) ? 42 : 28, width = 76000, depth = 7200;
+    const nx = (alpine || himalayan || greenHills) ? 520 : 320, nz = (alpine || himalayan || greenHills) ? 42 : 28, width = 76000, depth = 7200;
     for (let iz = 0; iz <= nz; iz++) {
       for (let ix = 0; ix <= nx; ix++) {
         const x = -width * .5 + width * ix / nx;
@@ -468,9 +469,9 @@ function createFarRanges(scene, noise, environment = null) {
           ? (Math.pow(r1, 1.34) * 790 + Math.pow(r2, 2.0) * 245 + Math.pow(r3, 2.6) * 58) * 1.12 * layerScale * chainStrength
           : alpine
             ? Math.pow(r1, 1.55) * 920 + Math.pow(r2, 2.15) * 310 + Math.pow(r3, 2.7) * 90
-            : Math.pow(r1, 2.0) * 410 + Math.pow(r2, 2.15) * 165 + Math.pow(r3, 2.7) * 52;
-        const base = (alpine || himalayan ? 78 : 72) +
-          Math.sin(x * .00014 + layer * 1.7) * (alpine || himalayan ? 19 : 26) +
+            : greenHills ? Math.pow(r1, 2.3) * 155 + Math.pow(r2, 2.5) * 58 + Math.pow(r3, 3.0) * 18 : Math.pow(r1, 2.0) * 410 + Math.pow(r2, 2.15) * 165 + Math.pow(r3, 2.7) * 52;
+        const base = (alpine || himalayan ? 78 : greenHills ? 38 : 72) +
+          Math.sin(x * .00014 + layer * 1.7) * (alpine || himalayan ? 19 : greenHills ? 11 : 26) +
           Math.sin(z * .00045 + layer) * 7 +
           (himalayan ? chainField * 24 : 0);
         const foothill = himalayan
@@ -493,11 +494,11 @@ function createFarRanges(scene, noise, environment = null) {
       const tint = new THREE.Color(
         himalayan
           ? [0xa8bfd1, 0xc0d2e0, 0xd5e2ec][layer]
-          : [0x849889, 0x91a5a8, 0xa9b9bd][layer]
+          : greenHills ? [0x536e4d, 0x718966, 0x9aaf89][layer] : [0x849889, 0x91a5a8, 0xa9b9bd][layer]
       );
-      tint.lerp(new THREE.Color(himalayan ? 0x8fa5b6 : 0x65756f), rock * (himalayan ? 0.22 : 1));
+      tint.lerp(new THREE.Color(himalayan ? 0x8fa5b6 : greenHills ? 0x405a3d : 0x65756f), rock * (himalayan ? 0.22 : 1));
       tint.lerp(new THREE.Color(alpine || himalayan ? 0xf2f7fb : 0xc5d0d0), high);
-      tint.lerp(new THREE.Color(himalayan ? [0xc9d9e6, 0xd9e5ee, 0xe7eff5][layer] : 0xd0dadd), [0.34, 0.56, 0.76][layer]);
+      tint.lerp(new THREE.Color(himalayan ? [0xc9d9e6, 0xd9e5ee, 0xe7eff5][layer] : greenHills ? [0x8ba187, 0xa4b59a, 0xb9c8ad][layer] : 0xd0dadd), [0.34, 0.56, 0.76][layer]);
       colorValues.push(tint.r, tint.g, tint.b);
     }
     const geometry = new THREE.BufferGeometry();
