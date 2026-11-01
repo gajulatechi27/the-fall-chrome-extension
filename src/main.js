@@ -108,6 +108,7 @@ function setPhaseWeather(){
  weatherSystem.setState(phaseName==="STORM LAYER"?"storm":weather);
 }
 function beginNextJourney(){
+ fade.classList.remove("dissolve");
  disposeScene();
  const next=randomScene();
  const nextSeed=Math.floor(Math.random()*0x7fffffff);
@@ -119,9 +120,14 @@ function beginNextJourney(){
  if(testMode&&testSettings.freeze){camera.position.y=Math.max(terrain.getHeightAt(camera.position.x,camera.position.z)+80,terrain.getWaterLevel()+40);}
 }
 function advancePhase(){
- if(phaseIndex===phases.length-1){beginNextJourney();return;}
+ if(phaseIndex===phases.length-1){
+   if(testMode){setPhase(0);setPhaseWeather();return;}
+   beginNextJourney();return;
+ }
  setPhase(phaseIndex+1);setPhaseWeather();
  if(phaseName==="STORM LAYER")weatherSystem?.setState("storm");
+ if(phaseName==="BREAKTHROUGH")weatherSystem?.setWhiteout(.42);
+ if(phaseName==="TRANSITION")weatherSystem?.setWhiteout(.24);
 }
 function setForcedPhase(name){
  const index=phases.findIndex(p=>p.id===name);
@@ -213,8 +219,11 @@ function animate(){
  if(phaseName==="TRANSITION"&&phaseTimeLeft<.15&&!testMode)beginNextJourney();
 }
 document.addEventListener("keydown",e=>{if(e.key.toLowerCase()==="d"&&!e.repeat){debugVisible=!debugVisible;debug.style.display=debugVisible?"block":"none";}});
-muteButton.addEventListener("click",async()=>{await audio.start();const muted=audio.toggleMute();muteButton.textContent=muted?"SOUND: MUTED":"SOUND: ON";});
-window.addEventListener("pointerdown",()=>{if(!audio.started)audio.start().catch(()=>{});},{once:true});
+muteButton.addEventListener("click",async()=>{
+ if(!audio.started){await audio.start();audio.muted=false;muteButton.textContent="SOUND: ON";return;}
+ const muted=audio.toggleMute();muteButton.textContent=muted?"SOUND: MUTED":"SOUND: ON";
+});
+window.addEventListener("pointerdown",()=>{if(!audio.started)audio.start().then(()=>{muteButton.textContent="SOUND: ON";}).catch(()=>{});},{once:true});
 if(testMode){
  devPanel=document.createElement("section");devPanel.id="dev-test-panel";
  devPanel.innerHTML='<strong>DEV JOURNEY TEST</strong><label>Biome<select id="dt-biome">'+sceneTypes.map(s=>'<option value="'+s.param+'">'+s.name+'</option>').join("")+'</select></label><label>Phase<select id="dt-phase">'+phases.map(p=>'<option value="'+p.id+'">'+p.id+'</option>').join("")+'</select></label><label>Weather<select id="dt-weather">'+weatherTypes.map(w=>'<option value="'+w+'">'+w+'</option>').join("")+'</select></label><label>Seed<input id="dt-seed" type="number"></label><label>Time<select id="dt-time"><option>dawn</option><option>noon</option><option>sunset</option><option>night</option></select></label><label>Speed override<input id="dt-speed" type="number" min="0" max="250" placeholder="automatic"></label><label class="dt-check"><input id="dt-freeze" type="checkbox"> Freeze camera</label><button id="dt-apply">Apply test settings</button><button id="dt-copy">Copy settings URL</button>';
