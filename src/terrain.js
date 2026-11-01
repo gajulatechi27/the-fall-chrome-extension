@@ -3,9 +3,9 @@ import { createNoise2D } from "simplex-noise";
 
 const CHUNK_SIZE = 1500;
 const SEGMENTS = 112;
-const WATER_LEVEL = -75;
+const WATER_LEVEL = -28;
 const WATER_SIZE = 6200;
-const HEIGHT_BASE = -115;
+const HEIGHT_BASE = 20;
 const BIOME_HEIGHT = { mountains: 185, desert: 105, islands: 118, forest: 145, snow: 230 };
 
 function makeRandom(seed) {
@@ -57,11 +57,11 @@ float fallDetail(vec2 p){
 float fallSlope = 1.0 - clamp(abs(normalize(vFallWorldNormal).y), 0.0, 1.0);
 float fallHeight = vFallWorldPosition.y;
 float fallNoiseValue = fallDetail(vFallWorldPosition.xz * 0.018);
-float fallWet = 1.0 - smoothstep(-91.0, -78.0, fallHeight + fallNoiseValue * 7.0);
-float fallDry = smoothstep(-88.0, -68.0, fallHeight + fallNoiseValue * 5.0);
-float fallGrass = smoothstep(-68.0, -40.0, fallHeight);
+float fallWet = 1.0 - smoothstep(-34.0, -23.0, fallHeight + fallNoiseValue * 5.0);
+float fallDry = smoothstep(-31.0, -8.0, fallHeight + fallNoiseValue * 5.0);
+float fallGrass = smoothstep(-12.0, 24.0, fallHeight);
 float fallRock = smoothstep(0.22, 0.62, fallSlope);
-float fallSnowLine = smoothstep(92.0 + fallNoiseValue * 30.0, 132.0 + fallNoiseValue * 30.0, fallHeight);
+float fallSnowLine = smoothstep(145.0 + fallNoiseValue * 28.0, 185.0 + fallNoiseValue * 28.0, fallHeight);
 vec3 fallWetSand = vec3(0.34, 0.39, 0.34);
 vec3 fallDrySand = vec3(0.67, 0.53, 0.34);
 vec3 fallGrassColor = vec3(0.19, 0.32, 0.19);
@@ -71,7 +71,7 @@ vec3 fallSnowColor = vec3(0.78, 0.83, 0.86);
 vec3 fallBiomeTint = ${biome === "desert" ? "vec3(1.12,0.91,0.68)" : biome === "snow" || biome === "mountains" ? "vec3(0.91,0.97,1.04)" : "vec3(0.92,1.04,0.88)"};
 vec3 fallGround = mix(fallWetSand, fallDrySand, fallDry);
 fallGround = mix(fallGround, fallGrassColor * fallBiomeTint, fallGrass);
-fallGround = mix(fallGround, fallForestFloor * fallBiomeTint, smoothstep(-12.0, 24.0, fallHeight) * 0.35);
+fallGround = mix(fallGround, fallForestFloor * fallBiomeTint, smoothstep(22.0, 58.0, fallHeight) * 0.35);
 fallGround = mix(fallGround, fallRockColor, fallRock);
 fallGround = mix(fallGround, fallSnowColor, fallSnowLine);
 fallGround *= 0.91 + fallNoiseValue * 0.42;
@@ -85,6 +85,7 @@ function makeChunk(noise, z, biome) {
   const positions = [];
   const indices = [];
   const heights = new Float32Array((SEGMENTS + 1) * (SEGMENTS + 1));
+  let minHeight = Infinity, maxHeight = -Infinity;
   const step = CHUNK_SIZE / SEGMENTS;
   const amplitude = BIOME_HEIGHT[biome] || 145;
 
@@ -92,7 +93,7 @@ function makeChunk(noise, z, biome) {
     const warpX = x + noise(x * 0.0007, worldZ * 0.0007) * 115;
     const warpZ = worldZ + noise((x + 900) * 0.0007, (worldZ - 400) * 0.0007) * 115;
     let h = fbm(noise, warpX, warpZ) * amplitude;
-    if (biome === "islands") h = h - 20 + Math.max(0, h) * 0.18;
+    if (biome === "islands") h = h - 92 + Math.max(0, h) * 0.18;
     if (biome === "desert") h = h * 0.76 + Math.sin(warpX * 0.0022 + noise(0, warpZ * 0.001) * 2.0) * 13;
     if (biome === "mountains" || biome === "snow") {
       const ridge = 1.0 - Math.abs(noise(warpX * 0.0012, warpZ * 0.0012));
@@ -108,7 +109,10 @@ function makeChunk(noise, z, biome) {
       const worldZ = z + localZ;
       const h = heightAt(x, worldZ);
       heights[row * (SEGMENTS + 1) + col] = h;
-      positions.push(x, HEIGHT_BASE + h, localZ);
+      const worldHeight = HEIGHT_BASE + h;
+      minHeight = Math.min(minHeight, worldHeight);
+      maxHeight = Math.max(maxHeight, worldHeight);
+      positions.push(x, worldHeight, localZ);
     }
   }
 
@@ -131,7 +135,7 @@ function makeChunk(noise, z, biome) {
   const skirtStart = positions.length / 3;
   for (const index of edge) {
     const x = positions[index * 3], y = positions[index * 3 + 1], zLocal = positions[index * 3 + 2];
-    positions.push(x, y - 42, zLocal);
+    positions.push(x, y - 8, zLocal);
   }
   for (let i = 0; i < edge.length; i++) {
     const next = (i + 1) % edge.length;
@@ -159,13 +163,15 @@ function makeChunk(noise, z, biome) {
   geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
   geometry.computeBoundingSphere();
 
-  const material = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.94, metalness: 0.0 });
+  const material = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.94, metalness: 0.0, side: THREE.DoubleSide });
   makeTerrainShader(material, biome);
   const mesh = new THREE.Mesh(geometry, material);
   mesh.position.z = z;
   mesh.receiveShadow = true;
   mesh.castShadow = false;
   mesh.userData.biome = biome;
+  mesh.userData.minHeight = minHeight;
+  mesh.userData.maxHeight = maxHeight;
   mesh.userData.heightAt = heightAt;
   return mesh;
 }
@@ -258,7 +264,7 @@ export class Terrain {
     }
 
     this.water = null;
-    if (biome === "islands" || routeTheme === "sea" || routeTheme === "river") {
+    if (biome === "islands") {
       const geometry = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
       this.waterMaterial = createWaterMaterial(seed);
       this.water = new THREE.Mesh(geometry, this.waterMaterial);
@@ -272,6 +278,7 @@ export class Terrain {
   update(dt, speed, altitude, camera) {
     const movement = dt * (speed * 1.65 + 70);
     this.group.position.z += movement;
+    if (camera) this.group.position.x = camera.position.x * 0.82;
     for (const chunk of this.chunks) {
       if (chunk.position.z + this.group.position.z > 900) {
         chunk.position.z -= CHUNK_SIZE * 4;
@@ -289,6 +296,15 @@ export class Terrain {
       this.water.position.z = (camera?.position.z || 0) + this.group.position.z;
       this.waterMaterial.uniforms.uTime.value += dt;
     }
+  }
+
+  getDebugInfo() {
+    return {
+      chunkCount: this.chunks.length,
+      seaLevel: this.water ? WATER_LEVEL : null,
+      minHeight: Math.min(...this.chunks.map(c => c.userData.minHeight ?? Infinity)),
+      maxHeight: Math.max(...this.chunks.map(c => c.userData.maxHeight ?? -Infinity))
+    };
   }
 
   dispose() {
