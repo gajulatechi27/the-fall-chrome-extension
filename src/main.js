@@ -201,7 +201,8 @@ function animate(){
  }
  sky?.update(camera);
  terrain?.update(dt,speed,altitude,camera);
- if(clouds)clouds.weather=phaseName==="STORM LAYER"?"storm":normalizeWeather(weather);\n clouds?.update(dt,speed,camera,altitude);
+ if(clouds)clouds.weather=phaseName==="STORM LAYER"?"storm":normalizeWeather(weather);
+ clouds?.update(dt,speed,camera,altitude);
  if(scene.fog){
    scene.fog.color.copy(sky.horizonColor);
    const target=weather==="mist"?.000052:phaseName==="STORM LAYER"?.000047:weather==="storm"?.00004:.000027;
