@@ -3,7 +3,7 @@ import * as THREE from "three";
 export function createSky(scene, renderer, seed, biome = "green", weather = "clear", timeOfDay = "noon") {
   const skyGeo = new THREE.SphereGeometry(1800, 48, 32);
   const palettes = {
-    himalayas:[0xa8c8df,0x315274,0xffe3c5],green:[0xf0c28a,0x315779,0xffd49b],
+    himalayas:[0xb9d5e4,0x263f60,0xffedcf],green:[0xf0c28a,0x315779,0xffd49b],
     delta:[0xb7d5dc,0x3c6480,0xffe0b5],lake:[0xe9b7a4,0x4b5278,0xffc5a0],
     coast:[0x9dd7e7,0x28628b,0xffe0a8],desert:[0xe9a16f,0x633d54,0xffc07a],
     forest:[0x9ebfae,0x254c4b,0xffd3a1],rainforest:[0x9eb8ad,0x294c52,0xffc89d]
@@ -53,16 +53,17 @@ export function createSky(scene, renderer, seed, biome = "green", weather = "cle
   sky.renderOrder = -1000;
   sky.frustumCulled = false;
   scene.add(sky);
-  const hemi = new THREE.HemisphereLight(0xe7f3ff, biome === "desert" ? 0x82604c : 0x536d55, weather === "storm" ? .8 : timeOfDay === "night" ? .38 : 1.65);
+  const hemi = new THREE.HemisphereLight(biome === "himalayas" ? 0xe5f3ff : 0xe7f3ff, biome === "himalayas" ? 0x46544b : biome === "desert" ? 0x82604c : 0x536d55, weather === "storm" ? .8 : timeOfDay === "night" ? .38 : 1.65);
   scene.add(hemi);
   const sun = new THREE.DirectionalLight(sunColor, weather === "storm" || weather === "heavy clouds" ? 1.05 : timeOfDay === "night" ? .18 : 2.8);
   sun.position.copy(sunDirection).multiplyScalar(420);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(1024, 1024);
-  sun.shadow.camera.left = -500;
-  sun.shadow.camera.right = 500;
-  sun.shadow.camera.top = 500;
-  sun.shadow.camera.bottom = -500;
+  sun.shadow.mapSize.set(biome === "himalayas" ? 2048 : 1024, biome === "himalayas" ? 2048 : 1024);
+  sun.shadow.radius = biome === "himalayas" ? 5 : 2;
+  sun.shadow.camera.left = biome === "himalayas" ? -1100 : -500;
+  sun.shadow.camera.right = biome === "himalayas" ? 1100 : 500;
+  sun.shadow.camera.top = biome === "himalayas" ? 1100 : 500;
+  sun.shadow.camera.bottom = biome === "himalayas" ? -1100 : -500;
   scene.add(sun);
   return {
     horizonColor,
