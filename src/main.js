@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { createSky } from "./sky.js";
 import { CloudField } from "./clouds.js";
 import { Terrain } from "./terrain.js";
+import { JourneyPath } from "./path.js";
 import { CinematicEffects } from "./effects.js";
 import { WeatherSystem } from "./weather.js";
 import { JourneyAudio } from "./audio.js";
@@ -55,11 +56,11 @@ const debug=document.createElement("pre");debug.id="fall-debug";debug.style.cssT
 const muteButton=document.createElement("button");muteButton.id="fall-mute";muteButton.type="button";muteButton.textContent="SOUND: OFF";muteButton.setAttribute("aria-label","Enable or mute THE FALL audio");document.body.appendChild(muteButton);
 const whiteout=document.createElement("div");whiteout.id="weather-whiteout";document.body.appendChild(whiteout);
 
-let sky,clouds,terrain,effects,weatherSystem;
+let sky,clouds,terrain,effects,weatherSystem,journeyPath;
 const audio=new JourneyAudio();
 let seed=testSettings.seed,activeScene=sceneTypes[0],weather=testSettings.weather,timeOfDay=testSettings.time;
 let phaseIndex=0,phaseElapsed=0,journeyElapsed=0,phaseTimeLeft=7,phaseName="FREEFALL";
-let speed=0,altitude=5000,pitchDegrees=-60,windSpeed=0,fps=0,fpsFrames=0,fpsElapsed=0;
+let speed=0,altitude=5000,pitchDegrees=-60,windSpeed=0,fps=0,fpsFrames=0,fpsElapsed=0,eyeHeight=3,pathCurvature=0,horizonVisible=false;
 let running=false,paused=false,frame=0,verticalVelocity=0,worldDistance=0,terrainHeightUnder=0,cameraClearance=0,groundWarning="";
 let previousBiome="",previousWeather="",transitionTriggered=false,phaseForced=testMode?testSettings.phase:null;
 let debugVisible=false,devPanel=null,lastFrameTime=performance.now(),lightningWasActive=false;
@@ -75,6 +76,7 @@ function disposeScene(){
  try{clouds?.dispose();}catch(e){}clouds=undefined;
  try{weatherSystem?.dispose();}catch(e){}weatherSystem=undefined;
  try{terrain?.dispose();}catch(e){}terrain=undefined;
+ try{journeyPath?.dispose();}catch(e){}journeyPath=undefined;
  scene.clear();
 }
 function weatherForBiome(biome, requested){
@@ -91,6 +93,7 @@ function createScene(nextScene,nextSeed,nextWeather,nextTime){
  const fogDensity=weather==="mist"?.000052:weather==="storm"||weather==="heavy rain"?.000044:.000027;
  scene.fog=new THREE.FogExp2(sky.horizonColor,fogDensity);
  terrain=new Terrain(scene,seed,activeScene.id);
+ journeyPath=new JourneyPath(seed,activeScene.id);scene.add(journeyPath.group);
  const ground=Math.max(terrain.getHeightAt(camera.position.x,camera.position.z),terrain.getWaterLevel());
  camera.position.y=ground+500;
  clouds=new CloudField(scene,seed,normalizeWeather(weather));
@@ -106,7 +109,7 @@ function getPhaseMotion(dt){
  if(p==="FREEFALL")return{speed:THREE.MathUtils.lerp(200,155,f),clearance:THREE.MathUtils.lerp(500,220,f),pitch:THREE.MathUtils.lerp(-60,-55,f),fov:THREE.MathUtils.lerp(82,85,f)};
  if(p==="STORM LAYER")return{speed:THREE.MathUtils.lerp(155,125,f),clearance:THREE.MathUtils.lerp(220,115,f),pitch:-60,fov:84};
  if(p==="BREAKTHROUGH")return{speed:THREE.MathUtils.lerp(125,90,f),clearance:THREE.MathUtils.lerp(115,55,f),pitch:THREE.MathUtils.lerp(-60,-20,f),fov:THREE.MathUtils.lerp(82,72,f)};
- if(p==="TRAVELLER FLIGHT")return{speed:78+Math.sin(t*.19)*12+Math.sin(t*.47)*6,clearance:90,pitch:-13+Math.sin(t*.21)*1.8,fov:78+Math.sin(t*.25)*1.5};
+ if(p==="TRAVELLER FLIGHT"){const lowFlight=activeScene.id==="himalayas";return{speed:lowFlight?78+Math.sin(t*.19)*12:35+Math.sin(t*.19)*4,clearance:lowFlight?85:3,pitch:-5+Math.sin(t*.21)*.7,fov:THREE.MathUtils.clamp(70+(lowFlight?speed*.06:speed*.12),70,82)};}
  return{speed:THREE.MathUtils.lerp(85,145,f),clearance:THREE.MathUtils.lerp(55,260,f),pitch:THREE.MathUtils.lerp(-20,-52,f),fov:THREE.MathUtils.lerp(70,82,f)};
 }
 function setPhaseWeather(){
@@ -142,49 +145,66 @@ function setForcedPhase(name){
 function updateCamera(dt){
  const motion=getPhaseMotion(dt);
  speed=testMode&&testSettings.speed!==null?testSettings.speed:motion.speed;
- if(testMode&&testSettings.freeze){speed=0;}
- const phaseProgress=phaseElapsed/phaseFor(phaseIndex).duration;
- const forwardSpeed=speed; // metres/second; displacement below is forwardSpeed * dt (metres)
+ if(testMode&&testSettings.freeze)speed=0;
+ const forwardSpeed=speed;
+ if(phaseName==="TRAVELLER FLIGHT"&&journeyPath){
+   const route=journeyPath.getAt(worldDistance);
+   const ahead=journeyPath.getAt(worldDistance+150);
+   const lowFlight=activeScene.id==="himalayas";
+   eyeHeight=lowFlight?85:3;
+   const ground=Math.max(terrain.getHeightAt(route.point.x,route.point.z),terrain.getWaterLevel());
+   const targetY=ground+eyeHeight;
+   const spring=lowFlight?2.2:4.5;
+   camera.position.x=THREE.MathUtils.damp(camera.position.x,route.point.x,3.2,dt);
+   camera.position.z=THREE.MathUtils.damp(camera.position.z,route.point.z,3.2,dt);
+   camera.position.y=THREE.MathUtils.damp(camera.position.y,targetY,spring,dt);
+   const lookPoint=ahead.point.clone();
+   lookPoint.y=Math.max(terrain.getHeightAt(lookPoint.x,lookPoint.z),terrain.getWaterLevel())+eyeHeight*.55;
+   camera.up.set(0,1,0);
+   camera.lookAt(lookPoint);
+   pathCurvature=route.curvature;
+   const bank=THREE.MathUtils.clamp(-pathCurvature*speed*0.055,-THREE.MathUtils.degToRad(4),THREE.MathUtils.degToRad(4));
+   const vibration=Math.sin(journeyElapsed*18)*.012*(speed/80);
+   camera.rotateZ(bank+vibration);
+   camera.position.y+=Math.sin(journeyElapsed*7.5)*.035*(speed/80);
+   pitchDegrees=-5;
+   cameraClearance=camera.position.y-ground;
+   terrainHeightUnder=ground;
+   altitude=Math.round(camera.position.y);
+   camera.fov=THREE.MathUtils.damp(camera.fov,motion.fov,2.8,dt);
+   camera.updateProjectionMatrix();
+   worldDistance+=forwardSpeed*dt;
+   const direction=new THREE.Vector3().subVectors(lookPoint,camera.position).normalize();
+   horizonVisible=direction.y<0.12&&direction.y>-0.22;
+   return motion;
+ }
  const curve=Math.sin(worldDistance*.00042)*420+Math.sin(worldDistance*.00017)*260;
  const curveNext=Math.sin((worldDistance+forwardSpeed*dt+400)*.00042)*420+Math.sin((worldDistance+forwardSpeed*dt+400)*.00017)*260;
- const x=curve;
  if(!(testMode&&testSettings.freeze)){
-   camera.position.x=THREE.MathUtils.damp(camera.position.x,x,phaseName==="TRAVELLER FLIGHT"?1.1:1.8,dt);
+   camera.position.x=THREE.MathUtils.damp(camera.position.x,curve,1.8,dt);
    camera.position.z-=forwardSpeed*dt;
  }
- const lookDistance=phaseName==="TRAVELLER FLIGHT"?2200:1100;
- const yaw=Math.atan2(curveNext-curve,400);
  const pitch=THREE.MathUtils.degToRad(motion.pitch);
  camera.rotation.order="YXZ";
  if(!(testMode&&testSettings.freeze)){
-   camera.lookAt(camera.position.x+Math.sin(yaw)*lookDistance,camera.position.y-Math.tan(-pitch)*lookDistance,camera.position.z-lookDistance);
-   const scenicYaw=Math.sin(journeyElapsed*.16)*.16+Math.sin(journeyElapsed*.055)*.07;
-   camera.rotateY(scenicYaw);
-   const bank=THREE.MathUtils.clamp(-yaw*1.25+Math.sin(journeyElapsed*.7)*.025,-.14,.14);
+   camera.lookAt(camera.position.x+(curveNext-curve),camera.position.y-Math.tan(-pitch)*1100,camera.position.z-1100);
+   const bank=THREE.MathUtils.clamp(Math.sin(journeyElapsed*.7)*.035,-.14,.14);
    camera.rotateZ(bank);
- }else{
-   camera.lookAt(camera.position.x,camera.position.y-Math.tan(THREE.MathUtils.degToRad(20))*1200,camera.position.z-1200);
  }
  pitchDegrees=motion.pitch;
- const forward=new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
  const samples=[0,100,250,500,850].map(distance=>terrain.getHeightAt(camera.position.x,camera.position.z-distance));
  terrainHeightUnder=samples[0];
  const ridge=Math.max(...samples,terrain.getWaterLevel());
- const requiredClearance=phaseName==="TRAVELLER FLIGHT"?90:phaseName==="BREAKTHROUGH"?70:95;
- const targetY=ridge+requiredClearance;
- // Clearance is a one-way, damped safety correction: it never snaps the camera
- // down to the terrain or overwrites forward movement.
+ const targetY=ridge+(phaseName==="BREAKTHROUGH"?70:95);
  if(camera.position.y<targetY){
    const gap=targetY-camera.position.y;
    verticalVelocity=Math.max(verticalVelocity,0);
    verticalVelocity+=Math.min(gap*2.2,42)*dt;
- }else{
-   verticalVelocity=Math.max(0,verticalVelocity*Math.exp(-2.4*dt));
- }
+ }else verticalVelocity=Math.max(0,verticalVelocity*Math.exp(-2.4*dt));
  camera.position.y+=verticalVelocity*dt;
- groundWarning=camera.position.y<targetY-8?"CLEARANCE RECOVERY":"";
  cameraClearance=camera.position.y-terrainHeightUnder;
- altitude=Math.round(camera.position.y*10);
+ altitude=Math.round(camera.position.y);
+ horizonVisible=true;
  camera.fov=THREE.MathUtils.damp(camera.fov,motion.fov,3.5,dt);camera.updateProjectionMatrix();
  worldDistance+=forwardSpeed*dt;
  return motion;
@@ -227,7 +247,7 @@ function animate(){
   const stats=terrain?.getDebugInfo?.()||{};
   const slowFlight=phaseName==="TRAVELLER FLIGHT"&&speed<20;
   debug.style.color=slowFlight?"#ff5555":"#d8f3ff";
-  debug.textContent="THE FALL — JOURNEY DEBUG\nPhase: "+phaseName+" | left "+phaseTimeLeft.toFixed(1)+" s\nBiome: "+activeScene.param+" | Seed: "+seed+"\nWeather: "+(phaseName==="STORM LAYER"?"storm":weather)+" | Wind: "+windSpeed.toFixed(1)+" m/s\nSpeed: "+speed.toFixed(1)+" m/s"+(slowFlight?"  WARNING: FLIGHT SPEED BELOW 20 m/s":"")+"\nAltitude: "+altitude+" m | Clearance: "+cameraClearance.toFixed(1)+" m\nCamera: x "+camera.position.x.toFixed(1)+" / y "+camera.position.y.toFixed(1)+" / z "+camera.position.z.toFixed(1)+"\nChunks: "+(stats.chunkCount||0)+" | FPS: "+fps.toFixed(1)+"\nJourney: "+journeyElapsed.toFixed(1)+" / "+phaseDuration+" s";
+  debug.textContent="THE FALL — JOURNEY DEBUG\nPhase: "+phaseName+" | left "+phaseTimeLeft.toFixed(1)+" s\nBiome: "+activeScene.param+" | Weather: "+weather+"\nSpeed: "+speed.toFixed(1)+" m/s | Eye height: "+eyeHeight.toFixed(1)+" m\nPath curvature: "+pathCurvature.toFixed(5)+" | Horizon visible: "+horizonVisible+"\nTime left: "+phaseTimeLeft.toFixed(1)+" s\nCamera: x "+camera.position.x.toFixed(1)+" / y "+camera.position.y.toFixed(1)+" / z "+camera.position.z.toFixed(1)+"\nChunks: "+(stats.chunkCount||0)+" | FPS: "+fps.toFixed(1);
  }
  label.style.opacity=String(THREE.MathUtils.smoothstep(phaseElapsed,.2,1.8)*(1-THREE.MathUtils.smoothstep(phaseElapsed,phaseFor(phaseIndex).duration-1.2,phaseFor(phaseIndex).duration)));
  if(phaseName==="TRANSITION"&&phaseTimeLeft<1.8&&!transitionTriggered){transitionTriggered=true;fade.classList.add("dissolve");}
