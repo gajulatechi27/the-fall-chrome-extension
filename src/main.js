@@ -325,7 +325,7 @@ function animate() {
     // Other environments retain the existing subtle heading drift.
     // Sweep the camera across both sides of every landscape. One complete
     // left-to-right-to-left viewing cycle fits the ten-second scene duration.
-    const viewYaw = THREE.MathUtils.degToRad(75) * Math.sin((time / duration) * Math.PI * 2);
+    const viewYaw = THREE.MathUtils.degToRad(35) * Math.sin((time / duration) * Math.PI * 2);
     cameraTarget.set(
       camera.position.x + Math.sin(viewYaw) * lookDistance,
       camera.position.y + Math.sin(pitchRadians) * lookDistance,
