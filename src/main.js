@@ -77,8 +77,14 @@ function disposeScene(){
  try{terrain?.dispose();}catch(e){}terrain=undefined;
  scene.clear();
 }
+function weatherForBiome(biome, requested){
+ if(biome==="rainforest")return "heavy rain";
+ if(biome==="desert")return "dust haze";
+ if(biome==="himalayas")return requested==="storm"?"storm":"overcast";
+ return requested;
+}
 function createScene(nextScene,nextSeed,nextWeather,nextTime){
- activeScene=nextScene;seed=nextSeed;weather=nextWeather;timeOfDay=nextTime;
+ activeScene=nextScene;seed=nextSeed;weather=weatherForBiome(activeScene.id,nextWeather);timeOfDay=nextTime;
  previousBiome=activeScene.id;previousWeather=weather;
  sky=createSky(scene,renderer,seed,activeScene.id,normalizeWeather(weather),timeOfDay);
  scene.background=sky.horizonColor.clone();
@@ -152,6 +158,8 @@ function updateCamera(dt){
  camera.rotation.order="YXZ";
  if(!(testMode&&testSettings.freeze)){
    camera.lookAt(camera.position.x+Math.sin(yaw)*lookDistance,camera.position.y-Math.tan(-pitch)*lookDistance,camera.position.z-lookDistance);
+   const scenicYaw=Math.sin(journeyElapsed*.115)*.075+Math.sin(journeyElapsed*.047)*.045;
+   camera.rotateY(scenicYaw);
    const bank=THREE.MathUtils.clamp(-yaw*1.8+Math.sin(journeyElapsed*.7)*.035,-.22,.22);
    camera.rotateZ(bank);
  }else{
@@ -193,6 +201,9 @@ function animate(){
  const forcedRain=phaseName==="STORM LAYER";
  if(weatherSystem){
    if(forcedRain)weatherSystem.setState("storm");
+   else if(activeScene.id==="rainforest")weatherSystem.setState("heavy rain");
+   else if(activeScene.id==="desert")weatherSystem.setState("dust haze");
+   else if(activeScene.id==="himalayas")weatherSystem.setState("overcast");
    const lightning=weatherSystem.update(dt,camera,speed);
    if(lightning&&audio.started)audio.thunder(900+Math.random()*1700);
    windSpeed=weatherSystem.wind.length();
