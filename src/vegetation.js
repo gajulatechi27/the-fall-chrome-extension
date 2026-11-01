@@ -96,8 +96,11 @@ export function createVegetation({ seed, biome, environment, xOffset, chunkZ, ch
   if ((!supportsTrees && !desert && !supportsMeadowGrass) || (!desert && biome !== "forest" && biome !== "snow") || segments < 32) return null;
 
   const density = THREE.MathUtils.clamp(environment?.vegetation?.density ?? 0.3, 0.08, 0.8);
-  const lodFactor = segments >= 128 ? 1 : segments >= 64 ? 0.62 : 0.2;
-  const targetCount = Math.round((desert ? 34 : biome === "snow" ? 150 : environment?.id === "green-hills" ? 245 : 112) * density * lodFactor);
+  const greenHills = environment?.id === "green-hills";
+  // Keep the horizon clean: tiny low-LOD instances turn into pale specks
+  // once atmospheric fog blends them into the sky.
+  const lodFactor = segments >= 128 ? 1 : segments >= 64 ? (greenHills ? 0.42 : 0.62) : (greenHills ? 0 : 0.2);
+  const targetCount = Math.round((desert ? 34 : biome === "snow" ? 150 : greenHills ? 245 : 112) * density * lodFactor);
 
   const random = seededRandom(hashChunk(seed, xOffset, chunkZ));
   const shrubGeometry = desert ? new THREE.DodecahedronGeometry(1, 0) : treeGeometry;
@@ -144,8 +147,8 @@ export function createVegetation({ seed, biome, environment, xOffset, chunkZ, ch
     const shade = 0.82 + random() * 0.3;
     tint.setHSL(
       desert ? 0.10 + random() * 0.06 : biome === "snow" ? 0.31 + random() * 0.025 : 0.34 + random() * 0.035,
-      desert ? 0.42 : biome === "snow" ? 0.28 : 0.5,
-      (desert ? 0.42 : biome === "snow" ? 0.46 : 0.44) * shade
+      desert ? 0.42 : biome === "snow" ? 0.28 : greenHills ? 0.62 : 0.5,
+      (desert ? 0.42 : biome === "snow" ? 0.46 : greenHills ? 0.34 : 0.44) * shade
     );
     instances.setColorAt(placed, tint);
     placed++;
@@ -160,8 +163,10 @@ export function createVegetation({ seed, biome, environment, xOffset, chunkZ, ch
     group.add(instances);
   }
 
-  if (supportsMeadowGrass) {
-    const grassCount = Math.round(720 * density * lodFactor * (environment?.vegetation?.grassDensity ?? 1));
+  // Meadow blades are only useful close enough to resolve their shape.
+  // Suppress them in mid/far chunks to avoid pale pinprick artefacts.
+  if (supportsMeadowGrass && segments >= 128) {
+    const grassCount = Math.round(720 * density * (environment?.vegetation?.grassDensity ?? 1));
     const grass = new THREE.InstancedMesh(meadowGrassGeometry, meadowGrassMaterial, grassCount);
     grass.name = "meadow-grass";
     grass.frustumCulled = false;
