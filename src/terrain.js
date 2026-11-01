@@ -84,7 +84,7 @@ diffuseColor.rgb = mix(diffuseColor.rgb, fallGround, 0.98);`
   material.customProgramCacheKey = () => "the-fall-terrain-shore-v1-" + biome;
 }
 
-function makeChunk(noise, z, biome, xOffset = 0, chunkSize = chunkSize, segments = segments) {
+function makeChunk(noise, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, segments = SEGMENTS) {
   const positions = [];
   const indices = [];
   const heights = new Float32Array((segments + 1) * (segments + 1));
@@ -96,7 +96,13 @@ function makeChunk(noise, z, biome, xOffset = 0, chunkSize = chunkSize, segments
     const warpX = x + noise(x * 0.0007, worldZ * 0.0007) * 115;
     const warpZ = worldZ + noise((x + 900) * 0.0007, (worldZ - 400) * 0.0007) * 115;
     let h = fbm(noise, warpX, warpZ) * amplitude;
-    if (biome === "islands") h = h - 92 + Math.max(0, h) * 0.18;
+    if (biome === "islands") {
+      const shoreZ = Math.sin(x * 0.00022) * 1150 + Math.sin(x * 0.00061 + 1.7) * 360 + noise(x * 0.00048, worldZ * 0.00031) * 260;
+      const coast = THREE.MathUtils.smoothstep(shoreZ - worldZ, -720, 260);
+      const headland = Math.pow(Math.max(0, Math.sin(x * 0.00016 + 0.8)), 5) * 95;
+      const dune = Math.max(0, noise(x * 0.0013, worldZ * 0.0011)) * 18;
+      h = THREE.MathUtils.lerp(-72 + h * 0.12, h * 0.48 + 24 + headland + dune, coast) - 92;
+    }
     if (biome === "desert") h = h * 0.76 + Math.sin(warpX * 0.0022 + noise(0, warpZ * 0.001) * 2.0) * 13;
     if (biome === "mountains" || biome === "snow") {
       const ridge = 1.0 - Math.abs(noise(warpX * 0.0012, warpZ * 0.0012));
