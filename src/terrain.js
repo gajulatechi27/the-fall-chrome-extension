@@ -35,15 +35,23 @@ function terrainHeight(noise, x, z, biome) {
   const warpZ = z + noise((x + 900) * 0.00022, (z - 400) * 0.00022) * 420;
   let h = fbm(noise, warpX, warpZ) * 115;
   if (["himalayas", "mountains", "snow", "lake", "forest", "rainforest"].includes(biome)) {
-    const ridgeNoise = noise(warpX * 0.00048, warpZ * 0.00048);
-    const ridges = Math.pow(Math.max(0, 1 - Math.abs(ridgeNoise)), 2.15);
+    const ridgeNoise = noise(warpX * (biome === "himalayas" ? 0.00036 : 0.00048), warpZ * (biome === "himalayas" ? 0.00036 : 0.00048));
+    const ridges = Math.pow(Math.max(0, 1 - Math.abs(ridgeNoise)), biome === "himalayas" ? 1.35 : 2.15);
     const rangeMask = biome === "lake"
       ? THREE.MathUtils.smoothstep(Math.hypot(x, z), 900, 3200)
       : 1;
-    const mountainHeight = biome === "lake" ? 320 : biome === "himalayas" || biome === "snow" ? 365 : biome === "rainforest" ? 205 : biome === "forest" ? 235 : 245;
+    const mountainHeight = biome === "lake" ? 320 : biome === "himalayas" ? 455 : biome === "snow" ? 365 : biome === "rainforest" ? 205 : biome === "forest" ? 235 : 245;
     h += ridges * mountainHeight * rangeMask;
-    // Carve broad glacier valleys between ridgelines.
-    h -= Math.pow(Math.max(0, 1 - Math.abs(noise(warpX * 0.00023 + 8, warpZ * 0.00023 - 3))), 5) * 72;
+    if (biome === "himalayas") {
+      const secondary = Math.pow(Math.max(0, 1 - Math.abs(noise((warpX + 1250) * 0.00029, (warpZ - 760) * 0.00029))), 1.55);
+      const spine = Math.pow(Math.max(0, 1 - Math.abs(noise(warpX * 0.00017 + 13, warpZ * 0.00017 - 6))), 3.2);
+      h += secondary * 185 + spine * 115;
+      const glacier = Math.pow(Math.max(0, 1 - Math.abs(noise(warpX * 0.00019 + 8, warpZ * 0.00019 - 3))), 7);
+      h -= glacier * 105;
+      h += Math.abs(noise(warpX * 0.00082, warpZ * 0.00082)) * ridges * 24;
+    } else {
+      h -= Math.pow(Math.max(0, 1 - Math.abs(noise(warpX * 0.00023 + 8, warpZ * 0.00023 - 3))), 5) * 72;
+    }
   }
   if (biome === "lake") {
     const lakeRadius = 850 + noise(1200, 300) * 90;
@@ -95,10 +103,11 @@ function makeChunk(noise, chunkX, chunkZ, biome, segments) {
   const normals = [];
   const indices = [];
   const step = CHUNK_SIZE / segments;
-  const min = new THREE.Color(biome === "rainforest" || biome === "forest" ? 0x315b42 : 0x58794a);
-  const grass = new THREE.Color(biome === "delta" ? 0xc2b276 : biome === "rainforest" ? 0x4f9562 : biome === "forest" ? 0x528451 : 0x91b96c);
-  const rock = new THREE.Color(biome === "desert" ? 0x9b5940 : 0x85877e);
-  const snow = new THREE.Color(0xf0f5f8);
+  const isHimalaya = biome === "himalayas";
+  const min = new THREE.Color(isHimalaya ? 0x344b50 : biome === "rainforest" || biome === "forest" ? 0x315b42 : 0x58794a);
+  const grass = new THREE.Color(isHimalaya ? 0x647b59 : biome === "delta" ? 0xc2b276 : biome === "rainforest" ? 0x4f9562 : biome === "forest" ? 0x528451 : 0x91b96c);
+  const rock = new THREE.Color(isHimalaya ? 0x777b78 : biome === "desert" ? 0x9b5940 : 0x85877e);
+  const snow = new THREE.Color(isHimalaya ? 0xeaf3f5 : 0xf0f5f8);
   const sand = new THREE.Color(0xc5a477);
   let minHeight = Infinity, maxHeight = -Infinity;
 
@@ -122,15 +131,21 @@ function makeChunk(noise, chunkX, chunkZ, biome, segments) {
       const slope = Math.min(1, Math.hypot(slopeX, slopeZ) / 18);
       let color = grass.clone().lerp(min, 0.28);
       if (biome === "desert" || biome === "coast" || biome === "islands") color.copy(sand);
-      color.lerp(rock, THREE.MathUtils.smoothstep(slope, 0.18, 0.68) * 0.82);
+      color.lerp(rock, THREE.MathUtils.smoothstep(slope, isHimalaya ? 0.12 : 0.18, isHimalaya ? 0.48 : 0.68) * (isHimalaya ? 0.94 : 0.82));
+      if (isHimalaya) {
+        const screeBand = THREE.MathUtils.smoothstep(h, 105, 210) * (1 - THREE.MathUtils.smoothstep(h, 270, 330));
+        color.lerp(new THREE.Color(0x8b8980), screeBand * THREE.MathUtils.smoothstep(slope, 0.08, 0.42) * 0.42);
+        const valleyShade = (1 - THREE.MathUtils.smoothstep(h, 45, 145)) * (1 - THREE.MathUtils.smoothstep(slope, 0.05, 0.32));
+        color.lerp(new THREE.Color(0x354d43), valleyShade * 0.42);
+      }
       if (["himalayas", "snow", "lake", "forest", "rainforest"].includes(biome)) {
-        const snowLine = 225 + noise(wx * 0.001, wz * 0.001) * 42;
+        const snowLine = (isHimalaya ? 285 : 225) + noise(wx * 0.001, wz * 0.001) * (isHimalaya ? 55 : 42);
         color.lerp(snow, THREE.MathUtils.smoothstep(h, snowLine - 22, snowLine + 32));
       }
       if (biome === "lake" && Math.hypot(wx, wz) < 1080) color.lerp(grass, 0.35);
       if (biome === "green") { const field = Math.sin(wx * 0.0018 + Math.sin(wz * 0.0007) * 2.2); color.lerp(new THREE.Color(0xc4ad69), THREE.MathUtils.smoothstep(field, 0.68, 0.96) * 0.62); }
       if (biome === "delta") { const field = Math.sin(wx * 0.0011 + wz * 0.00018) * Math.cos(wz * 0.0009); color.lerp(new THREE.Color(0xc1a66b), THREE.MathUtils.smoothstep(field, 0.55, 0.9) * 0.72); }
-      const detail = 0.92 + fbm(noise, wx * 1.3, wz * 1.3) * 0.18;
+      const detail = (isHimalaya ? 0.86 : 0.92) + fbm(noise, wx * 1.3, wz * 1.3) * (isHimalaya ? 0.28 : 0.18);
       color.multiplyScalar(detail);
       colors.push(color.r, color.g, color.b);
     }
