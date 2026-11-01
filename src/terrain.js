@@ -63,30 +63,34 @@ function mountainRelief(noise, x, z, ridgeWeight = 1, himalayan = false) {
     // massifs with long shoulders and occasional asymmetric summit spurs.
     const warpX = x + noise(x * 0.00022 + 31, z * 0.00022 - 17) * 690;
     const warpZ = z + noise(x * 0.00019 - 23, z * 0.00019 + 41) * 610;
-    const broadA = 1 - Math.abs(noise(warpX * 0.00049 + 7, warpZ * 0.00049 - 11));
-    const broadB = 1 - Math.abs(noise(warpX * 0.00037 - 43, warpZ * 0.00043 + 29));
-    const crossRidge = 1 - Math.abs(noise(warpX * 0.00073 + 67, warpZ * 0.00061 - 53));
-    const secondaryRidge = 1 - Math.abs(noise(warpX * 0.00122 - 29, warpZ * 0.00122 + 41));
-    const fine = 1 - Math.abs(noise(warpX * 0.00235 + 13, warpZ * 0.00235 - 7));
+    // Slightly elongated, differently oriented ridge fields create long
+    // connected crests; low-frequency warp keeps their outlines asymmetric.
+    const broadA = 1 - Math.abs(noise(warpX * 0.00043 + 7, warpZ * 0.00055 - 11));
+    const broadB = 1 - Math.abs(noise(warpX * 0.00031 - 43, warpZ * 0.00039 + 29));
+    const crossRidge = 1 - Math.abs(noise(warpX * 0.00068 + 67, warpZ * 0.00057 - 53));
+    const secondaryRidge = 1 - Math.abs(noise(warpX * 0.00112 - 29, warpZ * 0.00129 + 41));
+    const fine = 1 - Math.abs(noise(warpX * 0.00205 + 13, warpZ * 0.00245 - 7));
     const shoulder = noise(warpX * 0.00021 + 17, warpZ * 0.00021 - 23);
     const glacialCut = Math.pow(Math.abs(noise(warpX * 0.00034 + 53, warpZ * 0.00034 - 37)), 1.08);
-    // Broad low-frequency troughs, with a softer floor and steeper valley
-    // shoulders, approximate glacial U-shaped valleys.
-    const valleyField = Math.abs(noise(warpX * 0.00029 - 61, warpZ * 0.00029 + 47));
-    const valley = 1 - THREE.MathUtils.smoothstep(valleyField, 0.035, 0.255);
-    const valleyFloor = 1 - THREE.MathUtils.smoothstep(valleyField, 0.0, 0.075);
+    // Wider troughs and a flatter central floor produce a more legible U-shaped
+    // glacial cross-section without simply lowering the whole mountain field.
+    const valleyField = Math.abs(noise(warpX * 0.00027 - 61, warpZ * 0.00027 + 47));
+    const valley = 1 - THREE.MathUtils.smoothstep(valleyField, 0.045, 0.285);
+    const valleyFloor = 1 - THREE.MathUtils.smoothstep(valleyField, 0.015, 0.105);
     const massif = Math.max(0, noise(warpX * 0.00016 - 17, warpZ * 0.00016 + 23) + 0.2);
-    const spur = Math.pow(Math.max(0, 1 - Math.abs(noise(warpX * 0.0017 + 101, warpZ * 0.0011 - 83))), 2.1);
+    const spurField = 1 - Math.abs(noise(warpX * 0.00155 + 101, warpZ * 0.00125 - 83));
+    const spur = Math.pow(Math.max(0, spurField), 2.35);
+    const crestBreak = noise(warpX * 0.00088 + 137, warpZ * 0.00073 - 119);
     return (
-      Math.pow(Math.max(0, broadA), 1.52) * 88 +
-      Math.pow(Math.max(0, broadB), 1.72) * 54 +
-      Math.pow(Math.max(0, crossRidge), 2.0) * 24 +
-      Math.pow(Math.max(0, primary), 2.15) * 18 +
-      Math.pow(Math.max(0, secondaryRidge), 2.4) * 10 +
+      Math.pow(Math.max(0, broadA), 1.58) * 91 +
+      Math.pow(Math.max(0, broadB), 1.78) * 58 +
+      Math.pow(Math.max(0, crossRidge), 2.05) * 21 +
+      Math.pow(Math.max(0, primary), 2.2) * 16 +
+      Math.pow(Math.max(0, secondaryRidge), 2.45) * 9 +
       Math.pow(Math.max(0, secondary), 3.0) * 3 +
       Math.pow(Math.max(0, fine), 3.0) * 2 +
-      spur * 9 + massif * 38 + shoulder * 7 -
-      glacialCut * 8 - valley * 49 - valleyFloor * 13
+      spur * 11 + massif * 36 + shoulder * 7 + crestBreak * 5 -
+      glacialCut * 8 - valley * 57 - valleyFloor * 16
     ) * ridgeWeight;
   }
   return (
@@ -169,12 +173,14 @@ float fallDry = smoothstep(-31.0, -8.0, fallHeight + fallNoiseValue * 5.0);
 float fallGrass = smoothstep(-12.0, 24.0, fallHeight);
 float fallRock = smoothstep(0.18 + fallMicro * 0.035, 0.56 + fallMicro * 0.035, fallSlope);
 float fallSnowLine = smoothstep(${snowLineLow.toFixed(1)} + fallNoiseValue * 18.0, ${snowLineHigh.toFixed(1)} + fallNoiseValue * 18.0, fallHeight);
-float fallSnowCoverage = fallSnowLine * ${environment?.id === "himalayan-range" ? "(1.0 - smoothstep(0.56, 0.94, fallSlope) * 0.34)" : "1.0"};
-vec3 fallWetSand = ${biome === "desert" ? "vec3(0.48, 0.34, 0.20)" : "vec3(0.34, 0.42, 0.39)"};
-vec3 fallDrySand = ${biome === "desert" ? "vec3(0.88, 0.62, 0.30)" : "vec3(0.72, 0.57, 0.37)"};
-vec3 fallGrassColor = ${biome === "desert" ? "vec3(0.79, 0.52, 0.23)" : biome === "snow" ? "vec3(0.31, 0.37, 0.32)" : "vec3(0.23, 0.39, 0.23)"};
-vec3 fallForestFloor = ${biome === "desert" ? "vec3(0.66, 0.43, 0.22)" : biome === "snow" ? "vec3(0.19, 0.23, 0.22)" : "vec3(0.14, 0.25, 0.17)"};
-vec3 fallRockColor = ${biome === "desert" ? "vec3(0.55, 0.37, 0.25)" : "vec3(0.37, 0.39, 0.40)"};
+float fallSnowCoverage = fallSnowLine * ${environment?.id === "himalayan-range" ? "(1.0 - smoothstep(0.62, 0.96, fallSlope) * 0.28)" : "1.0"};
+float fallValleySnow = ${environment?.id === "himalayan-range" ? "smoothstep(0.12, 0.42, fallNoiseValue + 0.22) * (1.0 - smoothstep(0.38, 0.72, fallSlope)) * 0.34" : "0.0"};
+fallSnowCoverage = max(fallSnowCoverage, fallValleySnow);
+vec3 fallWetSand = ${environment?.id === "himalayan-range" ? "vec3(0.24, 0.31, 0.37)" : biome === "desert" ? "vec3(0.48, 0.34, 0.20)" : "vec3(0.34, 0.42, 0.39)"};
+vec3 fallDrySand = ${environment?.id === "himalayan-range" ? "vec3(0.36, 0.42, 0.47)" : biome === "desert" ? "vec3(0.88, 0.62, 0.30)" : "vec3(0.72, 0.57, 0.37)"};
+vec3 fallGrassColor = ${environment?.id === "himalayan-range" ? "vec3(0.27, 0.33, 0.36)" : biome === "desert" ? "vec3(0.79, 0.52, 0.23)" : biome === "snow" ? "vec3(0.31, 0.37, 0.32)" : "vec3(0.23, 0.39, 0.23)"};
+vec3 fallForestFloor = ${environment?.id === "himalayan-range" ? "vec3(0.20, 0.26, 0.30)" : biome === "desert" ? "vec3(0.66, 0.43, 0.22)" : biome === "snow" ? "vec3(0.19, 0.23, 0.22)" : "vec3(0.14, 0.25, 0.17)"};
+vec3 fallRockColor = ${environment?.id === "himalayan-range" ? "vec3(0.29, 0.34, 0.39)" : biome === "desert" ? "vec3(0.55, 0.37, 0.25)" : "vec3(0.37, 0.39, 0.40)"};
 vec3 fallSnowColor = vec3(0.91, 0.94, 0.97);
 vec3 fallBiomeTint = ${paletteTint};
 vec3 fallGround = mix(fallWetSand, fallDrySand, fallDry);
