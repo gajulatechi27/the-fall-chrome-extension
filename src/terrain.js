@@ -31,13 +31,13 @@ function fbm(noise, x, z, octaves = 6) {
 }
 
 function riverCenterX(noise, worldZ) {
-  // Meanders are designed for the actual visible flight distance (several
-  // kilometres), not just a subtle continental-scale drift. Long, overlapping
-  // wavelengths create broad bends while keeping the centerline differentiable.
-  return Math.sin(worldZ * 0.00056 + 0.35) * 760 +
-    Math.sin(worldZ * 0.000235 - 1.25) * 390 +
-    Math.sin(worldZ * 0.000105 + 2.0) * 185 +
-    noise(0.0, worldZ * 0.00016) * 85;
+  // The flight camera sees only a limited stretch of river at once. Use
+  // kilometre-scale meanders so bends are visible in that view, with slower
+  // secondary drift to keep the route irregular rather than sinusoidal.
+  return Math.sin(worldZ * 0.00155 + 0.35) * 1080 +
+    Math.sin(worldZ * 0.00072 - 1.25) * 520 +
+    Math.sin(worldZ * 0.00031 + 2.0) * 240 +
+    noise(0.0, worldZ * 0.00042) * 115;
 }
 
 function riverWidthAt(noise, worldZ, baseWidth) {
