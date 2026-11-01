@@ -25,9 +25,9 @@ export class JourneyPath {
 
   routePoint(distance) {
     const n = distance / NODE_SPACING;
-    const a = Math.sin(n * 0.47 + (this.seed % 997) * 0.013);
-    const b = Math.sin(n * 0.19 + (this.seed % 313) * 0.021);
-    const c = Math.sin(n * 0.083 + (this.seed % 127) * 0.031);
+    const a = Math.sin(n * 0.47);
+    const b = Math.sin(n * 0.19);
+    const c = Math.sin(n * 0.083);
     const amplitude = this.biome === "himalayas" ? 210 : this.biome === "coast" ? 150 : 105;
     const x = a * amplitude + b * amplitude * 0.42 + c * amplitude * 0.2;
     const y = Math.sin(n * 0.31) * 8 + Math.sin(n * 0.11) * 15;
