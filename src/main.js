@@ -144,21 +144,21 @@ function updateCamera(dt){
  speed=testMode&&testSettings.speed!==null?testSettings.speed:motion.speed;
  if(testMode&&testSettings.freeze){speed=0;}
  const phaseProgress=phaseElapsed/phaseFor(phaseIndex).duration;
- const forwardSpeed=speed*.1;
+ const forwardSpeed=speed;
  const curve=Math.sin(worldDistance*.00042)*420+Math.sin(worldDistance*.00017)*260;
- const curveNext=Math.sin((worldDistance+forwardSpeed*dt)*.00042)*420+Math.sin((worldDistance+forwardSpeed*dt)*.00017)*260;
+ const curveNext=Math.sin((worldDistance+forwardSpeed*dt+400)*.00042)*420+Math.sin((worldDistance+forwardSpeed*dt+400)*.00017)*260;
  const x=curve;
  if(!(testMode&&testSettings.freeze)){
    camera.position.x=THREE.MathUtils.damp(camera.position.x,x,phaseName==="TRAVELLER FLIGHT"?1.1:1.8,dt);
    camera.position.z-=forwardSpeed*dt;
  }
  const lookDistance=phaseName==="TRAVELLER FLIGHT"?1450:1100;
- const yaw=Math.atan2(curveNext-curve,Math.max(1,forwardSpeed*dt));
+ const yaw=Math.atan2(curveNext-curve,400);
  const pitch=THREE.MathUtils.degToRad(motion.pitch);
  camera.rotation.order="YXZ";
  if(!(testMode&&testSettings.freeze)){
    camera.lookAt(camera.position.x+Math.sin(yaw)*lookDistance,camera.position.y-Math.tan(-pitch)*lookDistance,camera.position.z-lookDistance);
-   const scenicYaw=Math.sin(journeyElapsed*.115)*.075+Math.sin(journeyElapsed*.047)*.045;
+   const scenicYaw=Math.sin(journeyElapsed*.16)*.28+Math.sin(journeyElapsed*.055)*.13;
    camera.rotateY(scenicYaw);
    const bank=THREE.MathUtils.clamp(-yaw*1.8+Math.sin(journeyElapsed*.7)*.035,-.22,.22);
    camera.rotateZ(bank);
@@ -228,7 +228,7 @@ function animate(){
  }
  label.style.opacity=String(THREE.MathUtils.smoothstep(phaseElapsed,.2,1.8)*(1-THREE.MathUtils.smoothstep(phaseElapsed,phaseFor(phaseIndex).duration-1.2,phaseFor(phaseIndex).duration)));
  if(phaseName==="TRANSITION"&&phaseTimeLeft<1.8&&!transitionTriggered){transitionTriggered=true;fade.classList.add("dissolve");}
- if(phaseName==="TRANSITION"&&phaseTimeLeft<.15&&!testMode)beginNextJourney();
+ // Scene switching is handled once by advancePhase at the end of TRANSITION.
 }
 document.addEventListener("keydown",e=>{if(e.key.toLowerCase()==="d"&&!e.repeat){debugVisible=!debugVisible;debug.style.display=debugVisible?"block":"none";}});
 muteButton.addEventListener("click",async()=>{
