@@ -59,26 +59,34 @@ function mountainRelief(noise, x, z, ridgeWeight = 1, himalayan = false) {
   const primary = 1 - Math.abs(noise(x * (himalayan ? 0.00082 : 0.00105), z * (himalayan ? 0.00082 : 0.00105)));
   const secondary = 1 - Math.abs(noise(x * 0.00215 + 13, z * 0.00215 - 7));
   if (himalayan) {
-    // Broad, warped ridge systems create connected mountain massifs rather
-    // than a repeated field of isolated pointed peaks.
-    const warpX = x + noise(x * 0.00022 + 31, z * 0.00022 - 17) * 520;
-    const warpZ = z + noise(x * 0.00019 - 23, z * 0.00019 + 41) * 460;
-    const broadRidge = 1 - Math.abs(noise(warpX * 0.00057 + 7, warpZ * 0.00057 - 11));
-    const secondaryRidge = 1 - Math.abs(noise(warpX * 0.00135 - 29, warpZ * 0.00135 + 41));
-    const fine = 1 - Math.abs(noise(warpX * 0.0026 + 13, warpZ * 0.0026 - 7));
-    const shoulder = noise(warpX * 0.00024 + 17, warpZ * 0.00024 - 23);
-    const glacialCut = Math.pow(Math.abs(noise(warpX * 0.00039 + 53, warpZ * 0.00039 - 37)), 1.15);
-    // A low-frequency contour field carves broad U-shaped glacial valleys.
-    const valleyField = Math.abs(noise(warpX * 0.00034 - 61, warpZ * 0.00034 + 47));
-    const valley = 1 - THREE.MathUtils.smoothstep(valleyField, 0.025, 0.22);
-    const massif = Math.max(0, noise(warpX * 0.00018 - 17, warpZ * 0.00018 + 23) + 0.2);
+    // Domain-warped, intersecting ridge systems form irregular connected
+    // massifs with long shoulders and occasional asymmetric summit spurs.
+    const warpX = x + noise(x * 0.00022 + 31, z * 0.00022 - 17) * 690;
+    const warpZ = z + noise(x * 0.00019 - 23, z * 0.00019 + 41) * 610;
+    const broadA = 1 - Math.abs(noise(warpX * 0.00049 + 7, warpZ * 0.00049 - 11));
+    const broadB = 1 - Math.abs(noise(warpX * 0.00037 - 43, warpZ * 0.00043 + 29));
+    const crossRidge = 1 - Math.abs(noise(warpX * 0.00073 + 67, warpZ * 0.00061 - 53));
+    const secondaryRidge = 1 - Math.abs(noise(warpX * 0.00122 - 29, warpZ * 0.00122 + 41));
+    const fine = 1 - Math.abs(noise(warpX * 0.00235 + 13, warpZ * 0.00235 - 7));
+    const shoulder = noise(warpX * 0.00021 + 17, warpZ * 0.00021 - 23);
+    const glacialCut = Math.pow(Math.abs(noise(warpX * 0.00034 + 53, warpZ * 0.00034 - 37)), 1.08);
+    // Broad low-frequency troughs, with a softer floor and steeper valley
+    // shoulders, approximate glacial U-shaped valleys.
+    const valleyField = Math.abs(noise(warpX * 0.00029 - 61, warpZ * 0.00029 + 47));
+    const valley = 1 - THREE.MathUtils.smoothstep(valleyField, 0.035, 0.255);
+    const valleyFloor = 1 - THREE.MathUtils.smoothstep(valleyField, 0.0, 0.075);
+    const massif = Math.max(0, noise(warpX * 0.00016 - 17, warpZ * 0.00016 + 23) + 0.2);
+    const spur = Math.pow(Math.max(0, 1 - Math.abs(noise(warpX * 0.0017 + 101, warpZ * 0.0011 - 83))), 2.1);
     return (
-      Math.pow(Math.max(0, broadRidge), 1.38) * 116 +
-      Math.pow(Math.max(0, primary), 2.05) * 28 +
-      Math.pow(Math.max(0, secondaryRidge), 2.25) * 13 +
-      Math.pow(Math.max(0, secondary), 3.0) * 4 +
+      Math.pow(Math.max(0, broadA), 1.52) * 88 +
+      Math.pow(Math.max(0, broadB), 1.72) * 54 +
+      Math.pow(Math.max(0, crossRidge), 2.0) * 24 +
+      Math.pow(Math.max(0, primary), 2.15) * 18 +
+      Math.pow(Math.max(0, secondaryRidge), 2.4) * 10 +
+      Math.pow(Math.max(0, secondary), 3.0) * 3 +
       Math.pow(Math.max(0, fine), 3.0) * 2 +
-      massif * 42 + shoulder * 8 - glacialCut * 9 - valley * 34
+      spur * 9 + massif * 38 + shoulder * 7 -
+      glacialCut * 8 - valley * 49 - valleyFloor * 13
     ) * ridgeWeight;
   }
   return (
@@ -425,19 +433,20 @@ function createFarRanges(scene, noise, environment = null) {
         // Fade each distant ridge mass into the atmospheric horizon instead
         // of exposing a flat lower edge that reads as a detached mountain wall.
         const envelope = Math.pow(Math.max(0, Math.sin(Math.PI * iz / nz)), 0.72);
-        const r1 = 1.0 - Math.abs(noise(x * (.00027 + layer * .00003), z * .00024 + layer * 2.1));
-        const r2 = 1.0 - Math.abs(noise(x * (.00071 + layer * .000035) + 17.0, z * .00061 - layer * 4.7));
-        const r3 = 1.0 - Math.abs(noise(x * (.00155 + layer * .00005) - 9.0, z * .0012 + layer));
+        const layerScale = [1.0, 0.78, 0.58][layer];
+        const sampleX = x + (himalayan ? noise(x * 0.00012 + layer * 13, z * 0.00013 - layer * 9) * 1250 : 0);
+        const sampleZ = z + (himalayan ? noise(x * 0.00011 - layer * 7, z * 0.00012 + layer * 17) * 980 : 0);
+        const r1 = 1.0 - Math.abs(noise(sampleX * (.00023 + layer * .000025), sampleZ * .00022 + layer * 2.1));
+        const r2 = 1.0 - Math.abs(noise(sampleX * (.00058 + layer * .00003) + 17.0, sampleZ * .00051 - layer * 4.7));
+        const r3 = 1.0 - Math.abs(noise(sampleX * (.0012 + layer * .00004) - 9.0, sampleZ * .00095 + layer));
         const ridge = himalayan
-          ? Math.pow(r1, 1.08) * 1080 * 1.34 +
-            Math.pow(r2, 1.72) * 365 * 1.34 +
-            Math.pow(r3, 2.25) * 112 * 1.34
+          ? (Math.pow(r1, 1.24) * 1030 + Math.pow(r2, 1.9) * 300 + Math.pow(r3, 2.5) * 68) * 1.18 * layerScale
           : alpine
             ? Math.pow(r1, 1.55) * 920 + Math.pow(r2, 2.15) * 310 + Math.pow(r3, 2.7) * 90
             : Math.pow(r1, 2.0) * 410 + Math.pow(r2, 2.15) * 165 + Math.pow(r3, 2.7) * 52;
-        const base = (alpine || himalayan ? 118 : 72) + Math.sin(x * .00014 + layer) * (alpine || himalayan ? 34 : 26) + Math.sin(z * .00045 + layer) * 9;
+        const base = (alpine || himalayan ? 96 : 72) + Math.sin(x * .00014 + layer * 1.7) * (alpine || himalayan ? 25 : 26) + Math.sin(z * .00045 + layer) * 7;
         const foothill = himalayan
-          ? noise(x * 0.00016 + layer * 8.1, z * 0.00018 - layer * 5.7) * 46
+          ? noise(sampleX * 0.00013 + layer * 8.1, sampleZ * 0.00015 - layer * 5.7) * 32
           : 0;
         const y = Math.max(0.5, (base + ridge + foothill) * envelope);
         positions.push(x, y, z);
@@ -455,12 +464,12 @@ function createFarRanges(scene, noise, environment = null) {
       const high = THREE.MathUtils.smoothstep(height, alpine || himalayan ? 390 : 420, alpine || himalayan ? 760 : 820);
       const tint = new THREE.Color(
         himalayan
-          ? [0x9aafc0, 0xb0c4d3, 0xc8d8e4][layer]
+          ? [0xa8bfd1, 0xc0d2e0, 0xd5e2ec][layer]
           : [0x849889, 0x91a5a8, 0xa9b9bd][layer]
       );
-      tint.lerp(new THREE.Color(himalayan ? 0x8298aa : 0x65756f), rock * (himalayan ? 0.34 : 1));
-      tint.lerp(new THREE.Color(alpine || himalayan ? 0xf0f6fa : 0xc5d0d0), high);
-      tint.lerp(new THREE.Color(himalayan ? [0xc2d4e2, 0xd1dfeb, 0xe0eaf1][layer] : 0xd0dadd), [0.22, 0.42, 0.62][layer]);
+      tint.lerp(new THREE.Color(himalayan ? 0x8fa5b6 : 0x65756f), rock * (himalayan ? 0.22 : 1));
+      tint.lerp(new THREE.Color(alpine || himalayan ? 0xf2f7fb : 0xc5d0d0), high);
+      tint.lerp(new THREE.Color(himalayan ? [0xc9d9e6, 0xd9e5ee, 0xe7eff5][layer] : 0xd0dadd), [0.34, 0.56, 0.76][layer]);
       colorValues.push(tint.r, tint.g, tint.b);
     }
     const geometry = new THREE.BufferGeometry();
@@ -470,7 +479,8 @@ function createFarRanges(scene, noise, environment = null) {
     geometry.computeVertexNormals();
     const material = new THREE.MeshStandardMaterial({
       color: 0xffffff, vertexColors: true, roughness: 1, metalness: 0,
-      side: THREE.DoubleSide, fog: true
+      side: THREE.DoubleSide, fog: true,
+      ...(himalayan ? { transparent: true, opacity: [0.94, 0.82, 0.68][layer], depthWrite: false } : {})
     });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.z = -distances[layer];
