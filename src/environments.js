@@ -32,7 +32,7 @@ export const ENVIRONMENTS = [
   {
     id: "himalayan-range", name: "Himalayan mountain range", timeOfDay: "clear mountain daylight",
     biome: "snow", paletteTint: "vec3(1.08,1.12,1.16)", terrain: { biome: "snow", mountainProfile: "himalayan", baseHeight: 300, noiseOctaves: 7, ridgeWeight: 1.22, valleyCarving: 0.2, seaLevel: -28 },
-    materialMix: { rock: [145, 340], grass: [-12, 55], dryGrass: [42, 105], sand: [-28, -10], snow: [105, 330] },
+    materialMix: { rock: [145, 340], grass: [-12, 55], dryGrass: [42, 105], sand: [-28, -10], snow: [78, 245] },
     water: { type: "none", level: -28, width: 0 },
     vegetation: { types: ["pine", "alpine-grass"], density: 0.48, clumpSize: 62, maxElevation: 92, maxSlope: 0.34 },
     sun: { position: [-340, 560, -300], intensity: 3.1 }, sky: { horizon: "#d9edfa", zenith: "#2878b7", sun: "#fff8e8" },
