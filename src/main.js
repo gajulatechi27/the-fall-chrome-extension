@@ -131,13 +131,14 @@ function animate() {
   camera.position.y = altitude * 0.1;
   camera.position.z -= speed * 0.1 * dt;
   // A small banking turn and a stronger downward attitude during the initial dive.
-  pitchDegrees = THREE.MathUtils.lerp(-58, -10, fall);
-  pitchDegrees = THREE.MathUtils.lerp(pitchDegrees, -24, climb);
+  // Aim below and ahead so every biome occupies the view, not just the horizon.
+  const verticalDrop = THREE.MathUtils.lerp(1180, 620, fall) + climb * 180;
+  const lookAhead = 1550;
   const bank = Math.sin(elapsed * 0.27) * 0.13;
   camera.rotation.order = "YXZ";
-  camera.rotation.y = turn * 0.28;
-  camera.rotation.x = THREE.MathUtils.degToRad(pitchDegrees);
-  camera.rotation.z = -bank;
+  camera.lookAt(camera.position.x + Math.sin(turn * 0.28) * lookAhead, camera.position.y - verticalDrop, camera.position.z - lookAhead);
+  camera.rotateZ(-bank);
+  pitchDegrees = -THREE.MathUtils.radToDeg(Math.atan2(verticalDrop, lookAhead));
   const targetFov = THREE.MathUtils.mapLinear(speed, 60, 200, 60, 85);
   camera.fov = THREE.MathUtils.damp(camera.fov, THREE.MathUtils.clamp(targetFov, 60, 85), 4.5, dt);
   camera.updateProjectionMatrix();
