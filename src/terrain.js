@@ -5,11 +5,11 @@ const CHUNK_SIZE = 2500;
 const GRID_RADIUS = 8; // 17 x 17 chunks = 42.5 km across
 const WATER_LEVEL = -12;
 const WATER_SIZE = 52000;
-const HIGH_SEGMENTS = 48;
-const MID_SEGMENTS = 24;
-const LOW_SEGMENTS = 8;
+const HIGH_SEGMENTS = 128;
+const MID_SEGMENTS = 64;
+const LOW_SEGMENTS = 24;
 const SKIRT_DEPTH = 55;
-const NORMAL_SAMPLE = 5;
+const NORMAL_SAMPLE = 8;
 
 function makeRandom(seed) {
   let s = seed >>> 0;
@@ -20,37 +20,51 @@ function makeRandom(seed) {
 }
 
 function fbm(noise, x, z) {
-  let sum = 0, amp = 0.55, freq = 0.00072, norm = 0;
-  for (let octave = 0; octave < 6; octave++) {
+  // Stable world-space base spectrum: no octave shorter than the coarsest
+  // terrain LOD can represent. Fine detail belongs in vertex color, not height.
+  let sum = 0, amp = 0.62, freq = 0.00048, norm = 0;
+  for (let octave = 0; octave < 2; octave++) {
     sum += noise(x * freq, z * freq) * amp;
     norm += amp;
-    amp *= 0.5;
-    freq *= 2.03;
+    amp *= 0.42;
+    freq *= 1.85;
   }
   return sum / norm;
 }
+function smoothRidge(n, power = 1.7) {
+  const r = Math.max(0, 1 - Math.sqrt(n * n + 0.0009));
+  return r * r * Math.pow(r, Math.max(0, power - 2));
+}
+function smoothLimit(value, limit) {
+  return limit * Math.tanh(value / limit);
+}
 
 function terrainHeight(noise, x, z, biome) {
-  const warpX = x + noise(x * 0.00022, z * 0.00022) * 420;
-  const warpZ = z + noise((x + 900) * 0.00022, (z - 400) * 0.00022) * 420;
+  const warp1X = x + noise(x * 0.00017, z * 0.00017) * 360;
+  const warp1Z = z + noise((x + 900) * 0.00017, (z - 400) * 0.00017) * 360;
+  const warpX = warp1X + noise((warp1X - 1700) * 0.00031, (warp1Z + 2300) * 0.00031) * 115;
+  const warpZ = warp1Z + noise((warp1X + 3100) * 0.00031, (warp1Z - 700) * 0.00031) * 115;
   let h = fbm(noise, warpX, warpZ) * 115;
   if (["himalayas", "mountains", "snow", "lake", "forest", "rainforest"].includes(biome)) {
     const ridgeNoise = noise(warpX * (biome === "himalayas" ? 0.00036 : 0.00048), warpZ * (biome === "himalayas" ? 0.00036 : 0.00048));
-    const ridges = Math.pow(Math.max(0, 1 - Math.abs(ridgeNoise)), biome === "himalayas" ? 1.35 : 2.15);
+    const ridgeBase = smoothRidge(ridgeNoise, biome === "himalayas" ? 1.35 : 1.8);
+    const ridgeDetail = smoothRidge(noise((warpX + 680) * 0.00021, (warpZ - 940) * 0.00021), 2.2);
+    const ridgeSlopeWeight = THREE.MathUtils.smoothstep(ridgeBase, 0.08, 0.72);
+    const ridges = smoothLimit(ridgeBase * 0.82 + ridgeDetail * ridgeSlopeWeight * 0.18, 0.92);
     const rangeMask = biome === "lake"
       ? THREE.MathUtils.smoothstep(Math.hypot(x, z), 900, 3200)
       : 1;
     const mountainHeight = biome === "lake" ? 320 : biome === "himalayas" ? 455 : biome === "snow" ? 365 : biome === "rainforest" ? 205 : biome === "forest" ? 235 : 245;
     h += ridges * mountainHeight * rangeMask;
     if (biome === "himalayas") {
-      const secondary = Math.pow(Math.max(0, 1 - Math.abs(noise((warpX + 1250) * 0.00029, (warpZ - 760) * 0.00029))), 1.55);
-      const spine = Math.pow(Math.max(0, 1 - Math.abs(noise(warpX * 0.00017 + 13, warpZ * 0.00017 - 6))), 3.2);
+      const secondary =  smoothRidge(noise((warpX + 1250) * 0.00029, (warpZ - 760) * 0.00029), 1.65);
+      const spine =  smoothRidge(noise(warpX * 0.00017 + 13, warpZ * 0.00017 - 6), 3.2);
       h += secondary * 185 + spine * 115;
-      const glacier = Math.pow(Math.max(0, 1 - Math.abs(noise(warpX * 0.00019 + 8, warpZ * 0.00019 - 3))), 7);
+      const glacier =  smoothRidge(noise(warpX * 0.00019 + 8, warpZ * 0.00019 - 3), 5.5);
       h -= glacier * 105;
-      h += Math.abs(noise(warpX * 0.00082, warpZ * 0.00082)) * ridges * 24;
+      h += smoothRidge(noise(warpX * 0.00038, warpZ * 0.00038), 2.5) * ridges * 9;
     } else {
-      h -= Math.pow(Math.max(0, 1 - Math.abs(noise(warpX * 0.00023 + 8, warpZ * 0.00023 - 3))), 5) * 72;
+      h -=  smoothRidge(noise(warpX * 0.00023 + 8, warpZ * 0.00023 - 3), 4.2) * 72;
     }
   }
   if (biome === "lake") {
@@ -68,34 +82,36 @@ function terrainHeight(noise, x, z, biome) {
   if (biome === "desert") {
     const dune = Math.sin(warpX * 0.00042 + noise(0, warpZ * 0.0002) * 2.8) * 58;
     const crossDune = Math.sin(warpZ * 0.00028 + noise(warpX * 0.00012, 12) * 1.8) * 26;
-    const canyon = Math.pow(Math.max(0, 1 - Math.abs(noise(warpX * 0.00017, warpZ * 0.00017))), 3) * 145;
+    const canyon =  smoothRidge(noise(warpX * 0.00017, warpZ * 0.00017), 2.8) * 145;
     h = h * 0.72 + dune + crossDune + canyon;
-    h += Math.pow(Math.max(0, 1 - Math.abs(noise(warpX * 0.00011 + 7, warpZ * 0.00011 - 4))), 5) * 105;
+    h +=  smoothRidge(noise(warpX * 0.00011 + 7, warpZ * 0.00011 - 4), 4.5) * 105;
   }
   if (biome === "islands" || biome === "coast") {
     const coastNoise = fbm(noise, warpX + 17000, warpZ - 8000);
     h = h * 0.65 - 65 + Math.max(0, coastNoise + 0.15) * 290;
-    h += Math.pow(Math.max(0, 1 - Math.abs(noise(warpX * 0.00065, warpZ * 0.00065))), 4) * 55;
+    h +=  smoothRidge(noise(warpX * 0.00038, warpZ * 0.00038), 3.5) * 55;
   }
   if (biome === "green") {
     // Broad, overlapping hill systems give the scene a rolling pastoral silhouette.
     const broadHills = Math.sin(warpX * 0.00034 + noise(warpX * 0.00016, warpZ * 0.00016) * 1.8)
       * Math.cos(warpZ * 0.00029 + noise(warpX * 0.00013 + 9, warpZ * 0.00013) * 1.5);
-    const secondaryHills = noise(warpX * 0.00078 + 4, warpZ * 0.00078 - 7);
+    const secondaryHills = noise(warpX * 0.00038 + 4, warpZ * 0.00038 - 7);
     h += broadHills * 72 + secondaryHills * 24;
 
     // Contour-following terrace steps: softened edges avoid harsh quantized plateaus.
-    const terraceStep = 10.5;
-    const terracePhase = THREE.MathUtils.euclideanModulo(h + noise(warpX * 0.00042, warpZ * 0.00042) * 5, terraceStep);
-    const terraceBlend = THREE.MathUtils.smoothstep(terracePhase, 1.2, 4.4);
-    h = Math.floor(h / terraceStep) * terraceStep + terraceBlend * (terraceStep - 2.4) + 1.2;
-    const terraceSignal = Math.sin(warpX * 0.0017 + noise(warpX * 0.00035, warpZ * 0.00035) * 2.4);
-    h += terraceSignal * 2.8;
+    const terraceSignal = Math.sin(warpX * 0.00052 + noise(warpX * 0.00024, warpZ * 0.00024) * 2.1);
+    const terraceBands = Math.pow(Math.max(0, terraceSignal * 0.5 + 0.5), 7);
+    h += terraceBands * 4.2 - 1.1;
   }
   if (biome === "forest" || biome === "rainforest") {
-    h += Math.sin(warpX * 0.0013 + warpZ * 0.0007) * 12;
+    h += Math.sin(warpX * 0.00042 + warpZ * 0.00031) * 5;
   }
-  return h;
+  // A restrained flow-aligned valley incision breaks up stacked ridge profiles.
+  const flow = Math.sin(warpZ * 0.00021 + noise(warpZ * 0.00013, 19) * 1.7) * 0.00018;
+  const flowDistance = Math.abs(warpX - flow * 100000);
+  const flowCut = Math.exp(-Math.pow(flowDistance / (biome === "delta" ? 270 : 115), 2));
+  if (["green", "delta", "forest", "rainforest"].includes(biome)) h -= flowCut * (biome === "delta" ? 18 : 9);
+  return smoothLimit(h, biome === "himalayas" ? 780 : 520);
 }
 
 function makeTerrainMaterial(biome) {
