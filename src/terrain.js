@@ -117,10 +117,72 @@ function terrainHeight(noise, x, z, biome) {
 function makeTerrainMaterial(biome) {
   const material = new THREE.MeshStandardMaterial({
     color: biome === "desert" ? 0xb88760 : biome === "himalayas" || biome === "snow" || biome === "lake" ? 0xd5e0e5 : biome === "delta" ? 0xb2a36e : biome === "rainforest" ? 0x4f8660 : 0x91b56d,
-    roughness: 0.96,
+    roughness: biome === "coast" || biome === "lake" ? 0.82 : 0.94,
     metalness: 0,
     vertexColors: true
   });
+
+  // C4: world-space procedural material detail. This runs in the fragment
+  // shader, so texture scale stays stable across terrain LOD levels.
+  const biomeCode = biome === "desert" ? 1 : biome === "coast" || biome === "islands" ? 2 :
+    biome === "himalayas" || biome === "snow" || biome === "mountains" ? 3 :
+    biome === "green" ? 4 : biome === "rainforest" ? 5 : biome === "forest" ? 6 : 0;
+  material.onBeforeCompile = shader => {
+    shader.uniforms.uTerrainBiome = { value: biomeCode };
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\\nvarying vec3 vTerrainWorld;\\nvarying float vTerrainSlope;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\\nvec4 terrainWorldPosition = modelMatrix * vec4(transformed, 1.0);\\nvTerrainWorld = terrainWorldPosition.xyz;")
+      .replace("#include <beginnormal_vertex>", "#include <beginnormal_vertex>\\nvTerrainSlope = 1.0 - abs(normalize(mat3(modelMatrix) * objectNormal).y);");
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", `#include <common>
+varying vec3 vTerrainWorld;
+varying float vTerrainSlope;
+uniform float uTerrainBiome;
+float terrainHash(vec2 p) {
+  p = fract(p * vec2(123.34, 456.21));
+  p += dot(p, p + 45.32);
+  return fract(p.x * p.y);
+}
+float terrainNoise(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(terrainHash(i), terrainHash(i + vec2(1.0,0.0)), f.x),
+             mix(terrainHash(i + vec2(0.0,1.0)), terrainHash(i + vec2(1.0,1.0)), f.x), f.y);
+}`)
+      .replace("#include <color_fragment>", `#include <color_fragment>
+  vec2 terrainXZ = vTerrainWorld.xz;
+  float broadDetail = terrainNoise(terrainXZ * 0.0022);
+  float mediumDetail = terrainNoise(terrainXZ * 0.009);
+  float fineDetail = terrainNoise(terrainXZ * 0.027);
+  float materialGrain = (broadDetail - 0.5) * 0.12 + (mediumDetail - 0.5) * 0.10 + (fineDetail - 0.5) * 0.045;
+  float dryPatch = smoothstep(0.56, 0.78, terrainNoise(terrainXZ * 0.0017 + 31.7));
+  float rockMask = smoothstep(0.24, 0.62, vTerrainSlope);
+  if (uTerrainBiome < 0.5) {
+    diffuseColor.rgb *= 0.94 + materialGrain;
+  } else if (uTerrainBiome < 1.5) {
+    diffuseColor.rgb *= 0.91 + materialGrain * 0.8;
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.48,0.27,0.17), dryPatch * 0.13);
+  } else if (uTerrainBiome < 2.5) {
+    diffuseColor.rgb *= 0.93 + materialGrain;
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.64,0.53,0.37), dryPatch * 0.10);
+  } else if (uTerrainBiome < 3.5) {
+    diffuseColor.rgb *= 0.96 + materialGrain * 0.7;
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.38,0.40,0.39), rockMask * 0.10);
+  } else if (uTerrainBiome < 4.5) {
+    diffuseColor.rgb *= 0.91 + materialGrain * 1.2;
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.64,0.54,0.31), dryPatch * 0.20);
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.25,0.34,0.20), rockMask * 0.16);
+  } else if (uTerrainBiome < 5.5) {
+    diffuseColor.rgb *= 0.89 + materialGrain * 1.35;
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.22,0.36,0.25), dryPatch * 0.13);
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.31,0.35,0.29), rockMask * 0.12);
+  } else {
+    diffuseColor.rgb *= 0.90 + materialGrain;
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.25,0.32,0.23), dryPatch * 0.15);
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.39,0.38,0.33), rockMask * 0.12);
+  }`);
+  };
+  material.customProgramCacheKey = () => "terrain-material-c4-" + biome;
   return material;
 }
 
