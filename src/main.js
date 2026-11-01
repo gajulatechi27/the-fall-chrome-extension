@@ -70,6 +70,7 @@ debug.id = "fall-debug";
 debug.style.cssText = "display:none;position:fixed;z-index:30;left:12px;top:12px;margin:0;padding:12px 14px;max-width:min(520px,calc(100vw - 24px));background:rgba(3,12,20,.84);color:#d8f3ff;border:1px solid rgba(180,220,240,.35);border-radius:8px;font:12px/1.55 ui-monospace,monospace;white-space:pre-wrap;pointer-events:none";
 document.body.appendChild(debug);
 let debugVisible = false;
+let vegetationStatsEl = null;
 document.addEventListener("keydown", event => {
   if (event.key.toLowerCase() === "d" && !event.repeat) {
     debugVisible = !debugVisible;
@@ -249,6 +250,7 @@ function animate() {
       "Time left: " + Math.max(0, sceneDuration - elapsed).toFixed(1) + " s\n" +
       "Pitch: " + pitchDegrees.toFixed(1) + "° | FOV: " + camera.fov.toFixed(1) + "°\n" +
       "Chunks: " + (stats.chunkCount ?? 0) + " | View: " + ((stats.viewDistance ?? 0) / 1000).toFixed(1) + " km\n" +
+      "Vegetation: " + (stats.vegetation?.total ?? 0) + " | Pine " + (stats.vegetation?.pine ?? 0) + " | Broadleaf " + (stats.vegetation?.broadleaf ?? 0) + " | Bush " + (stats.vegetation?.bush ?? 0) + "\n" +
       "FPS: " + fps.toFixed(1);
   }
   label.style.opacity = String(THREE.MathUtils.smoothstep(elapsed, 0.2, 1.8) * (1 - THREE.MathUtils.smoothstep(elapsed, sceneDuration - 1.2, sceneDuration)));
@@ -268,9 +270,10 @@ function animate() {
 
 if (testMode) {
  const panel=document.createElement("section"); panel.id="dev-test-panel";
- panel.innerHTML='<strong>DEV TEST MODE</strong><label>Scene<select id="dt-scene"><option value="himalaya">Himalaya</option><option value="hills">Hills</option><option value="river">River</option><option value="lake">Lake</option><option value="coast">Coast</option><option value="desert">Desert</option><option value="forest">Forest</option><option value="rainforest">Rainforest</option></select></label><label>Seed<input id="dt-seed" type="number"></label><label>Time<select id="dt-time"><option>dawn</option><option>noon</option><option>sunset</option><option>night</option></select></label><label>Weather<select id="dt-weather"><option>clear</option><option>clouds</option><option>mist</option><option>rain</option><option>storm</option></select></label><label>Speed<input id="dt-speed" type="number" min="0" max="250"></label><label class="dt-check"><input id="dt-freeze" type="checkbox"> Freeze viewpoint</label><hr><strong>TERRAIN DEBUG</strong><label class="dt-check"><input id="dt-wireframe" type="checkbox"> Wireframe</label><label class="dt-check"><input id="dt-lod" type="checkbox"> LOD colors</label><label class="dt-check"><input id="dt-borders" type="checkbox"> Chunk borders</label><label class="dt-check"><input id="dt-trees" type="checkbox" checked> Trees</label><small id="dt-octaves">Height noise octaves: 2 (band-limited)</small><button id="dt-apply">Apply live</button><button id="dt-copy">Copy settings</button>';
+ panel.innerHTML='<strong>DEV TEST MODE</strong><label>Scene<select id="dt-scene"><option value="himalaya">Himalaya</option><option value="hills">Hills</option><option value="river">River</option><option value="lake">Lake</option><option value="coast">Coast</option><option value="desert">Desert</option><option value="forest">Forest</option><option value="rainforest">Rainforest</option></select></label><label>Seed<input id="dt-seed" type="number"></label><label>Time<select id="dt-time"><option>dawn</option><option>noon</option><option>sunset</option><option>night</option></select></label><label>Weather<select id="dt-weather"><option>clear</option><option>clouds</option><option>mist</option><option>rain</option><option>storm</option></select></label><label>Speed<input id="dt-speed" type="number" min="0" max="250"></label><label class="dt-check"><input id="dt-freeze" type="checkbox"> Freeze viewpoint</label><hr><strong>TERRAIN DEBUG</strong><label class="dt-check"><input id="dt-wireframe" type="checkbox"> Wireframe</label><label class="dt-check"><input id="dt-lod" type="checkbox"> LOD colors</label><label class="dt-check"><input id="dt-borders" type="checkbox"> Chunk borders</label><label class="dt-check"><input id="dt-trees" type="checkbox" checked> Trees</label><small id="dt-octaves">Height noise octaves: 2 (band-limited)</small><small id="dt-vegstats">Vegetation: waiting for chunks…</small><button id="dt-apply">Apply live</button><button id="dt-copy">Copy settings</button>';
  document.body.appendChild(panel);
  const el=id=>panel.querySelector("#dt-"+id);
+ vegetationStatsEl=el("vegstats");
  el("scene").value=testSettings.scene; el("seed").value=testSettings.seed; el("time").value=testSettings.time; el("weather").value=testSettings.weather; el("speed").value=testSettings.speed??""; el("freeze").checked=testSettings.freeze;
  const applyTerrainDebug=()=>{terrainDebugOptions={wireframe:el("wireframe").checked,lodColors:el("lod").checked,chunkBorders:el("borders").checked,trees:el("trees").checked};terrain?.setDebugOptions(terrainDebugOptions);};
  ["wireframe","lod","borders","trees"].forEach(id=>el(id).addEventListener("change",applyTerrainDebug));
