@@ -229,7 +229,7 @@ function makeChunk(noise, seed, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, s
         const broadMeadow = noise(warpX * 0.00019 + 47.0, warpZ * 0.00022 - 63.0);
         const hillShoulder = noise(warpX * 0.00053 - 29.0, warpZ * 0.00061 + 11.0);
         const softRidge = 1.0 - Math.abs(noise(warpX * 0.00072 + 83.0, warpZ * 0.00064 - 37.0));
-        h += broadMeadow * 34 + rolling * 21 + hillShoulder * 8 + Math.pow(Math.max(0, softRidge), 2.0) * 13 + shoulder * 3.5;
+        h += broadMeadow * 43 + rolling * 12 + hillShoulder * 4.5 + Math.pow(Math.max(0, softRidge), 2.8) * 4 + shoulder * 2.0;
       } else { h += rolling * 15 + shoulder * 3.5; }
     }
     if (biome === "desert") {
@@ -469,8 +469,8 @@ function createFarRanges(scene, noise, environment = null) {
           ? (Math.pow(r1, 1.34) * 790 + Math.pow(r2, 2.0) * 245 + Math.pow(r3, 2.6) * 58) * 1.12 * layerScale * chainStrength
           : alpine
             ? Math.pow(r1, 1.55) * 920 + Math.pow(r2, 2.15) * 310 + Math.pow(r3, 2.7) * 90
-            : greenHills ? Math.pow(r1, 2.3) * 155 + Math.pow(r2, 2.5) * 58 + Math.pow(r3, 3.0) * 18 : Math.pow(r1, 2.0) * 410 + Math.pow(r2, 2.15) * 165 + Math.pow(r3, 2.7) * 52;
-        const base = (alpine || himalayan ? 78 : greenHills ? 38 : 72) +
+            : greenHills ? Math.pow(r1, 2.8) * 105 + Math.pow(r2, 2.8) * 34 + Math.pow(r3, 3.2) * 9 : Math.pow(r1, 2.0) * 410 + Math.pow(r2, 2.15) * 165 + Math.pow(r3, 2.7) * 52;
+        const base = (alpine || himalayan ? 78 : greenHills ? 25 : 72) +
           Math.sin(x * .00014 + layer * 1.7) * (alpine || himalayan ? 19 : greenHills ? 11 : 26) +
           Math.sin(z * .00045 + layer) * 7 +
           (himalayan ? chainField * 24 : 0);
@@ -494,9 +494,9 @@ function createFarRanges(scene, noise, environment = null) {
       const tint = new THREE.Color(
         himalayan
           ? [0xa8bfd1, 0xc0d2e0, 0xd5e2ec][layer]
-          : greenHills ? [0x536e4d, 0x718966, 0x9aaf89][layer] : [0x849889, 0x91a5a8, 0xa9b9bd][layer]
+          : greenHills ? [0x5e8051, 0x829c70, 0xa8bb91][layer] : [0x849889, 0x91a5a8, 0xa9b9bd][layer]
       );
-      tint.lerp(new THREE.Color(himalayan ? 0x8fa5b6 : greenHills ? 0x405a3d : 0x65756f), rock * (himalayan ? 0.22 : 1));
+      tint.lerp(new THREE.Color(himalayan ? 0x8fa5b6 : greenHills ? 0x527047 : 0x65756f), rock * (himalayan ? 0.22 : 1));
       tint.lerp(new THREE.Color(alpine || himalayan ? 0xf2f7fb : greenHills ? 0xb8c9a8 : 0xc5d0d0), high);
       tint.lerp(new THREE.Color(himalayan ? [0xc9d9e6, 0xd9e5ee, 0xe7eff5][layer] : greenHills ? [0x8ba187, 0xa4b59a, 0xb9c8ad][layer] : 0xd0dadd), [0.34, 0.56, 0.76][layer]);
       colorValues.push(tint.r, tint.g, tint.b);
@@ -668,7 +668,7 @@ export class Terrain {
         const broadMeadow = this.noise(warpX * 0.00019 + 47.0, warpZ * 0.00022 - 63.0);
         const hillShoulder = this.noise(warpX * 0.00053 - 29.0, warpZ * 0.00061 + 11.0);
         const softRidge = 1.0 - Math.abs(this.noise(warpX * 0.00072 + 83.0, warpZ * 0.00064 - 37.0));
-        h += broadMeadow * 34 + rolling * 21 + hillShoulder * 8 + Math.pow(Math.max(0, softRidge), 2.0) * 13 + shoulder * 3.5;
+        h += broadMeadow * 43 + rolling * 12 + hillShoulder * 4.5 + Math.pow(Math.max(0, softRidge), 2.8) * 4 + shoulder * 2.0;
       } else { h += rolling * 24 + shoulder * 7; }
     }
     if (this.biome === "desert") {
