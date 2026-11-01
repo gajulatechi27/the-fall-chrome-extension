@@ -22,7 +22,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 1.5, 45000);
+const camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 1.5, 65000);
 camera.position.set(0, 3.4, 15.5);
 
 const cameraTarget = new THREE.Vector3();
@@ -104,7 +104,7 @@ async function beginDescent() {
 
   sky = createSky(scene, renderer, seed);
   scene.background = sky.horizonColor.clone();
-  scene.fog = new THREE.FogExp2(sky.horizonColor, 0.000018);
+  scene.fog = new THREE.FogExp2(sky.horizonColor, 0.00012);
   terrain = new Terrain(scene, seed, biome, route);
   // Terrain generation is synchronous. Do not begin the journey until the
   // complete near-field runway and its bounds are available.
@@ -171,13 +171,15 @@ function updateDebug(dt) {
       "Altitude: " + Math.round(altitude) + " m\n" +
       "Camera X/Z: " + camera.position.x.toFixed(1) + " / " + camera.position.z.toFixed(1) + "\n" +
       "Terrain chunks: " + (stats.chunkCount ?? 0) + "\n" +
+      "LOD rings near/mid/far/horizon: " + (stats.ringCounts ? Object.values(stats.ringCounts).join(" / ") : "n/a") + "\n" +
+      "20 km coverage: " + (stats.coverage20km ? "OK" : "EDGE VISIBLE — MISSING CHUNKS") + "\n" +
       "Chunks under camera: " + (stats.chunksUnderCamera ?? 0) + "\n" +
       "Terrain height at camera: " + (stats.cameraGroundHeight == null ? "OUTSIDE CHUNKS" : stats.cameraGroundHeight.toFixed(1) + " m") + "\n" +
       "Camera altitude: " + camera.position.y.toFixed(1) + " m\n" +
       "Camera pitch: " + (stats.cameraPitch ?? 0).toFixed(1) + " deg\n" +
       "Ground objects: 0 (Stage 1)\n" +
       "Asset failures: " + (assetFailures.length ? assetFailures.join(", ") : "none") + "\n" +
-      "Safety: " + (stats.safetyWarning || "OK") + "\n" +
+      "Safety: " + (stats.safetyWarning || (stats.coverage20km ? "OK" : "WARNING — TERRAIN EDGE / GAP")) + "\n" +
       "Sea level: " + (stats.seaLevel == null ? "off" : stats.seaLevel.toFixed(1)) + "\n" +
       "Terrain min/max: " + (stats.minHeight ?? 0).toFixed(1) + " / " + (stats.maxHeight ?? 0).toFixed(1) + "\n" +
       "FPS: " + fps.toFixed(1);
@@ -212,10 +214,11 @@ function animate() {
     altitude + Math.sin(time * 0.7) * 0.12 + Math.sin(time * 9) * shake,
     forwardZ + Math.sin(time * 0.8) * 0.18
   );
-  const pitchRadians = THREE.MathUtils.degToRad(-28);
+  terrain?.ensureGrid(cameraDesired.x, cameraDesired.z);
+  const pitchRadians = THREE.MathUtils.degToRad(-10);
   const lookDistance = 1200;
   // Hold the camera if the terrain streamer ever loses the ground footprint.
-  const groundReady = terrain?.hasChunkNear(cameraDesired.x, cameraDesired.z, 500) ?? false;
+  const groundReady = (terrain?.hasChunkNear(cameraDesired.x, cameraDesired.z, 500) ?? false) && (terrain?.hasCoverage(20000) ?? false);
   if (groundReady) {
     camera.position.lerp(cameraDesired, 1 - Math.exp(-2.8 * dt));
     cameraTarget.set(
@@ -249,7 +252,7 @@ function animate() {
 
 
   if (scene.fog instanceof THREE.FogExp2) {
-    scene.fog.density = THREE.MathUtils.lerp(0.000018, 0.00016, THREE.MathUtils.smoothstep(progress, 0.45, 1));
+    scene.fog.density = 0.00012;
     if (sky?.horizonColor) scene.fog.color.copy(sky.horizonColor);
   }
 
