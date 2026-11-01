@@ -436,23 +436,40 @@ function createFarRanges(scene, noise, environment = null) {
       for (let ix = 0; ix <= nx; ix++) {
         const x = -width * .5 + width * ix / nx;
         const z = depth * iz / nz;
-        // Fade each distant ridge mass into the atmospheric horizon instead
-        // of exposing a flat lower edge that reads as a detached mountain wall.
-        const envelope = Math.pow(Math.max(0, Math.sin(Math.PI * iz / nz)), 0.72);
-        const layerScale = [1.0, 0.78, 0.58][layer];
-        const sampleX = x + (himalayan ? noise(x * 0.00012 + layer * 13, z * 0.00013 - layer * 9) * 1250 : 0);
-        const sampleZ = z + (himalayan ? noise(x * 0.00011 - layer * 7, z * 0.00012 + layer * 17) * 980 : 0);
+        const depthT = iz / nz;
+        // Himalayan ranges have an irregular front and back edge. This breaks
+        // the single, continuous wall into overlapping mountain groups.
+        const edgeNoise = himalayan
+          ? noise(x * 0.000105 + layer * 17.3, x * 0.000061 - layer * 8.7)
+          : 0;
+        const frontEdge = himalayan ? 0.055 + (edgeNoise + 1) * 0.055 : 0;
+        const backEdge = himalayan ? 0.78 + edgeNoise * 0.12 : 1.0;
+        const frontFade = himalayan
+          ? THREE.MathUtils.smoothstep(depthT, frontEdge, frontEdge + 0.16)
+          : Math.pow(Math.max(0, Math.sin(Math.PI * depthT)), 0.72);
+        const backFade = himalayan
+          ? Math.pow(1 - THREE.MathUtils.smoothstep(depthT, backEdge, Math.min(1.0, backEdge + 0.2)), 0.7)
+          : 1.0;
+        const envelope = himalayan ? frontFade * backFade : frontFade;
+        const layerScale = himalayan ? [0.88, 0.68, 0.48][layer] : [1.0, 0.78, 0.58][layer];
+        const sampleX = x + (himalayan ? noise(x * 0.00012 + layer * 13, z * 0.00013 - layer * 9) * 1500 : 0);
+        const sampleZ = z + (himalayan ? noise(x * 0.00011 - layer * 7, z * 0.00012 + layer * 17) * 1180 : 0);
         const r1 = 1.0 - Math.abs(noise(sampleX * (.00023 + layer * .000025), sampleZ * .00022 + layer * 2.1));
         const r2 = 1.0 - Math.abs(noise(sampleX * (.00058 + layer * .00003) + 17.0, sampleZ * .00051 - layer * 4.7));
         const r3 = 1.0 - Math.abs(noise(sampleX * (.0012 + layer * .00004) - 9.0, sampleZ * .00095 + layer));
+        const chainField = noise(sampleX * 0.000082 + layer * 11.7, sampleZ * 0.000095 - layer * 6.3);
+        const chainStrength = himalayan ? 0.38 + THREE.MathUtils.smoothstep(chainField, -0.22, 0.58) * 0.62 : 1.0;
         const ridge = himalayan
-          ? (Math.pow(r1, 1.24) * 1030 + Math.pow(r2, 1.9) * 300 + Math.pow(r3, 2.5) * 68) * 1.18 * layerScale
+          ? (Math.pow(r1, 1.34) * 790 + Math.pow(r2, 2.0) * 245 + Math.pow(r3, 2.6) * 58) * 1.12 * layerScale * chainStrength
           : alpine
             ? Math.pow(r1, 1.55) * 920 + Math.pow(r2, 2.15) * 310 + Math.pow(r3, 2.7) * 90
             : Math.pow(r1, 2.0) * 410 + Math.pow(r2, 2.15) * 165 + Math.pow(r3, 2.7) * 52;
-        const base = (alpine || himalayan ? 96 : 72) + Math.sin(x * .00014 + layer * 1.7) * (alpine || himalayan ? 25 : 26) + Math.sin(z * .00045 + layer) * 7;
+        const base = (alpine || himalayan ? 78 : 72) +
+          Math.sin(x * .00014 + layer * 1.7) * (alpine || himalayan ? 19 : 26) +
+          Math.sin(z * .00045 + layer) * 7 +
+          (himalayan ? chainField * 24 : 0);
         const foothill = himalayan
-          ? noise(sampleX * 0.00013 + layer * 8.1, sampleZ * 0.00015 - layer * 5.7) * 32
+          ? noise(sampleX * 0.00013 + layer * 8.1, sampleZ * 0.00015 - layer * 5.7) * 24
           : 0;
         const y = Math.max(0.5, (base + ridge + foothill) * envelope);
         positions.push(x, y, z);
