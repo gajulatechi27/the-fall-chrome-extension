@@ -40,6 +40,17 @@ export class WeatherSystem {
     this.mistGeometry.setAttribute("position",new THREE.BufferAttribute(mistPositions,3));
     this.mistMaterial=new THREE.PointsMaterial({color:0xdce8e8,size:18,transparent:true,opacity:0,depthWrite:false,sizeAttenuation:true});
     this.mist=new THREE.Points(this.mistGeometry,this.mistMaterial);this.mist.frustumCulled=false;this.group.add(this.mist);
+    const smokePositions=new Float32Array(96*3);
+    for(let i=0;i<96;i++){
+      const column=i%6, puff=Math.floor(i/6), k=i*3;
+      smokePositions[k]=(column-2.5)*190+(this.random()-.5)*38;
+      smokePositions[k+1]=-95+puff*10+(this.random()-.5)*8;
+      smokePositions[k+2]=-650-column*155+(this.random()-.5)*70;
+    }
+    this.smokeGeometry=new THREE.BufferGeometry();
+    this.smokeGeometry.setAttribute("position",new THREE.BufferAttribute(smokePositions,3));
+    this.smokeMaterial=new THREE.PointsMaterial({color:0x9aa2a0,size:13,transparent:true,opacity:.055,depthWrite:false,sizeAttenuation:true});
+    this.smoke=new THREE.Points(this.smokeGeometry,this.smokeMaterial);this.smoke.frustumCulled=false;this.group.add(this.smoke);
     this.lightningGroup=new THREE.Group();scene.add(this.lightningGroup);
     this.flashLight=new THREE.PointLight(0xc9e4ff,0,1800,2);scene.add(this.flashLight);
     this.flash=0;this.lightningTimer=5+this.random()*8;this.elapsed=0;this.intensity=0;
@@ -51,7 +62,9 @@ export class WeatherSystem {
   update(dt,camera,speed=80) {
     this.elapsed+=dt;this.lightningEvent=false;
     const rainTarget=this.state==="storm"?1:this.state==="heavy rain"?.82:this.state==="light rain"?.38:0;
-    const mistTarget=this.state==="mist"?.55:this.state==="overcast"?.18:0;
+    const mistTarget=this.state==="mist" ? .55 : this.state==="overcast" ? .18 : 0;
+    const smokeTarget=this.state==="dust haze" ? .28 : .055;
+    this.smokeMaterial.opacity=THREE.MathUtils.damp(this.smokeMaterial.opacity,smokeTarget,.45,dt);
     this.intensity=THREE.MathUtils.damp(this.intensity,rainTarget,1.8,dt);
     this.mistMaterial.opacity=THREE.MathUtils.damp(this.mistMaterial.opacity,mistTarget,.7,dt);
     const activeRain=this.intensity>.015;
@@ -72,7 +85,19 @@ export class WeatherSystem {
       }
       a.needsUpdate=true;
     }
-    if(camera){this.group.position.copy(camera.position);this.mist.position.set(camera.position.x,camera.position.y-55,camera.position.z);}
+    if(camera){
+      this.group.position.copy(camera.position);
+      this.mist.position.set(0,-55,0);
+      this.smoke.position.set(0,0,0);
+      const sp=this.smokeGeometry.attributes.position;
+      for(let i=0;i<sp.count;i++){
+        const k=i*3;
+        this.smokeGeometry.attributes.position.array[k]+=this.wind.x*dt*.18;
+        this.smokeGeometry.attributes.position.array[k+1]+=dt*(1.5+(i%6)*.16);
+        if(this.smokeGeometry.attributes.position.array[k+1]>8)this.smokeGeometry.attributes.position.array[k+1]=-95;
+      }
+      this.smokeGeometry.attributes.position.needsUpdate=true;
+    }
     this.lightningTimer-=dt;
     if(this.state==="storm"&&this.lightningTimer<=0){
       this.spawnLightning(camera);
@@ -109,6 +134,7 @@ export class WeatherSystem {
     this.scene.remove(this.group,this.lightningGroup,this.flashLight);
     for(const l of this.rainLayers){l.geometry.dispose();l.material.dispose();}
     this.mistGeometry.dispose();this.mistMaterial.dispose();
+    this.smokeGeometry.dispose();this.smokeMaterial.dispose();
     this.lightningGroup.traverse(o=>{o.geometry?.dispose?.();o.material?.dispose?.();});
   }
 }
