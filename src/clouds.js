@@ -35,7 +35,7 @@ function makeCloudTexture(seed) {
 }
 
 export class CloudField {
-  constructor(scene, seed) {
+  constructor(scene, seed, weather = "clear") {
     this.scene = scene;
     this.group = new THREE.Group();
     scene.add(this.group);
@@ -48,9 +48,10 @@ export class CloudField {
     };
 
     // Two narrow altitude bands: 3000–3500 m and 1500–1800 m.
+    const dense = weather === "heavy clouds" || weather === "storm" || weather === "rain";
     const bands = [
-      { y: 325, count: 6, opacity: 0.09, width: [75, 155] },
-      { y: 165, count: 5, opacity: 0.11, width: [65, 135] }
+      { y: 325, count: dense ? 14 : 9, opacity: dense ? 0.22 : 0.13, width: [95, 205] },
+      { y: 165, count: dense || weather === "mist" ? 13 : 7, opacity: dense ? 0.2 : weather === "mist" ? 0.18 : 0.12, width: [75, 165] }
     ];
     for (const band of bands) {
       for (let i = 0; i < band.count; i++) {
