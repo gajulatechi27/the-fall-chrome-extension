@@ -124,45 +124,107 @@ function makeTerrainMaterial(biome) {
   return material;
 }
 
-function addHillVegetation(mesh, noise, chunkX, chunkZ) {
+
+function mergeTreeParts(parts) {
+  const positions = [], normals = [], indices = [];
+  for (const { geometry, matrix } of parts) {
+    const g = geometry.clone();
+    g.applyMatrix4(matrix);
+    const p = g.getAttribute("position"), n = g.getAttribute("normal");
+    const offset = positions.length / 3;
+    for (let i = 0; i < p.count; i++) {
+      positions.push(p.getX(i), p.getY(i), p.getZ(i));
+      normals.push(n.getX(i), n.getY(i), n.getZ(i));
+    }
+    const idx = g.index ? g.index.array : Array.from({ length: p.count }, (_, i) => i);
+    for (const value of idx) indices.push(value + offset);
+    g.dispose();
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
+  geometry.setIndex(indices);
+  const p = geometry.getAttribute("position");
+  const colors = [];
+  const bottom = new THREE.Color(0x263a27), tip = new THREE.Color(0xc4d69a);
+  for (let i = 0; i < p.count; i++) {
+    const t = THREE.MathUtils.smoothstep(p.getY(i), 0.15, 9.5);
+    const c = bottom.clone().lerp(tip, t * 0.48);
+    colors.push(c.r, c.g, c.b);
+  }
+  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+function part(geometry, x, y, z, sx = 1, sy = 1, sz = 1, rz = 0) {
+  const matrix = new THREE.Matrix4().compose(
+    new THREE.Vector3(x, y, z),
+    new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, rz)),
+    new THREE.Vector3(sx, sy, sz)
+  );
+  return { geometry, matrix };
+}
+function makeTreeModels() {
+  const pineParts = [part(new THREE.CylinderGeometry(.16,.24,2.2,7),0,1,0)];
+  for (let i=0;i<5;i++) {
+    const radius=1.35-i*.19, height=3.0-i*.24, y=2.0+i*1.38;
+    pineParts.push(part(new THREE.ConeGeometry(radius,height,9,1),0,y,0,1,1,1,(i%2?-.035:.035)));
+  }
+  const broadParts = [part(new THREE.CylinderGeometry(.18,.32,4.8,7),0,2.35,0)];
+  for (let i=0;i<7;i++) {
+    const angle=i*Math.PI*2/7, radius=1.1+(i%3)*.22;
+    broadParts.push(part(new THREE.IcosahedronGeometry(1.25,1),
+      Math.cos(angle)*radius,3.7+(i%3)*.55,Math.sin(angle)*radius,
+      .88+(i%2)*.18, .82+(i%3)*.12, .9+(i%2)*.14));
+  }
+  broadParts.push(part(new THREE.IcosahedronGeometry(1.5,1),0,5.4,0,1.15,.95,1.05));
+  const palmParts=[part(new THREE.CylinderGeometry(.13,.28,6.6,8),.22,3.1,0,.9,1,.9,-.055)];
+  for(let i=0;i<7;i++){
+    const angle=i*Math.PI*2/7;
+    palmParts.push(part(new THREE.ConeGeometry(.22,4.2,5),Math.cos(angle)*1.15,6.05,Math.sin(angle)*1.15,.65,1,.32,Math.cos(angle)*.2));
+  }
+  return [mergeTreeParts(pineParts),mergeTreeParts(broadParts),mergeTreeParts(palmParts)];
+}
+function addHillVegetation(mesh, noise, chunkX, chunkZ, biome) {
+  if (![ "green", "forest", "rainforest", "himalayas", "coast" ].includes(biome)) return;
   const random = makeRandom((Math.abs(Math.floor(chunkX * 17 + chunkZ * 31)) ^ 0x5f3759df) >>> 0);
   const palettes = [0x315f3b, 0x477a45, 0x6b8b4b];
-  const geometries = [
-    new THREE.ConeGeometry(1, 4.8, 6),
-    new THREE.SphereGeometry(1.65, 7, 5),
-    new THREE.ConeGeometry(1.8, 3.4, 7)
-  ];
-  const materials = geometries.map(() => new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.94 }));
-  for (let shape = 0; shape < 3; shape++) {
-    const count = 18;
-    const trees = new THREE.InstancedMesh(geometries[shape], materials[shape], count);
+  const models = makeTreeModels();
+  const desired = biome === "rainforest" ? 28 : biome === "forest" ? 22 : biome === "himalayas" ? 9 : biome === "coast" ? 12 : 15;
+  const dummy = new THREE.Object3D();
+  for (let shape=0;shape<3;shape++) {
+    const count = Math.ceil(desired/3);
+    const material = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .88, vertexColors: true });
+    const trees = new THREE.InstancedMesh(models[shape], material, count);
     trees.castShadow = false;
     trees.receiveShadow = true;
-    const dummy = new THREE.Object3D();
-    let placed = 0, attempts = 0;
-    while (placed < count && attempts < count * 5) {
+    let placed=0, attempts=0;
+    while(placed<count && attempts<count*18){
       attempts++;
-      const x = (random() - 0.5) * CHUNK_SIZE;
-      const z = (random() - 0.5) * CHUNK_SIZE;
-      const wx = chunkX + x, wz = chunkZ + z;
-      const y = terrainHeight(noise, wx, wz, "green");
-      const sx = terrainHeight(noise, wx + 16, wz, "green") - terrainHeight(noise, wx - 16, wz, "green");
-      const sz = terrainHeight(noise, wx, wz + 16, "green") - terrainHeight(noise, wx, wz - 16, "green");
-      const slope = Math.hypot(sx, sz) / 32;
-      const moisture = noise(wx * 0.00031 + 27, wz * 0.00031 - 13);
-      if (slope > 0.42 || moisture < -0.42 || y < -8) continue;
-      const scale = 5 + random() * 7;
-      dummy.position.set(x, y + scale * 1.35, z);
-      dummy.rotation.set(0, random() * Math.PI * 2, 0);
-      dummy.scale.set(scale * (shape === 1 ? 1.1 : 0.72), scale, scale * (shape === 2 ? 1.18 : 0.72));
+      const x=(random()-.5)*CHUNK_SIZE, z=(random()-.5)*CHUNK_SIZE;
+      const wx=chunkX+x, wz=chunkZ+z;
+      const y=terrainHeight(noise,wx,wz,biome);
+      const sx=terrainHeight(noise,wx+18,wz,biome)-terrainHeight(noise,wx-18,wz,biome);
+      const sz=terrainHeight(noise,wx,wz+18,biome)-terrainHeight(noise,wx,wz-18,biome);
+      const slope=Math.hypot(sx,sz)/36;
+      const moisture=noise(wx*.00024+27,wz*.00024-13);
+      const clump=noise(wx*.00013+71,wz*.00013-39);
+      if(slope>(biome==="rainforest"?.72:.46) || y < -8 || (biome==="himalayas" && y>150) || (biome==="coast" && y< -4)) continue;
+      if(biome==="green" && moisture < -.38 && clump < -.12) continue;
+      if((biome==="forest"||biome==="rainforest") && clump < -.55) continue;
+      const scale=(biome==="rainforest"?1.35:biome==="himalayas"?.9:1)*(0.65+random()*.85);
+      dummy.position.set(x,y+0.25,z);
+      dummy.rotation.set((random()-.5)*.08,random()*Math.PI*2,(random()-.5)*.08);
+      dummy.scale.set(scale*(.86+random()*.2),scale,scale*(.86+random()*.2));
       dummy.updateMatrix();
-      trees.setMatrixAt(placed, dummy.matrix);
-      trees.setColorAt(placed, new THREE.Color(palettes[Math.floor(random() * palettes.length)]));
+      trees.setMatrixAt(placed,dummy.matrix);
+      trees.setColorAt(placed,new THREE.Color(palettes[Math.floor(random()*palettes.length)]));
       placed++;
     }
-    trees.count = placed;
+    trees.count=placed;
     mesh.add(trees);
   }
+  // Keep source geometries owned by the InstancedMesh; each chunk disposes them.
 }
 
 function disposeChunk(chunk) {
@@ -277,7 +339,7 @@ function makeChunk(noise, chunkX, chunkZ, biome, segments) {
   mesh.userData.minHeight = minHeight;
   mesh.userData.maxHeight = maxHeight;
   mesh.userData.lod = segments;
-  if (biome === "green" && segments >= MID_SEGMENTS) addHillVegetation(mesh, noise, chunkX, chunkZ);
+  if (segments >= MID_SEGMENTS) addHillVegetation(mesh, noise, chunkX, chunkZ, biome);
   return mesh;
 }
 
