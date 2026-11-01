@@ -106,7 +106,7 @@ function getPhaseMotion(dt){
  if(p==="FREEFALL")return{speed:THREE.MathUtils.lerp(200,155,f),clearance:THREE.MathUtils.lerp(500,220,f),pitch:THREE.MathUtils.lerp(-60,-55,f),fov:THREE.MathUtils.lerp(82,85,f)};
  if(p==="STORM LAYER")return{speed:THREE.MathUtils.lerp(155,125,f),clearance:THREE.MathUtils.lerp(220,115,f),pitch:-60,fov:84};
  if(p==="BREAKTHROUGH")return{speed:THREE.MathUtils.lerp(125,90,f),clearance:THREE.MathUtils.lerp(115,55,f),pitch:THREE.MathUtils.lerp(-60,-20,f),fov:THREE.MathUtils.lerp(82,72,f)};
- if(p==="TRAVELLER FLIGHT")return{speed:78+Math.sin(t*.19)*12+Math.sin(t*.47)*6,clearance:55,pitch:-29+Math.sin(t*.21)*3,fov:74+Math.sin(t*.25)*2};
+ if(p==="TRAVELLER FLIGHT")return{speed:78+Math.sin(t*.19)*12+Math.sin(t*.47)*6,clearance:90,pitch:-13+Math.sin(t*.21)*1.8,fov:78+Math.sin(t*.25)*1.5};
  return{speed:THREE.MathUtils.lerp(85,145,f),clearance:THREE.MathUtils.lerp(55,260,f),pitch:THREE.MathUtils.lerp(-20,-52,f),fov:THREE.MathUtils.lerp(70,82,f)};
 }
 function setPhaseWeather(){
@@ -152,15 +152,15 @@ function updateCamera(dt){
    camera.position.x=THREE.MathUtils.damp(camera.position.x,x,phaseName==="TRAVELLER FLIGHT"?1.1:1.8,dt);
    camera.position.z-=forwardSpeed*dt;
  }
- const lookDistance=phaseName==="TRAVELLER FLIGHT"?1450:1100;
+ const lookDistance=phaseName==="TRAVELLER FLIGHT"?2200:1100;
  const yaw=Math.atan2(curveNext-curve,400);
  const pitch=THREE.MathUtils.degToRad(motion.pitch);
  camera.rotation.order="YXZ";
  if(!(testMode&&testSettings.freeze)){
    camera.lookAt(camera.position.x+Math.sin(yaw)*lookDistance,camera.position.y-Math.tan(-pitch)*lookDistance,camera.position.z-lookDistance);
-   const scenicYaw=Math.sin(journeyElapsed*.16)*.28+Math.sin(journeyElapsed*.055)*.13;
+   const scenicYaw=Math.sin(journeyElapsed*.16)*.16+Math.sin(journeyElapsed*.055)*.07;
    camera.rotateY(scenicYaw);
-   const bank=THREE.MathUtils.clamp(-yaw*1.8+Math.sin(journeyElapsed*.7)*.035,-.22,.22);
+   const bank=THREE.MathUtils.clamp(-yaw*1.25+Math.sin(journeyElapsed*.7)*.025,-.14,.14);
    camera.rotateZ(bank);
  }else{
    camera.lookAt(camera.position.x,camera.position.y-Math.tan(THREE.MathUtils.degToRad(20))*1200,camera.position.z-1200);
@@ -170,7 +170,7 @@ function updateCamera(dt){
  const samples=[0,100,250,500,850].map(distance=>terrain.getHeightAt(camera.position.x,camera.position.z-distance));
  terrainHeightUnder=samples[0];
  const ridge=Math.max(...samples,terrain.getWaterLevel());
- const requiredClearance=phaseName==="TRAVELLER FLIGHT"?55:phaseName==="BREAKTHROUGH"?70:95;
+ const requiredClearance=phaseName==="TRAVELLER FLIGHT"?90:phaseName==="BREAKTHROUGH"?70:95;
  const targetY=ridge+requiredClearance;
  // Clearance is a one-way, damped safety correction: it never snaps the camera
  // down to the terrain or overwrites forward movement.
