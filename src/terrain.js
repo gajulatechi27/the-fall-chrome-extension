@@ -31,12 +31,13 @@ function fbm(noise, x, z, octaves = 6) {
 }
 
 function riverCenterX(noise, worldZ) {
-  // Long wavelength, differentiable bends avoid the sharp zig-zags produced
-  // by high-frequency offsets. The same centerline drives bed, banks and water.
-  return Math.sin(worldZ * 0.000205 + 0.55) * 330 +
-    Math.sin(worldZ * 0.000091 - 1.35) * 175 +
-    Math.sin(worldZ * 0.000047 + 2.1) * 82 +
-    noise(0.0, worldZ * 0.000075) * 42;
+  // Meanders are designed for the actual visible flight distance (several
+  // kilometres), not just a subtle continental-scale drift. Long, overlapping
+  // wavelengths create broad bends while keeping the centerline differentiable.
+  return Math.sin(worldZ * 0.00056 + 0.35) * 760 +
+    Math.sin(worldZ * 0.000235 - 1.25) * 390 +
+    Math.sin(worldZ * 0.000105 + 2.0) * 185 +
+    noise(0.0, worldZ * 0.00016) * 85;
 }
 
 function riverWidthAt(noise, worldZ, baseWidth) {
@@ -432,13 +433,13 @@ export class Terrain {
     if (biome === "islands" || ["sea", "lake", "river"].includes(this.environment?.water?.type)) {
       const isRiver = this.environment?.water?.type === "river";
       const waterWidth = isRiver
-        ? Math.max(24, (this.environment?.water?.width || 120) * 1.18)
+        ? Math.max(24, (this.environment?.water?.width || 120) * 3.15)
         : (this.environment?.water?.width || WATER_SIZE);
       const waterDepth = isRiver ? WATER_SIZE : waterWidth;
       // Rivers are narrow strips; keep their long axis detailed without
       // allocating a huge square water grid.
       const isLake = this.environment?.water?.type === "lake";
-      const segmentsX = isRiver ? 16 : (isLake ? 384 : 192);
+      const segmentsX = isRiver ? 32 : (isLake ? 384 : 192);
       const segmentsZ = isRiver ? 1024 : (isLake ? 384 : 192);
       const geometry = new THREE.PlaneGeometry(waterWidth, waterDepth, segmentsX, segmentsZ);
       const heights = new Float32Array(geometry.attributes.position.count);
@@ -576,7 +577,7 @@ export class Terrain {
           Math.max(24, this.environment?.water?.width || 120)
         : 1;
       if (isRiver) pos.setX(i, baseX * widthScale + localCurveOffset);
-      const wx = isRiver ? riverCenterX(this.noise, wz) + baseX : centerX + baseX;
+      const wx = isRiver ? riverCenterX(this.noise, wz) + baseX * widthScale : centerX + baseX;
       const terrainHeight = HEIGHT_BASE + this.heightAtWorld(wx, wz);
       if (this.environment?.water?.type === "lake") {
         // A lake is one bounded basin, not every low spot in the terrain.
