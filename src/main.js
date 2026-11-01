@@ -35,7 +35,7 @@ async function beginDescent(){
  const timeOfDay=seed%3,weather=seed%4,skyColors=[0x9abbd1,0xd8ad91,0x627f9b];
  scene.background=new THREE.Color(skyColors[timeOfDay]);
  scene.fog=new THREE.FogExp2(skyColors[timeOfDay],.000025+weather*.000006);
- sky=createSky(scene,renderer,seed);terrain=new Terrain(scene,seed,biome);landmarks=new Landmarks(scene,seed,route);clouds=new CloudField(scene,seed);
+ sky=createSky(scene,renderer,seed);terrain=new Terrain(scene,seed,biome,route);landmarks=new Landmarks(scene,seed,route);clouds=new CloudField(scene,seed);
  try{effects=new CinematicEffects(renderer,scene,camera,quality);}catch(error){console.error("Postprocessing setup failed; using direct renderer.",error);effects=undefined;}
  await saveDescent();running=true;paused=false;clock.start();fade.classList.remove("white");animate();
 }
@@ -45,7 +45,7 @@ function animate(){
  const dt=Math.min(clock.getDelta(),.033);time+=dt;
  const progress=1-altitude/32000,target=altitude<450?24:altitude<3500?110:altitude<11000?103:90;
  speed=THREE.MathUtils.damp(speed,target,1.15,dt);altitude=Math.max(0,altitude-speed*dt*3.6);
- clouds?.update(dt,speed);terrain?.update(dt,speed,altitude);landmarks?.update(dt,speed);
+ clouds?.update(dt,speed);terrain?.update(dt,speed,altitude,camera);landmarks?.update(dt,speed);
  const targetFov=58+Math.min(9,speed*.055);
  camera.fov=THREE.MathUtils.damp(camera.fov,targetFov,1.1,dt);camera.updateProjectionMatrix();
  const shake=Math.min(.035,speed*.00024);
