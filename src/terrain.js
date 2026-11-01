@@ -101,12 +101,7 @@ function makeChunk(noise, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, segment
     let h = fbm(noise, warpX, warpZ, environment?.terrain?.noiseOctaves ?? 6) * amplitude;
     if (environment?.terrain?.valleyCarving) h -= Math.abs(noise(warpX * 0.00048, warpZ * 0.00048)) * environment.terrain.valleyCarving * amplitude * 0.34;
     if (environment?.water?.type === "lake") {
-      const lakeRadius = Math.hypot(worldX, worldZ + 2500);
-      const basin = 1.0 - THREE.MathUtils.smoothstep(lakeRadius, 1100, 4300);
-      h -= basin * 145;
-    }
-    if (environment?.water?.type === "lake") {
-      const lakeRadius = Math.hypot(worldX, worldZ + 2500);
+      const lakeRadius = Math.hypot(x, worldZ + 2500);
       const basin = 1.0 - THREE.MathUtils.smoothstep(lakeRadius, 1100, 4300);
       h -= basin * 145;
     }
@@ -347,6 +342,10 @@ function createFarRanges(scene, noise) {
     layers.push(mesh);
   }
   return {
+    layers,
+    setVisible(visible) {
+      for (const mesh of layers) mesh.visible = visible;
+    },
     update(camera) {
       for (const mesh of layers) {
         mesh.position.x = camera.position.x;
@@ -382,17 +381,26 @@ export class Terrain {
 
     this.water = null;
     if (biome === "islands" || ["sea", "lake", "river"].includes(this.environment?.water?.type)) {
-      const segments = 192;
-      const waterSize = this.environment?.water?.type === "river" ? WATER_SIZE : (this.environment?.water?.width || WATER_SIZE);
-      const geometry = new THREE.PlaneGeometry(waterSize, waterSize, segments, segments);
-      const heights = new Float32Array((segments + 1) * (segments + 1));
+      const isRiver = this.environment?.water?.type === "river";
+      const waterWidth = isRiver
+        ? Math.max(24, this.environment?.water?.width || 120)
+        : (this.environment?.water?.width || WATER_SIZE);
+      const waterDepth = isRiver ? WATER_SIZE : waterWidth;
+      // Rivers are narrow strips; keep their long axis detailed without
+      // allocating a huge square water grid.
+      const segmentsX = isRiver ? 12 : 192;
+      const segmentsZ = isRiver ? 256 : 192;
+      const geometry = new THREE.PlaneGeometry(waterWidth, waterDepth, segmentsX, segmentsZ);
+      const heights = new Float32Array(geometry.attributes.position.count);
       geometry.setAttribute("terrainHeight", new THREE.BufferAttribute(heights, 1));
       this.waterHeights = heights;
-      this.waterSegments = segments;
+      this.waterSegments = { x: segmentsX, z: segmentsZ };
       this.waterCenterX = Number.NaN;
       this.waterCenterZ = Number.NaN;
       this.waterMaterial = createWaterMaterial(seed);
       this.waterMaterial.uniforms.uWaterLevel.value = this.seaLevel;
+      this.waterMaterial.uniforms.uSunDirection.value
+        .set(...(this.environment?.sun?.position || [-0.45, 0.78, -0.42])).normalize();
       this.water = new THREE.Mesh(geometry, this.waterMaterial);
       this.water.rotation.x = -Math.PI / 2;
       this.water.position.y = this.seaLevel;
@@ -473,6 +481,16 @@ export class Terrain {
       const dune = Math.max(0, this.noise(x * 0.0013, z * 0.0011)) * 18;
       h = THREE.MathUtils.lerp(-100 + h * 0.12, 80 + h * 0.48 + headland + dune, coast);
     }
+    if (this.biome === "desert") {
+      h = h * 0.76 + Math.sin(warpX * 0.0022 + this.noise(0, warpZ * 0.001) * 2.0) * 13;
+    }
+    if (this.biome === "mountains" || this.biome === "snow") {
+      const ridge = 1.0 - Math.abs(this.noise(warpX * 0.0012, warpZ * 0.0012));
+      const ridgeWeight = this.environment?.terrain?.ridgeWeight == null
+        ? 1 : this.environment.terrain.ridgeWeight;
+      h += Math.pow(Math.max(0, ridge), 2.2) *
+        (this.biome === "snow" ? 95 : 62) * ridgeWeight;
+    }
     return h;
   }
 
@@ -508,7 +526,7 @@ export class Terrain {
 
   setVisible(visible) {
     this.group.visible = visible;
-    for (const child of this.scene.children) if (child.userData?.farRangeOwner === this) child.visible = visible;
+    this.farRanges?.setVisible(visible);
     if (this.water) this.water.visible = visible;
   }
 
