@@ -42,7 +42,7 @@ window.__fallAssetFailures ||= [];
 const assetFailures = window.__fallAssetFailures;
 let seed = 0, biome = "forest", time = 0, altitude = 32000, speed = 90;
 let activeEnvironment = null, sequenceIndex = -1, orderMode = "In order";
-let preloadedTerrain = null, preloadedIndex = -1, transitionStarted = false, transitionState = "idle";
+let preloadedTerrain = null, preloadedIndex = -1, preloadAttempted = false, transitionStarted = false, transitionState = "idle";
 const directEnvironment = resolveEnvironment(requestedEnv);
 let running = false, paused = false, transitioning = false, frame = 0, descentNumber = 0;
 let lastDebugLog = 0, fpsFrames = 0, fpsTime = 0, fps = 0;
@@ -97,7 +97,7 @@ function nextIndex(from = sequenceIndex) {
 function withEightSecondTimeout(promise, label) {
   let timer;
   return Promise.race([Promise.resolve(promise), new Promise((_, reject) => {
-    timer = setTimeout(() => reject(new Error(label + " timed out after 8 seconds")), 8000);
+    timer = setTimeout(() => reject(new Error(label + " timed out after 7 seconds")), 7000);
   })]).finally(() => clearTimeout(timer));
 }
 
@@ -137,20 +137,27 @@ async function activateLandscape(index, stagedTerrain = null) {
   landscapeLabel.textContent = config.name;
   landscapeLabel.style.opacity = "1";
   await savePlaylistState();
-  running = true; paused = false; transitionStarted = false;
+  running = true; paused = false; transitionStarted = false; preloadAttempted = false;
   fpsFrames = 0; fpsTime = 0; lastDebugLog = 0;
   clock.start();
   animate();
 }
 
 async function preloadNextLandscape() {
-  if (!playlistEnabled || preloadedTerrain || !activeEnvironment) return;
+  if (!playlistEnabled || preloadAttempted || preloadedTerrain || !activeEnvironment) return;
+  preloadAttempted = true;
   preloadedIndex = nextIndex();
   const next = ENVIRONMENTS[preloadedIndex];
   const nextSeed = randSeed();
-  preloadedTerrain = createTerrainFor(next, nextSeed, false);
-  preloadedTerrain.preloadSeed = nextSeed;
-  console.info("[THE FALL] Preloaded next landscape:", next.name);
+  try {
+    preloadedTerrain = createTerrainFor(next, nextSeed, false);
+    preloadedTerrain.preloadSeed = nextSeed;
+    console.info("[THE FALL] Preloaded next landscape:", next.name);
+  } catch (error) {
+    preloadedIndex = -1;
+    console.error("[THE FALL] Next landscape preload failed; transition will build it on demand.", error);
+    throw error;
+  }
 }
 
 async function advanceLandscape() {
@@ -163,7 +170,7 @@ async function advanceLandscape() {
   const requestedNext = preloadedTerrain && preloadedIndex >= 0 ? preloadedIndex : nextIndex(sequenceIndex);
   const staged = preloadedTerrain && preloadedIndex === requestedNext ? preloadedTerrain : null;
   if (preloadedTerrain && !staged) { try { preloadedTerrain.dispose(); } catch {} }
-  preloadedTerrain = null; preloadedIndex = -1;
+  preloadedTerrain = null; preloadedIndex = -1; preloadAttempted = false;
   await new Promise(resolve => setTimeout(resolve, 350));
   try {
     transitionState = "activating " + ENVIRONMENTS[requestedNext].id;
