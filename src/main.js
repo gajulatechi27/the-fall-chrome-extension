@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { createSky } from "./sky.js";
 import { CloudField } from "./clouds.js";
 import { Terrain } from "./terrain.js";
+import { ENVIRONMENTS, resolveEnvironment } from "./environments.js";
 import { CinematicEffects } from "./effects.js";
 import "./style.css";
 
@@ -27,11 +28,10 @@ camera.position.set(0, 3.4, 15.5);
 
 const cameraTarget = new THREE.Vector3();
 const cameraDesired = new THREE.Vector3();
-const envAliases = {
-  hills: "forest", valley: "forest", beach: "islands",
-  mounthills: "mountains", lake: "snow"
-};
-const requestedEnv = new URLSearchParams(location.search).get("env");
+const params = new URLSearchParams(location.search);
+const requestedEnv = params.get("env");
+const playlistEnabled = params.get("playlist") === "1" || !requestedEnv;
+const skipOnLoad = params.get("skip") === "1";
 const seedParam = new URLSearchParams(location.search).get("seed");
 const requestedSeed = seedParam === null ? Number.NaN : Number(seedParam);
 const startBelow = new URLSearchParams(location.search).get("start") === "below";
@@ -40,7 +40,10 @@ const randSeed = () => Number.isFinite(requestedSeed) ? (requestedSeed >>> 0) : 
 let sky, clouds, terrain, effects;
 window.__fallAssetFailures ||= [];
 const assetFailures = window.__fallAssetFailures;
-let seed = 0, biome = "mountains", time = 0, altitude = 32000, speed = 90;
+let seed = 0, biome = "forest", time = 0, altitude = 32000, speed = 90;
+let activeEnvironment = null, sequenceIndex = -1, orderMode = "In order";
+let preloadedTerrain = null, preloadedIndex = -1, transitionStarted = false;
+const directEnvironment = resolveEnvironment(requestedEnv);
 let running = false, paused = false, transitioning = false, frame = 0, descentNumber = 0;
 let lastDebugLog = 0, fpsFrames = 0, fpsTime = 0, fps = 0;
 
@@ -48,91 +51,127 @@ const debug = document.createElement("pre");
 debug.id = "fall-debug";
 debug.style.cssText = "display:none;position:fixed;z-index:20;left:12px;top:12px;margin:0;padding:12px 14px;max-width: min(520px, calc(100vw - 24px));background:rgba(3,12,20,.82);color:#d8f3ff;border:1px solid rgba(180,220,240,.35);border-radius:8px;font:12px/1.55 ui-monospace,monospace;white-space:pre-wrap;pointer-events:none";
 document.body.appendChild(debug);
+const landscapeLabel = document.createElement("div");
+landscapeLabel.id = "fall-landscape-label";
+landscapeLabel.style.cssText = "position:fixed;z-index:15;left:50%;bottom:28px;transform:translateX(-50%);padding:8px 15px;border-radius:18px;background:rgba(5,18,28,.38);color:#fff;font:500 13px/1.2 system-ui,sans-serif;letter-spacing:.04em;text-shadow:0 1px 8px #14232b;opacity:0;transition:opacity 1.4s ease;pointer-events:none;white-space:nowrap";
+document.body.appendChild(landscapeLabel);
+const orderControl = document.createElement("select");
+orderControl.setAttribute("aria-label","Landscape order");
+orderControl.style.cssText = "position:fixed;z-index:16;right:14px;bottom:18px;padding:7px 10px;border:1px solid #ffffff55;border-radius:8px;background:#10233099;color:white;font:12px system-ui";
+orderControl.innerHTML = '<option>In order</option><option>Shuffle</option>';
+document.body.appendChild(orderControl);
 let debugVisible = false;
 document.addEventListener("keydown", event => {
   if (event.key.toLowerCase() === "d" && !event.repeat) {
     debugVisible = !debugVisible;
     debug.style.display = debugVisible ? "block" : "none";
   }
+  if (event.key.toLowerCase() === "n" && !event.repeat && playlistEnabled) advanceLandscape();
 });
 
-async function saveDescent() {
+async function savePlaylistState() {
   try {
-    if (globalThis.chrome?.storage?.local) {
-      await chrome.storage.local.set({
-        theFallLastSeed: seed,
-        theFallDescentCount: descentNumber,
-        theFallLastBiome: biome
-      });
-    }
-  } catch (error) {
-    console.info("Chrome storage unavailable in preview mode", error);
-  }
+    if (globalThis.chrome?.storage?.local) await chrome.storage.local.set({
+      theFallLastLandscapeIndex: sequenceIndex,
+      theFallLandscapeOrder: orderMode,
+      theFallLastSeed: seed,
+      theFallLastBiome: biome
+    });
+  } catch (error) { console.info("Playlist state unavailable in preview mode", error); }
 }
 
-function cleanup() {
-  effects?.dispose();
-  effects = undefined;
-  sky?.dispose();
-  sky = undefined;
-  clouds?.dispose();
-  clouds = undefined;
-  terrain?.dispose();
-  terrain = undefined;
-  scene.clear();
+function nextIndex(from = sequenceIndex) {
+  if (orderMode === "Shuffle") {
+    if (ENVIRONMENTS.length < 2) return from;
+    let next = from;
+    while (next === from) next = Math.floor(Math.random() * ENVIRONMENTS.length);
+    return next;
+  }
+  return (from + 1) % ENVIRONMENTS.length;
+}
+
+function createTerrainFor(config, terrainSeed, visible = true) {
+  const instance = new Terrain(scene, terrainSeed, config.biome, config);
+  instance.setVisible(visible);
+  return instance;
+}
+
+function cleanupActive() {
+  effects?.dispose(); effects = undefined;
+  sky?.dispose(); sky = undefined;
+  clouds?.dispose(); clouds = undefined;
+  terrain?.dispose(); terrain = undefined;
+}
+
+async function activateLandscape(index, stagedTerrain = null) {
+  const config = playlistEnabled ? ENVIRONMENTS[index] : (directEnvironment || ENVIRONMENTS[index]);
+  if (!config) throw new Error("Unknown landscape: " + requestedEnv);
+  running = false; cancelAnimationFrame(frame); cleanupActive();
+  activeEnvironment = config;
+  sequenceIndex = ENVIRONMENTS.findIndex(item => item.id === config.id);
+  biome = config.biome; seed = stagedTerrain?.preloadSeed ?? randSeed();
+  time = 0; altitude = config.camera.altitude; speed = config.camera.speed;
+  camera.position.set(0, altitude, 15.5);
+  cameraTarget.set(0, altitude - 14, -48);
+  sky = createSky(scene, renderer, seed, config);
+  scene.background = sky.horizonColor.clone();
+  scene.fog = new THREE.FogExp2(new THREE.Color(config.fog.color), config.fog.density);
+  terrain = stagedTerrain || createTerrainFor(config, seed, true);
+  terrain.setVisible(true);
+  if (!terrain.isReady()) throw new Error("Landscape terrain preload incomplete: " + config.name);
+  clouds = new CloudField(scene, seed, config);
+  clouds.group.position.y = 1900;
+  try { effects = new CinematicEffects(renderer, scene, camera, quality); }
+  catch (error) { console.error("Post-processing setup failed; using direct renderer.", error); effects = undefined; }
+  landscapeLabel.textContent = config.name;
+  landscapeLabel.style.opacity = "1";
+  await savePlaylistState();
+  running = true; paused = false; transitioning = false; transitionStarted = false;
+  fpsFrames = 0; fpsTime = 0; lastDebugLog = 0;
+  clock.start(); fade.style.opacity = "0"; fade.classList.remove("white");
+  animate();
+}
+
+async function preloadNextLandscape() {
+  if (!playlistEnabled || preloadedTerrain || !activeEnvironment) return;
+  preloadedIndex = nextIndex();
+  const next = ENVIRONMENTS[preloadedIndex];
+  const nextSeed = randSeed();
+  preloadedTerrain = createTerrainFor(next, nextSeed, false);
+  preloadedTerrain.preloadSeed = nextSeed;
+  console.info("[THE FALL] Preloaded next landscape:", next.name);
+}
+
+async function advanceLandscape() {
+  if (!playlistEnabled || transitioning) return;
+  transitioning = true; running = false; cancelAnimationFrame(frame);
+  landscapeLabel.style.opacity = "0"; fade.classList.add("white"); fade.style.opacity = "1";
+  await new Promise(resolve => setTimeout(resolve, 2600));
+  const index = preloadedTerrain && preloadedIndex >= 0 ? preloadedIndex : nextIndex();
+  const staged = preloadedTerrain;
+  preloadedTerrain = null; preloadedIndex = -1;
+  await activateLandscape(index, staged);
+  await new Promise(resolve => setTimeout(resolve, 1200));
+  fade.style.opacity = "0"; landscapeLabel.style.opacity = "1";
 }
 
 async function beginDescent() {
   if (transitioning) return;
   transitioning = true;
-  running = false;
-  cancelAnimationFrame(frame);
-  fade.classList.add("white");
-  await new Promise(resolve => setTimeout(resolve, 700));
-  cleanup();
-
-  seed = randSeed();
-  const env = requestedEnv && envAliases[requestedEnv] ? envAliases[requestedEnv] : null;
-  biome = env || biomes[Math.floor(Math.random() * biomes.length)];
-  const route = biome === "islands" ? "sea" : biome === "mountains" ? "himalayas" : "river";
-  descentNumber++;
-  time = 0;
-  altitude = startBelow ? 420 : 2350;
-  speed = 90;
-  camera.position.set(0, altitude, 15.5);
-  cameraTarget.set(0, altitude - 14, -48);
-
-  sky = createSky(scene, renderer, seed);
-  scene.background = sky.horizonColor.clone();
-  scene.fog = new THREE.FogExp2(sky.horizonColor, 0.00012);
-  terrain = new Terrain(scene, seed, biome, route);
-  // Terrain generation is synchronous. Do not begin the journey until the
-  // complete near-field runway and its bounds are available.
-  if (!terrain.isReady()) {
-    throw new Error("Terrain preload incomplete; refusing to start an empty-ground journey.");
-  }
-  clouds = new CloudField(scene, seed);
-  // The existing cloud artwork is preserved; position the bank across the
-  // descent path so the camera physically passes through it.
-  clouds.group.position.y = 1900;
-
+  let index = 0;
   try {
-    effects = new CinematicEffects(renderer, scene, camera, quality);
-  } catch (error) {
-    console.error("Post-processing setup failed; using direct renderer.", error);
-    effects = undefined;
-  }
-
-  await saveDescent();
-  running = true;
-  paused = false;
+    if (playlistEnabled && globalThis.chrome?.storage?.local) {
+      const saved = await chrome.storage.local.get(["theFallLastLandscapeIndex","theFallLandscapeOrder"]);
+      sequenceIndex = Number.isInteger(saved.theFallLastLandscapeIndex) ? saved.theFallLastLandscapeIndex : -1;
+      orderMode = saved.theFallLandscapeOrder || "In order";
+      orderControl.value = orderMode;
+      index = nextIndex(sequenceIndex);
+    } else if (directEnvironment) index = Math.max(0, ENVIRONMENTS.findIndex(item => item.id === directEnvironment.id));
+  } catch { index = directEnvironment ? Math.max(0, ENVIRONMENTS.findIndex(item => item.id === directEnvironment.id)) : 0; }
+  fade.classList.add("white"); fade.style.opacity = "1";
+  await new Promise(resolve => setTimeout(resolve, 450));
+  await activateLandscape(index);
   transitioning = false;
-  fpsFrames = 0;
-  fpsTime = 0;
-  lastDebugLog = 0;
-  clock.start();
-  fade.classList.remove("white");
-  animate();
 }
 
 const clock = new THREE.Clock();
@@ -150,7 +189,7 @@ function updateDebug(dt) {
     const stats = terrain?.getDebugInfo?.(camera) || {};
     console.info(
       "[THE FALL]",
-      "biome:", biome,
+      "landscape:", activeEnvironment?.name,
       "seed:", seed,
       "altitude:", Math.round(altitude),
       "camera x/z:", camera.position.x.toFixed(1), "/", camera.position.z.toFixed(1),
@@ -166,7 +205,9 @@ function updateDebug(dt) {
     stats.safetyWarning = terrain?.hasChunkNear(camera.position.x, camera.position.z, 500) ? null : "HOLD — NO CHUNK WITHIN 500 m";
     debug.textContent =
       "THE FALL — DEBUG (D to hide)\n" +
-      "Biome: " + biome + "\n" +
+      "Landscape: " + (sequenceIndex + 1) + "/" + ENVIRONMENTS.length + " — " + (activeEnvironment?.name || biome) + "\n" +
+      "Time left: " + Math.max(0, (activeEnvironment?.duration || 68) - time).toFixed(1) + " s\n" +
+      "Order: " + orderMode + "\n" +
       "Seed: " + seed + "\n" +
       "Altitude: " + Math.round(altitude) + " m\n" +
       "Camera X/Z: " + camera.position.x.toFixed(1) + " / " + camera.position.z.toFixed(1) + "\n" +
@@ -194,15 +235,12 @@ function animate() {
   const dt = Math.min(clock.getDelta(), 0.033);
   time += dt;
 
-  const progress = THREE.MathUtils.clamp(time / 75, 0, 1);
+  const duration = activeEnvironment?.duration || 68;
+  const progress = THREE.MathUtils.clamp(time / duration, 0, 1);
   // Stage 1 flight profile: enter the cloud bank, emerge above the terrain,
   // then hold a low, safe glide for the remainder of the journey.
-  const targetAltitude = startBelow
-    ? THREE.MathUtils.lerp(420, 260, progress)
-    : time < 8
-      ? THREE.MathUtils.lerp(2350, 1450, THREE.MathUtils.clamp(time / 8, 0, 1))
-      : THREE.MathUtils.lerp(1450, 260, THREE.MathUtils.clamp((time - 8) / 67, 0, 1));
-  const targetSpeed = time < 8 ? 90 : 42;
+  const targetAltitude = activeEnvironment?.camera?.altitude ?? 420;
+  const targetSpeed = activeEnvironment?.camera?.speed ?? 42;
   speed = THREE.MathUtils.damp(speed, targetSpeed, 1.15, dt);
   altitude = targetAltitude;
 
@@ -254,8 +292,8 @@ function animate() {
 
 
   if (scene.fog instanceof THREE.FogExp2) {
-    scene.fog.density = 0.00012;
-    if (sky?.horizonColor) scene.fog.color.copy(sky.horizonColor);
+    scene.fog.density = activeEnvironment?.fog?.density ?? 0.00012;
+    if (activeEnvironment?.fog?.color) scene.fog.color.set(activeEnvironment.fog.color);
   }
 
   try {
@@ -270,7 +308,8 @@ function animate() {
   }
 
   updateDebug(dt);
-  if (time >= 75 || altitude <= 0) beginDescent();
+  if (playlistEnabled && time >= duration - 10 && !preloadedTerrain) preloadNextLandscape();
+  if (playlistEnabled && time >= duration - 5 && !transitionStarted) { transitionStarted = true; advanceLandscape(); }
 }
 
 document.addEventListener("visibilitychange", () => {
