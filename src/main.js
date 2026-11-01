@@ -306,10 +306,16 @@ function animate() {
   const groundReady = (terrain?.hasChunkNear(cameraDesired.x, cameraDesired.z, 500) ?? false) && (terrain?.hasCoverage(20000) ?? false);
   if (groundReady) {
     camera.position.lerp(cameraDesired, 1 - Math.exp(-4.2 * dt));
+    // Green Hills has a broad river corridor: gently pan across both
+    // banks during the flight instead of keeping the view locked forward.
+    // Other environments retain the existing subtle heading drift.
+    const viewYaw = activeEnvironment?.id === "green-hills"
+      ? Math.sin(time * 0.19) * 0.62 + Math.sin(time * 0.067) * 0.12
+      : Math.sin(turn) * 0.18;
     cameraTarget.set(
-      camera.position.x + Math.sin(turn) * 220,
+      camera.position.x + Math.sin(viewYaw) * lookDistance,
       camera.position.y + Math.sin(pitchRadians) * lookDistance,
-      camera.position.z - Math.cos(pitchRadians) * lookDistance
+      camera.position.z - Math.cos(viewYaw) * lookDistance
     );
     camera.lookAt(cameraTarget);
   } else {
