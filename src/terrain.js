@@ -32,13 +32,13 @@ function terrainHeight(noise, x, z, biome) {
   const warpX = x + noise(x * 0.00022, z * 0.00022) * 420;
   const warpZ = z + noise((x + 900) * 0.00022, (z - 400) * 0.00022) * 420;
   let h = fbm(noise, warpX, warpZ) * 115;
-  if (["himalayas", "mountains", "snow", "lake"].includes(biome)) {
+  if (["himalayas", "mountains", "snow", "lake", "forest", "rainforest"].includes(biome)) {
     const ridgeNoise = noise(warpX * 0.00048, warpZ * 0.00048);
     const ridges = Math.pow(Math.max(0, 1 - Math.abs(ridgeNoise)), 2.15);
     const rangeMask = biome === "lake"
       ? THREE.MathUtils.smoothstep(Math.hypot(x, z), 900, 3200)
       : 1;
-    const mountainHeight = biome === "lake" ? 320 : biome === "himalayas" || biome === "snow" ? 365 : 245;
+    const mountainHeight = biome === "lake" ? 320 : biome === "himalayas" || biome === "snow" ? 365 : biome === "rainforest" ? 205 : biome === "forest" ? 235 : 245;
     h += ridges * mountainHeight * rangeMask;
     // Carve broad glacier valleys between ridgelines.
     h -= Math.pow(Math.max(0, 1 - Math.abs(noise(warpX * 0.00023 + 8, warpZ * 0.00023 - 3))), 5) * 72;
@@ -48,11 +48,11 @@ function terrainHeight(noise, x, z, biome) {
     const d = Math.hypot(x, z);
     h = THREE.MathUtils.lerp(h, -42, 1 - THREE.MathUtils.smoothstep(d, lakeRadius - 90, lakeRadius + 90));
   }
-  if (biome === "green" || biome === "forest" || biome === "delta") {
+  if (biome === "green" || biome === "forest" || biome === "delta" || biome === "rainforest") {
     const center = Math.sin(warpZ * 0.00032 + noise(80, warpZ * 0.00018) * 1.6) * 1100;
     const distance = Math.abs(warpX - center);
-    const width = biome === "delta" ? 320 : 170;
-    h -= Math.exp(-Math.pow(distance / width, 2)) * (biome === "delta" ? 115 : 78);
+    const width = biome === "delta" ? 390 : biome === "rainforest" ? 230 : 170;
+    h -= Math.exp(-Math.pow(distance / width, 2)) * (biome === "delta" ? 135 : biome === "rainforest" ? 105 : 78);
     h += Math.exp(-Math.pow((distance - width * 1.45) / 110, 2)) * 15;
   }
   if (biome === "desert") {
@@ -64,7 +64,7 @@ function terrainHeight(noise, x, z, biome) {
     h = h * 0.65 - 65 + Math.max(0, coastNoise + 0.15) * 290;
     h += Math.pow(Math.max(0, 1 - Math.abs(noise(warpX * 0.00065, warpZ * 0.00065))), 4) * 55;
   }
-  if (biome === "green" || biome === "forest") {
+  if (biome === "green" || biome === "forest" || biome === "rainforest") {
     h += Math.sin(warpX * 0.0013 + warpZ * 0.0007) * 12;
   }
   return h;
@@ -72,7 +72,7 @@ function terrainHeight(noise, x, z, biome) {
 
 function makeTerrainMaterial(biome) {
   const material = new THREE.MeshStandardMaterial({
-    color: biome === "desert" ? 0xb88760 : biome === "himalayas" || biome === "snow" || biome === "lake" ? 0xb8c4c8 : biome === "delta" ? 0x91a879 : 0x8da77b,
+    color: biome === "desert" ? 0xb88760 : biome === "himalayas" || biome === "snow" || biome === "lake" ? 0xd5e0e5 : biome === "delta" ? 0xb2a36e : biome === "rainforest" ? 0x4f8660 : 0x91b56d,
     roughness: 0.96,
     metalness: 0,
     vertexColors: true
@@ -85,10 +85,10 @@ function makeChunk(noise, chunkX, chunkZ, biome, segments) {
   const colors = [];
   const indices = [];
   const step = CHUNK_SIZE / segments;
-  const min = new THREE.Color(0x314c3b);
-  const grass = new THREE.Color(biome === "delta" ? 0x91a66c : 0x6e9562);
-  const rock = new THREE.Color(0x777b78);
-  const snow = new THREE.Color(0xe0e8ed);
+  const min = new THREE.Color(biome === "rainforest" || biome === "forest" ? 0x315b42 : 0x58794a);
+  const grass = new THREE.Color(biome === "delta" ? 0xc2b276 : biome === "rainforest" ? 0x4f9562 : biome === "forest" ? 0x528451 : 0x91b96c);
+  const rock = new THREE.Color(biome === "desert" ? 0x9b5940 : 0x85877e);
+  const snow = new THREE.Color(0xf0f5f8);
   const sand = new THREE.Color(0xc5a477);
   let minHeight = Infinity, maxHeight = -Infinity;
 
@@ -109,11 +109,11 @@ function makeChunk(noise, chunkX, chunkZ, biome, segments) {
       let color = grass.clone().lerp(min, 0.28);
       if (biome === "desert" || biome === "coast" || biome === "islands") color.copy(sand);
       color.lerp(rock, THREE.MathUtils.smoothstep(slope, 0.18, 0.68) * 0.82);
-      if (["himalayas", "snow", "lake"].includes(biome)) {
+      if (["himalayas", "snow", "lake", "forest", "rainforest"].includes(biome)) {
         const snowLine = 225 + noise(wx * 0.001, wz * 0.001) * 42;
         color.lerp(snow, THREE.MathUtils.smoothstep(h, snowLine - 22, snowLine + 32));
       }
-      if (biome === "lake" && Math.hypot(wx, wz) < 1080) color.lerp(grass, 0.35);
+      if (biome === "lake" && Math.hypot(wx, wz) < 1080) color.lerp(grass, 0.35);\n      if (biome === "green") { const field = Math.sin(wx * 0.0018 + Math.sin(wz * 0.0007) * 2.2); color.lerp(new THREE.Color(0xc4ad69), THREE.MathUtils.smoothstep(field, 0.68, 0.96) * 0.62); }\n      if (biome === "delta") { const field = Math.sin(wx * 0.0011 + wz * 0.00018) * Math.cos(wz * 0.0009); color.lerp(new THREE.Color(0xc1a66b), THREE.MathUtils.smoothstep(field, 0.55, 0.9) * 0.72); }
       const detail = 0.92 + fbm(noise, wx * 1.3, wz * 1.3) * 0.18;
       color.multiplyScalar(detail);
       colors.push(color.r, color.g, color.b);
@@ -199,7 +199,7 @@ export class Terrain {
     this.chunks = new Map();
     this.water = null;
     this.waterMaterial = null;
-    this.waterEnabled = ["coast", "islands", "lake"].includes(biome);
+    this.waterEnabled = ["coast", "islands", "lake"].includes(biome);\n    this.river = null;\n    this.riverMaterial = null;\n    if (["green", "delta", "forest", "rainforest"].includes(biome)) {\n      const positions = [], indices = [];\n      const steps = 500;\n      for (let i = 0; i <= steps; i++) {\n        const z = 20000 - i * 80;\n        const center = Math.sin(z * 0.00032 + this.noise(80, z * 0.00018) * 1.6) * 1100;\n        const width = biome === "delta" ? 210 + 90 * Math.sin(i * 0.035) ** 2 : 95 + 45 * Math.sin(i * 0.027) ** 2;\n        positions.push(center - width, -43, z, center + width, -43, z);\n        if (i < steps) { const a=i*2,b=a+1,c=a+2,d=a+3; indices.push(a,c,b,b,c,d); }\n      }\n      const geo = new THREE.BufferGeometry();\n      geo.setAttribute("position", new THREE.Float32BufferAttribute(positions,3)); geo.setIndex(indices); geo.computeVertexNormals();\n      this.riverMaterial = createWaterMaterial(seed + 17);\n      this.river = new THREE.Mesh(geo,this.riverMaterial); this.river.frustumCulled=false; this.river.renderOrder=2; scene.add(this.river);\n    }
     if (this.waterEnabled) {
       const geometry = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
       this.waterMaterial = createWaterMaterial(seed);
