@@ -117,6 +117,7 @@ function createScene(nextScene, nextSeed, forcedWeather = null) {
   }
   label.textContent = activeScene.name;
   label.classList.add("visible");
+  if (testMode) terrain.setDebugOptions({wireframe:el("wireframe")?.checked || false,lodColors:el("lod")?.checked || false,chunkBorders:el("borders")?.checked || false,trees:el("trees")?.checked !== false});
   if (testMode && testSettings.freeze) {
     camera.lookAt(camera.position.x + 1350, camera.position.y - Math.tan(THREE.MathUtils.degToRad(25)) * 1350, camera.position.z - 1350);
     camera.rotation.z = 0;
@@ -267,10 +268,12 @@ function animate() {
 
 if (testMode) {
  const panel=document.createElement("section"); panel.id="dev-test-panel";
- panel.innerHTML='<strong>DEV TEST MODE</strong><label>Scene<select id="dt-scene"><option value="himalaya">Himalaya</option><option value="hills">Hills</option><option value="river">River</option><option value="lake">Lake</option><option value="coast">Coast</option><option value="desert">Desert</option><option value="forest">Forest</option><option value="rainforest">Rainforest</option></select></label><label>Seed<input id="dt-seed" type="number"></label><label>Time<select id="dt-time"><option>dawn</option><option>noon</option><option>sunset</option><option>night</option></select></label><label>Weather<select id="dt-weather"><option>clear</option><option>clouds</option><option>mist</option><option>rain</option><option>storm</option></select></label><label>Speed<input id="dt-speed" type="number" min="0" max="250"></label><label class="dt-check"><input id="dt-freeze" type="checkbox"> Freeze viewpoint</label><button id="dt-apply">Apply live</button><button id="dt-copy">Copy settings</button>';
+ panel.innerHTML='<strong>DEV TEST MODE</strong><label>Scene<select id="dt-scene"><option value="himalaya">Himalaya</option><option value="hills">Hills</option><option value="river">River</option><option value="lake">Lake</option><option value="coast">Coast</option><option value="desert">Desert</option><option value="forest">Forest</option><option value="rainforest">Rainforest</option></select></label><label>Seed<input id="dt-seed" type="number"></label><label>Time<select id="dt-time"><option>dawn</option><option>noon</option><option>sunset</option><option>night</option></select></label><label>Weather<select id="dt-weather"><option>clear</option><option>clouds</option><option>mist</option><option>rain</option><option>storm</option></select></label><label>Speed<input id="dt-speed" type="number" min="0" max="250"></label><label class="dt-check"><input id="dt-freeze" type="checkbox"> Freeze viewpoint</label><hr><strong>TERRAIN DEBUG</strong><label class="dt-check"><input id="dt-wireframe" type="checkbox"> Wireframe</label><label class="dt-check"><input id="dt-lod" type="checkbox"> LOD colors</label><label class="dt-check"><input id="dt-borders" type="checkbox"> Chunk borders</label><label class="dt-check"><input id="dt-trees" type="checkbox" checked> Trees</label><small id="dt-octaves">Height noise octaves: 2 (band-limited)</small><button id="dt-apply">Apply live</button><button id="dt-copy">Copy settings</button>';
  document.body.appendChild(panel);
  const el=id=>panel.querySelector("#dt-"+id);
  el("scene").value=testSettings.scene; el("seed").value=testSettings.seed; el("time").value=testSettings.time; el("weather").value=testSettings.weather; el("speed").value=testSettings.speed??""; el("freeze").checked=testSettings.freeze;
+ const applyTerrainDebug=()=>terrain?.setDebugOptions({wireframe:el("wireframe").checked,lodColors:el("lod").checked,chunkBorders:el("borders").checked,trees:el("trees").checked});
+ ["wireframe","lod","borders","trees"].forEach(id=>el(id).addEventListener("change",applyTerrainDebug));
  let open=false;
  document.addEventListener("keydown",event=>{if(event.key.toLowerCase()==="t"&&!event.repeat){open=!open;panel.classList.toggle("open",open);}});
  el("apply").addEventListener("click",()=>{
