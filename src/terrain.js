@@ -31,20 +31,27 @@ function fbm(noise, x, z, octaves = 6) {
 }
 
 function riverCenterX(noise, worldZ) {
-  // Broad, overlapping bends create a continuous meander visible from the
-  // flight camera. Keep the same path function for terrain carving and water.
-  return Math.sin(worldZ * 0.00042 + 0.7) * 420 +
-    Math.sin(worldZ * 0.00017 - 1.2) * 190 +
-    noise(0.0, worldZ * 0.00032) * 105;
+  // Long wavelength, differentiable bends avoid the sharp zig-zags produced
+  // by high-frequency offsets. The same centerline drives bed, banks and water.
+  return Math.sin(worldZ * 0.000205 + 0.55) * 330 +
+    Math.sin(worldZ * 0.000091 - 1.35) * 175 +
+    Math.sin(worldZ * 0.000047 + 2.1) * 82 +
+    noise(0.0, worldZ * 0.000075) * 42;
+}
+
+function riverWidthAt(noise, worldZ, baseWidth) {
+  const variation = 0.88 + 0.09 * Math.sin(worldZ * 0.00019 + 0.8) +
+    0.05 * noise(13.7, worldZ * 0.00012);
+  return Math.max(24, baseWidth * variation);
 }
 
 function applyRiverChannel(height, x, worldZ, noise, environment) {
   if (environment?.water?.type !== "river") return height;
-  const width = Math.max(24, environment.water.width || 120);
+  const width = riverWidthAt(noise, worldZ, environment.water.width || 120);
   const distance = Math.abs(x - riverCenterX(noise, worldZ));
-  const channel = 1.0 - THREE.MathUtils.smoothstep(distance, width * 0.48, width * 1.65);
-  // Keep the bed below the configured water plane, with a broad sloped bank.
-  return height - channel * 112;
+  const channel = 1.0 - THREE.MathUtils.smoothstep(distance, width * 0.48, width * 1.8);
+  // A broad, smoothly sloped bank makes the channel survive terrain LOD changes.
+  return height - channel * 126;
 }
 
 function makeTerrainShader(material, biome, environment = null) {
@@ -336,7 +343,7 @@ function createFarRanges(scene, noise) {
   const distances = [10500, 14500, 18500];
   for (let layer = 0; layer < 3; layer++) {
     const positions = [], indices = [];
-    const nx = 240, nz = 12, width = 76000, depth = 7200;
+    const nx = 320, nz = 28, width = 76000, depth = 7200;
     for (let iz = 0; iz <= nz; iz++) {
       for (let ix = 0; ix <= nx; ix++) {
         const x = -width * .5 + width * ix / nx;
@@ -425,13 +432,13 @@ export class Terrain {
     if (biome === "islands" || ["sea", "lake", "river"].includes(this.environment?.water?.type)) {
       const isRiver = this.environment?.water?.type === "river";
       const waterWidth = isRiver
-        ? Math.max(24, this.environment?.water?.width || 120)
+        ? Math.max(24, (this.environment?.water?.width || 120) * 1.18)
         : (this.environment?.water?.width || WATER_SIZE);
       const waterDepth = isRiver ? WATER_SIZE : waterWidth;
       // Rivers are narrow strips; keep their long axis detailed without
       // allocating a huge square water grid.
-      const segmentsX = isRiver ? 12 : 192;
-      const segmentsZ = isRiver ? 256 : 192;
+      const segmentsX = isRiver ? 16 : 192;
+      const segmentsZ = isRiver ? 1024 : 192;
       const geometry = new THREE.PlaneGeometry(waterWidth, waterDepth, segmentsX, segmentsZ);
       const heights = new Float32Array(geometry.attributes.position.count);
       geometry.setAttribute("terrainHeight", new THREE.BufferAttribute(heights, 1));
@@ -454,10 +461,11 @@ export class Terrain {
   }
 
   lodForDistance(distance) {
+    const river = this.environment?.water?.type === "river";
     if (distance < 400) return { segments: 128, ring: "near" };
     if (distance < 1500) return { segments: 64, ring: "mid" };
-    if (distance < 5000) return { segments: 32, ring: "far" };
-    return { segments: 16, ring: "horizon" };
+    if (distance < 5000) return { segments: river ? 64 : 32, ring: "far" };
+    return { segments: river ? 32 : 16, ring: "horizon" };
   }
 
   ensureGrid(cameraX, cameraZ) {
@@ -562,7 +570,11 @@ export class Terrain {
       const localCurveOffset = isRiver
         ? riverCenterX(this.noise, wz) - riverCenter
         : 0;
-      if (isRiver) pos.setX(i, baseX + localCurveOffset);
+      const widthScale = isRiver
+        ? riverWidthAt(this.noise, wz, this.environment?.water?.width || 120) /
+          Math.max(24, this.environment?.water?.width || 120)
+        : 1;
+      if (isRiver) pos.setX(i, baseX * widthScale + localCurveOffset);
       const wx = isRiver ? riverCenterX(this.noise, wz) + baseX : centerX + baseX;
       out[i] = HEIGHT_BASE + this.heightAtWorld(wx, wz);
     }
