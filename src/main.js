@@ -38,7 +38,8 @@ const startBelow = new URLSearchParams(location.search).get("start") === "below"
 const biomes = ["mountains", "desert", "islands", "forest", "snow"];
 const randSeed = () => Number.isFinite(requestedSeed) ? (requestedSeed >>> 0) : Math.floor(Math.random() * 0x7fffffff);
 let sky, clouds, terrain, effects;
-const assetFailures = window.__fallAssetFailures || [];
+window.__fallAssetFailures ||= [];
+const assetFailures = window.__fallAssetFailures;
 let seed = 0, biome = "mountains", time = 0, altitude = 32000, speed = 90;
 let running = false, paused = false, transitioning = false, frame = 0, descentNumber = 0;
 let lastDebugLog = 0, fpsFrames = 0, fpsTime = 0, fps = 0;
@@ -211,18 +212,17 @@ function animate() {
     altitude + Math.sin(time * 0.7) * 0.12 + Math.sin(time * 9) * shake,
     forwardZ + Math.sin(time * 0.8) * 0.18
   );
-  camera.position.lerp(cameraDesired, 1 - Math.exp(-2.8 * dt));
   const pitchRadians = THREE.MathUtils.degToRad(-28);
   const lookDistance = 1200;
-  cameraTarget.set(
-    camera.position.x + Math.sin(turn) * 220,
-    camera.position.y + Math.sin(pitchRadians) * lookDistance,
-    camera.position.z - Math.cos(pitchRadians) * lookDistance
-  );
   // Hold the camera if the terrain streamer ever loses the ground footprint.
   const groundReady = terrain?.hasChunkNear(cameraDesired.x, cameraDesired.z, 500) ?? false;
   if (groundReady) {
     camera.position.lerp(cameraDesired, 1 - Math.exp(-2.8 * dt));
+    cameraTarget.set(
+      camera.position.x + Math.sin(turn) * 220,
+      camera.position.y + Math.sin(pitchRadians) * lookDistance,
+      camera.position.z - Math.cos(pitchRadians) * lookDistance
+    );
     camera.lookAt(cameraTarget);
   } else {
     cameraDesired.copy(camera.position);
@@ -231,6 +231,9 @@ function animate() {
 
   // Keep every subsystem isolated: one bad chunk must not stop the render loop.
   try { clouds?.update(dt, speed); } catch (error) { console.error("Cloud update failed", error); }
+  // Keep the unchanged procedural sky sphere centered on the high-altitude
+  // camera so its BackSide shader remains visible throughout the flight.
+  sky?.update(camera);
   // Four-second soft white-out while crossing the cloud bank. The overlay
   // is independent of the sky shader, so the sky's colours are untouched.
   if (!startBelow) {
