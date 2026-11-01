@@ -301,7 +301,8 @@ export class Terrain {
   getDebugInfo() {
     return {
       chunkCount: this.chunks.length,
-      seaLevel: this.water ? WATER_LEVEL : null,
+      seaLevel: WATER_LEVEL,
+      waterEnabled: Boolean(this.water),
       minHeight: Math.min(...this.chunks.map(c => c.userData.minHeight ?? Infinity)),
       maxHeight: Math.max(...this.chunks.map(c => c.userData.maxHeight ?? -Infinity))
     };
