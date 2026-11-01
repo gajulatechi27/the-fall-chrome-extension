@@ -37,6 +37,7 @@ function makeCloudTexture(seed) {
 export class CloudField {
   constructor(scene, seed, weather = "clear") {
     this.scene = scene;
+    this.weather = weather;
     this.group = new THREE.Group();
     scene.add(this.group);
     this.texture = makeCloudTexture(seed);
@@ -81,28 +82,29 @@ export class CloudField {
   }
 
   update(dt, speed, camera, altitude) {
-    const cameraY = camera?.position.y ?? 0;
+    if (!camera) return;
+    const now = performance.now() * 0.001;
+    const stormy = this.weather === "storm" || this.weather === "heavy clouds" || this.weather === "rain";
     for (const cloud of this.clouds) {
-      const bandY = cloud.userData.bandY;
-      const inBand = Math.abs(cameraY - bandY) < 42;
       const phase = cloud.userData.phase;
-      cloud.visible = inBand;
-      if (!inBand) continue;
-
-      const angle = phase + performance.now() * 0.000012 * cloud.userData.drift;
+      const angle = phase + now * 0.018 * cloud.userData.drift;
+      const band = cloud.userData.bandIndex;
+      cloud.visible = true;
       cloud.position.set(
-        (camera?.position.x ?? 0) + Math.cos(angle) * cloud.userData.radius,
-        bandY + Math.sin(angle * 0.7) * 13,
-        (camera?.position.z ?? 0) - cloud.userData.depth
+        camera.position.x + Math.cos(angle) * cloud.userData.radius,
+        camera.position.y + cloud.userData.bandOffset + Math.sin(angle * 0.7) * 18,
+        camera.position.z - cloud.userData.depth + Math.sin(angle * 0.31) * 180
       );
       const distance = camera.position.distanceTo(cloud.position);
-      if (distance < 30) {
-        cloud.position.z = camera.position.z - 45;
-        cloud.position.x += 45;
+      const fade = THREE.MathUtils.smoothstep(distance, 180, 420);
+      cloud.material.opacity = (stormy ? 0.28 : 0.17) * fade;
+      if (band === 0 && stormy) cloud.material.color.set(0x84909a);
+      if (distance < 80) {
+        cloud.position.x += 150;
+        cloud.position.z -= 160;
       }
     }
   }
-
   get count() {
     return this.clouds.reduce((n, cloud) => n + (cloud.visible ? 1 : 0), 0);
   }
