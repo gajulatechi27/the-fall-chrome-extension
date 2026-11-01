@@ -138,6 +138,7 @@ function updateDebug(dt) {
       "biome:", biome,
       "seed:", seed,
       "altitude:", Math.round(altitude),
+      "camera x/z:", camera.position.x.toFixed(1), "/", camera.position.z.toFixed(1),
       "chunks:", stats.chunkCount ?? 0,
       "sea:", stats.seaLevel ?? "off",
       "terrain min/max:", Math.round(stats.minHeight ?? 0), "/", Math.round(stats.maxHeight ?? 0)
