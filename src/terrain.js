@@ -78,8 +78,19 @@ function terrainHeight(noise, x, z, biome) {
     h += Math.pow(Math.max(0, 1 - Math.abs(noise(warpX * 0.00065, warpZ * 0.00065))), 4) * 55;
   }
   if (biome === "green") {
+    // Broad, overlapping hill systems give the scene a rolling pastoral silhouette.
+    const broadHills = Math.sin(warpX * 0.00034 + noise(warpX * 0.00016, warpZ * 0.00016) * 1.8)
+      * Math.cos(warpZ * 0.00029 + noise(warpX * 0.00013 + 9, warpZ * 0.00013) * 1.5);
+    const secondaryHills = noise(warpX * 0.00078 + 4, warpZ * 0.00078 - 7);
+    h += broadHills * 72 + secondaryHills * 24;
+
+    // Contour-following terrace steps: softened edges avoid harsh quantized plateaus.
+    const terraceStep = 10.5;
+    const terracePhase = THREE.MathUtils.euclideanModulo(h + noise(warpX * 0.00042, warpZ * 0.00042) * 5, terraceStep);
+    const terraceBlend = THREE.MathUtils.smoothstep(terracePhase, 1.2, 4.4);
+    h = Math.floor(h / terraceStep) * terraceStep + terraceBlend * (terraceStep - 2.4) + 1.2;
     const terraceSignal = Math.sin(warpX * 0.0017 + noise(warpX * 0.00035, warpZ * 0.00035) * 2.4);
-    h = Math.round(h / 7) * 7 + terraceSignal * 2.2;
+    h += terraceSignal * 2.8;
   }
   if (biome === "forest" || biome === "rainforest") {
     h += Math.sin(warpX * 0.0013 + warpZ * 0.0007) * 12;
@@ -143,9 +154,19 @@ function makeChunk(noise, chunkX, chunkZ, biome, segments) {
         color.lerp(snow, THREE.MathUtils.smoothstep(h, snowLine - 22, snowLine + 32));
       }
       if (biome === "lake" && Math.hypot(wx, wz) < 1080) color.lerp(grass, 0.35);
-      if (biome === "green") { const field = Math.sin(wx * 0.0018 + Math.sin(wz * 0.0007) * 2.2); color.lerp(new THREE.Color(0xc4ad69), THREE.MathUtils.smoothstep(field, 0.68, 0.96) * 0.62); }
+      if (biome === "green") {
+        const field = Math.sin(wx * 0.0018 + Math.sin(wz * 0.0007) * 2.2);
+        const field2 = Math.sin(wx * 0.00092 - wz * 0.00135 + noise(wx * 0.00022, wz * 0.00022) * 2.1);
+        const cropMix = THREE.MathUtils.smoothstep(field, 0.42, 0.94) * 0.52;
+        color.lerp(new THREE.Color(0xc2ad70), cropMix);
+        color.lerp(new THREE.Color(0x78965a), THREE.MathUtils.smoothstep(field2, -0.1, 0.82) * 0.24);
+        const terraceEdge = 1 - Math.abs(THREE.MathUtils.euclideanModulo(h + 5, 10.5) - 5.25) / 5.25;
+        color.lerp(new THREE.Color(0x9b865d), THREE.MathUtils.smoothstep(terraceEdge, 0.78, 0.98) * 0.22);
+        const valleyFloor = (1 - THREE.MathUtils.smoothstep(h, -18, 22)) * (1 - THREE.MathUtils.smoothstep(slope, 0.08, 0.34));
+        color.lerp(new THREE.Color(0x405f43), valleyFloor * 0.48);
+      }
       if (biome === "delta") { const field = Math.sin(wx * 0.0011 + wz * 0.00018) * Math.cos(wz * 0.0009); color.lerp(new THREE.Color(0xc1a66b), THREE.MathUtils.smoothstep(field, 0.55, 0.9) * 0.72); }
-      const detail = (isHimalaya ? 0.86 : 0.92) + fbm(noise, wx * 1.3, wz * 1.3) * (isHimalaya ? 0.28 : 0.18);
+      const detail = (isHimalaya ? 0.86 : 0.92) + fbm(noise, wx * 1.3, wz * 1.3) * (isHimalaya ? 0.28 : biome === "green" ? 0.24 : 0.18);
       color.multiplyScalar(detail);
       colors.push(color.r, color.g, color.b);
     }
