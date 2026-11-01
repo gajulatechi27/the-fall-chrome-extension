@@ -100,7 +100,7 @@ function makeChunk(noise, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, segment
     if (biome === "islands") {
       const ridgeA = 1.0 - Math.abs(noise(warpX * 0.00145, warpZ * 0.00145));
       const ridgeB = 1.0 - Math.abs(noise(warpX * 0.0031 + 17.0, warpZ * 0.0031 - 9.0));
-      h += (Math.pow(Math.max(0.0, ridgeA), 2.0) * 34 + Math.pow(Math.max(0.0, ridgeB), 2.4) * 13) * (environment?.terrain?.ridgeWeight ?? 1);
+      h += (Math.pow(Math.max(0.0, ridgeA), 2.0) * 34 + Math.pow(Math.max(0.0, ridgeB), 2.4) * 13) * (this.environment?.terrain?.ridgeWeight ?? 1);
       const shoreZ = Math.sin(x * 0.00022) * 1150 + Math.sin(x * 0.00061 + 1.7) * 360 + noise(x * 0.00048, worldZ * 0.00031) * 260;
       const coast = THREE.MathUtils.smoothstep(shoreZ - worldZ, -720, 260);
       const headland = Math.pow(Math.max(0, Math.sin(x * 0.00016 + 0.8)), 5) * 95;
@@ -149,7 +149,7 @@ function makeChunk(noise, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, segment
   const skirtStart = positions.length / 3;
   for (const index of edge) {
     const x = positions[index * 3], y = positions[index * 3 + 1], zLocal = positions[index * 3 + 2];
-    positions.push(x, y - 8, zLocal);
+    positions.push(x, y - 35, zLocal);
   }
   for (let i = 0; i < edge.length; i++) {
     const next = (i + 1) % edge.length;
@@ -301,12 +301,25 @@ function createFarRanges(scene) {
       const a = iz * (nx + 1) + ix, b = a + 1, c = a + nx + 1, d = c + 1;
       indices.push(a, c, b, b, c, d);
     }
+    const colorValues = [];
+    for (let i = 0; i < positions.length; i += 3) {
+      const height = positions[i + 1];
+      const slopeHint = Math.abs(Math.sin(positions[i] * .0013 + layer) * Math.cos(positions[i + 2] * .0008));
+      const rock = THREE.MathUtils.smoothstep(slopeHint, .42, .88);
+      const high = THREE.MathUtils.smoothstep(height, 420, 820);
+      const tint = new THREE.Color(layer === 0 ? 0x647b62 : 0x71818a);
+      tint.lerp(new THREE.Color(layer === 0 ? 0x59636a : 0x7d8990), rock);
+      tint.lerp(new THREE.Color(0xb5c0c3), high);
+      tint.lerp(new THREE.Color(0xb8c7cc), [0.18, 0.34, 0.52][layer]);
+      colorValues.push(tint.r, tint.g, tint.b);
+    }
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute("color", new THREE.Float32BufferAttribute(colorValues, 3));
     geometry.setIndex(indices);
     geometry.computeVertexNormals();
     const material = new THREE.MeshStandardMaterial({
-      color: colors[layer], roughness: 1, metalness: 0,
+      color: 0xffffff, vertexColors: true, roughness: 1, metalness: 0,
       side: THREE.DoubleSide, fog: true
     });
     const mesh = new THREE.Mesh(geometry, material);
