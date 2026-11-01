@@ -16,16 +16,16 @@ function makeCloudTexture(seed){
  ctx.putImageData(image,0,0);const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;return texture;
 }
 export class CloudField{
- constructor(scene,seed){
+ constructor(scene,seed,environment=null){
   this.group=new THREE.Group();scene.add(this.group);this.texture=makeCloudTexture(seed);this.layers=[];
   let state=(seed^0x9e3779b9)>>>0;const random=()=>{state=(Math.imul(state,1664525)+1013904223)>>>0;return state/4294967296;};
   const configs=[
-   {speed:.18,count:42,y:720,z:8200,opacity:.12,color:0xd9e8f1,width:[420,980],height:[42,110],spread:6200},
-   {speed:.48,count:76,y:210,z:6800,opacity:.23,color:0xf2f6f8,width:[300,760],height:[150,310],spread:5200},
-   {speed:.72,count:24,y:-80,z:5600,opacity:.28,color:0xc9d9e5,width:[850,1550],height:[260,480],spread:6800}
+   {speed:.18,count:Math.round(42*(environment?.clouds?.cover ?? 0.24)/0.24),y:720,z:8200,opacity:.12,color:0xd9e8f1,width:[420,980],height:[42,110],spread:6200},
+   {speed:.48,count:Math.round(76*(environment?.clouds?.cover ?? 0.24)/0.24),y:210,z:6800,opacity:.23,color:0xf2f6f8,width:[300,760],height:[150,310],spread:5200},
+   {speed:.72,count:Math.round(24*(environment?.clouds?.cover ?? 0.24)/0.24),y:-80,z:5600,opacity:.28,color:0xc9d9e5,width:[850,1550],height:[260,480],spread:6800}
   ];
   for(const cfg of configs){
-   const layer=new THREE.Group();layer.userData.speed=cfg.speed;layer.userData.spread=cfg.spread;this.group.add(layer);
+   const layer=new THREE.Group();layer.userData.speed=cfg.speed*(environment?.clouds?.speed ?? 1);layer.userData.spread=cfg.spread;this.group.add(layer);
    for(let i=0;i<cfg.count;i++){
     const material=new THREE.SpriteMaterial({map:this.texture,color:cfg.color,transparent:true,opacity:cfg.opacity+random()*.09,depthWrite:false});
     const cloud=new THREE.Sprite(material);cloud.position.set((random()-.5)*cfg.spread,cfg.y+(random()-.5)*250,-random()*cfg.z-160);
