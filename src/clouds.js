@@ -5,8 +5,12 @@ function makeCloudTexture(seed){
  const canvas=document.createElement("canvas");canvas.width=canvas.height=256;const ctx=canvas.getContext("2d"),image=ctx.createImageData(256,256);
  for(let y=0;y<256;y++)for(let x=0;x<256;x++){
   let value=0,amp=.58;for(let o=0;o<6;o++){value+=noise(x*Math.pow(2,o)*.018,y*Math.pow(2,o)*.018)*amp;amp*=.51;}
-  const radial=Math.hypot((x-128)/150,(y-128)/150),edge=THREE.MathUtils.smoothstep(1.02-radial,.015,.88);
-  const alpha=THREE.MathUtils.clamp((value+.22)*1.8*edge,0,1),i=(y*256+x)*4;
+  // A circular, feathered alpha mask removes the rectangular canvas boundary.
+  // Keep the existing cloud noise, sprite scale, tint and opacity unchanged.
+  const radial=Math.hypot((x-127.5)/127.5,(y-127.5)/127.5);
+  const edge=1.0-THREE.MathUtils.smoothstep(radial,.58,1.0);
+  const density=THREE.MathUtils.smoothstep(value,-.24,.34);
+  const alpha=THREE.MathUtils.clamp(density*edge,0,1),i=(y*256+x)*4;
   image.data[i]=image.data[i+1]=image.data[i+2]=255;image.data[i+3]=Math.round(alpha*255);
  }
  ctx.putImageData(image,0,0);const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;return texture;
