@@ -51,15 +51,15 @@ export function createSky(scene, renderer, seed, environment = null) {
   sun.shadow.camera.bottom = -500;
   scene.add(sun);
 
-  let environment;
+  let environmentTexture;
   const loader = new RGBELoader();
   loader.load(
     "/assets/toposcope_sunset_1k.hdr",
     hdr => {
       hdr.mapping = THREE.EquirectangularReflectionMapping;
       const pmrem = new THREE.PMREMGenerator(renderer);
-      environment = pmrem.fromEquirectangular(hdr).texture;
-      scene.environment = environment;
+      environmentTexture = pmrem.fromEquirectangular(hdr).texture;
+      scene.environment = environmentTexture;
       hdr.dispose();
       pmrem.dispose();
     },
@@ -83,8 +83,8 @@ export function createSky(scene, renderer, seed, environment = null) {
       scene.remove(sky, hemi, sun);
       skyGeo.dispose();
       skyMat.dispose();
-      environment?.dispose();
-      if (scene.environment === environment) scene.environment = null;
+      environmentTexture?.dispose();
+      if (scene.environment === environmentTexture) scene.environment = null;
     }
   };
 }
