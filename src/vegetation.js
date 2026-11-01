@@ -99,7 +99,10 @@ export function createVegetation({ seed, biome, environment, xOffset, chunkZ, ch
   const greenHills = environment?.id === "green-hills";
   // Keep the horizon clean: tiny low-LOD instances turn into pale specks
   // once atmospheric fog blends them into the sky.
-  const lodFactor = segments >= 128 ? 1 : segments >= 64 ? (greenHills ? 0.42 : 0.62) : (greenHills ? 0 : 0.2);
+  // Green Hills uses full-size broadleaf crowns. At mid/far LOD those crowns
+  // collapse to a few sub-pixel pale points under atmospheric fog, which
+  // look like white markers rather than trees. Keep trees only on near chunks.
+  const lodFactor = segments >= 128 ? 1 : (greenHills ? 0 : segments >= 64 ? 0.62 : 0.2);
   const targetCount = Math.round((desert ? 34 : biome === "snow" ? 150 : greenHills ? 245 : 112) * density * lodFactor);
 
   const random = seededRandom(hashChunk(seed, xOffset, chunkZ));
