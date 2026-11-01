@@ -188,7 +188,7 @@ function animate() {
   const climbPhase = THREE.MathUtils.smoothstep(elapsed, sceneDuration - 5.5, sceneDuration);
   const plannedClearance = targetGround > 180 ? 15 : 8;
   const plannedY = targetGround + THREE.MathUtils.lerp(400, plannedClearance, fallPhase) + climbPhase * 210;
-  const desiredY = testMode && testSettings.freeze ? Math.max(terrain.getHeightAt(camera.position.x, camera.position.z) + 80, terrain.getWaterLevel() + 40) : Math.max(plannedY, collisionFloor);
+  const desiredY = testMode && testSettings.freeze ? camera.position.y : Math.max(plannedY, collisionFloor);
   const spring = 13;
   const damping = 2 * Math.sqrt(spring) * 0.92;
   const acceleration = (desiredY - camera.position.y) * spring - verticalVelocity * damping;
