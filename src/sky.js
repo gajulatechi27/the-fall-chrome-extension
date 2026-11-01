@@ -10,7 +10,7 @@ export function createSky(scene, renderer, seed, environment = null) {
     side: THREE.BackSide,
     depthWrite: false,
     uniforms: {
-      sunDirection: { value: new THREE.Vector3(-0.5, 0.55, -0.7) },
+      sunDirection: { value: new THREE.Vector3(...(environment?.sun?.position || [-0.5, 0.55, -0.7])).normalize() },
       horizon: { value: horizonColor },
       zenith: { value: zenithColor },
       sunColor: { value: sunColor }
@@ -37,11 +37,11 @@ export function createSky(scene, renderer, seed, environment = null) {
   const sky = new THREE.Mesh(skyGeo, skyMat);
   scene.add(sky);
 
-  const hemi = new THREE.HemisphereLight(0xdcefff, 0x536d69, 1.55);
+  const hemi = new THREE.HemisphereLight(zenithColor, horizonColor, 1.25);
   scene.add(hemi);
 
   const angle = (seed % 6283) / 1000;
-  const sun = new THREE.DirectionalLight(0xffe3c2, environment?.sun?.intensity ?? 2.5);
+  const sun = new THREE.DirectionalLight(sunColor, environment?.sun?.intensity ?? 2.5);
   sun.position.set(...(environment?.sun?.position || [Math.cos(angle) * 260, 180 + (seed % 80), Math.sin(angle) * 260]));
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
