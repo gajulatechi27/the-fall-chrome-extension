@@ -3,10 +3,10 @@ import { createNoise2D } from "simplex-noise";
 
 const CHUNK_SIZE = 1500;
 const SEGMENTS = 112;
-const WATER_LEVEL = -28;
+const WATER_LEVEL = -12;
 const WATER_SIZE = 6200;
 const HEIGHT_BASE = 20;
-const BIOME_HEIGHT = { mountains: 185, desert: 105, islands: 118, forest: 145, snow: 230 };
+const BIOME_HEIGHT = { himalayas: 235, mountains: 190, green: 125, forest: 135, delta: 95, lake: 155, islands: 118, coast: 105, desert: 125, snow: 235 };
 
 function makeRandom(seed) {
   let s = seed >>> 0;
@@ -93,11 +93,11 @@ function makeChunk(noise, z, biome) {
     const warpX = x + noise(x * 0.0007, worldZ * 0.0007) * 115;
     const warpZ = worldZ + noise((x + 900) * 0.0007, (worldZ - 400) * 0.0007) * 115;
     let h = fbm(noise, warpX, warpZ) * amplitude;
-    if (biome === "islands") h = h - 92 + Math.max(0, h) * 0.18;
-    if (biome === "desert") h = h * 0.76 + Math.sin(warpX * 0.0022 + noise(0, warpZ * 0.001) * 2.0) * 13;
-    if (biome === "mountains" || biome === "snow") {
+    if (biome === "islands" || biome === "coast") h = h - 82 + Math.max(0, h) * 0.2;
+    if (biome === "desert") { const dune = Math.sin(warpX * 0.0017 + noise(0, warpZ * 0.0008) * 2.4) * 22; const canyon = Math.pow(Math.max(0, 1 - Math.abs(noise(warpX * 0.00065, warpZ * 0.00065))), 3) * 42; h = h * 0.72 + dune + canyon; }
+    if (biome === "himalayas" || biome === "mountains" || biome === "snow") {
       const ridge = 1.0 - Math.abs(noise(warpX * 0.0012, warpZ * 0.0012));
-      h += Math.pow(Math.max(0, ridge), 2.2) * (biome === "snow" ? 95 : 62);
+      h += Math.pow(Math.max(0, ridge), 2.2) * (biome === "snow" || biome === "himalayas" ? 115 : 62);
     }
     return h;
   };
@@ -264,14 +264,14 @@ export class Terrain {
     }
 
     this.water = null;
-    if (biome === "islands") {
-      const geometry = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
+    if (["islands", "coast", "lake"].includes(biome)) {
+      const geometry = new THREE.PlaneGeometry(biome === "lake" ? 760 : WATER_SIZE, biome === "lake" ? 760 : WATER_SIZE, 1, 1);
       this.waterMaterial = createWaterMaterial(seed);
       this.water = new THREE.Mesh(geometry, this.waterMaterial);
       this.water.rotation.x = -Math.PI / 2;
-      this.water.position.y = WATER_LEVEL;
+      this.water.position.y = biome === "lake" ? -24 : WATER_LEVEL;
       this.water.renderOrder = 1;
-      this.scene.add(this.water);
+      this.group.add(this.water);
     }
   }
 
@@ -293,7 +293,7 @@ export class Terrain {
     }
     if (this.water) {
       this.water.position.x = camera?.position.x || 0;
-      this.water.position.z = (camera?.position.z || 0) + this.group.position.z;
+      this.water.position.z = (camera?.position.z || 0) - this.group.position.z;
       this.waterMaterial.uniforms.uTime.value += dt;
     }
   }
