@@ -67,7 +67,7 @@ const sceneRandom=(s)=>{let v=s>>>0;return()=>((v=Math.imul(v,1664525)+101390422
 function chooseDifferent(list,previous){const choices=list.filter(x=>x!==previous);return choices[Math.floor(Math.random()*choices.length)];}
 function randomScene(){const id=chooseDifferent(sceneTypes.map(x=>x.id),previousBiome);return sceneTypes.find(x=>x.id===id);}
 function randomWeather(){return chooseDifferent(weatherTypes,previousWeather);}
-function randomTime(){return ["dawn","noon","sunset","night"][Math.floor(Math.random()*4)];}
+function randomTime(nextWeather=null){return nextWeather==="golden dusk"?"sunset":["dawn","noon","sunset","night"][Math.floor(Math.random()*4)];}
 function normalizeWeather(w){return w==="scattered clouds"?"light clouds":w==="overcast"?"heavy clouds":w==="heavy rain"?"storm":w==="dust haze"?"mist":w==="golden dusk"?"clear":w;}
 function disposeScene(){
  try{effects?.dispose();}catch(e){console.warn("effects dispose",e);}effects=undefined;
@@ -113,7 +113,7 @@ function beginNextJourney(){
  const next=randomScene();
  const nextSeed=Math.floor(Math.random()*0x7fffffff);
  const nextWeather=randomWeather();
- const nextTime=randomTime();
+ const nextTime=randomTime(nextWeather);
  createScene(next,nextSeed,nextWeather,nextTime);
  worldDistance=0;journeyElapsed=0;verticalVelocity=0;transitionTriggered=false;
  setPhase(0);
@@ -201,7 +201,7 @@ function animate(){
  }
  sky?.update(camera);
  terrain?.update(dt,speed,altitude,camera);
- clouds?.update(dt,speed,camera,altitude);
+ if(clouds)clouds.weather=phaseName==="STORM LAYER"?"storm":normalizeWeather(weather);\n clouds?.update(dt,speed,camera,altitude);
  if(scene.fog){
    scene.fog.color.copy(sky.horizonColor);
    const target=weather==="mist"?.000052:phaseName==="STORM LAYER"?.000047:weather==="storm"?.00004:.000027;
