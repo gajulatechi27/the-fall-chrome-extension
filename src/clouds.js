@@ -52,9 +52,8 @@ export class CloudField {
     // requiring the camera to cross fixed world-space altitude bands.
     const stormy = weather === "heavy clouds" || weather === "storm" || weather === "rain";
     const bands = [
-      { y: 105, count: stormy ? 18 : 12, opacity: stormy ? 0.30 : 0.17, width: [180, 330], depth: [420, 1100], drift: 1.0 },
-      { y: 235, count: stormy ? 15 : 9, opacity: stormy ? 0.24 : 0.13, width: [140, 280], depth: [850, 1750], drift: 0.62 },
-      { y: 390, count: stormy ? 12 : 7, opacity: stormy ? 0.19 : 0.10, width: [110, 240], depth: [1450, 2600], drift: 0.34 }
+      { y: 250, count: stormy ? 12 : 8, opacity: stormy ? 0.22 : 0.085, width: [220, 430], depth: [650, 1500], drift: 1.0 },
+      { y: 470, count: stormy ? 9 : 5, opacity: stormy ? 0.15 : 0.055, width: [180, 360], depth: [1500, 2800], drift: 0.48 }
     ];
     for (let bandIndex=0;bandIndex<bands.length;bandIndex++) {
       const band=bands[bandIndex];
@@ -98,7 +97,7 @@ export class CloudField {
       );
       const distance = camera.position.distanceTo(cloud.position);
       const fade = THREE.MathUtils.smoothstep(distance, 180, 420);
-      cloud.material.opacity = (stormy ? 0.28 : 0.17) * fade;
+      cloud.material.opacity = (stormy ? 0.22 : 0.085) * fade;
       cloud.material.color.set(band === 0 && stormy ? 0x84909a : cloud.userData.baseColor);
       if (distance < 80) {
         cloud.position.x += 150;
