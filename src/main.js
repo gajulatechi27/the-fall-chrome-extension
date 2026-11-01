@@ -117,7 +117,10 @@ function cleanupActive() {
 async function activateLandscape(index, stagedTerrain = null) {
   const config = playlistEnabled ? ENVIRONMENTS[index] : (directEnvironment || ENVIRONMENTS[index]);
   if (!config) throw new Error("Unknown landscape: " + requestedEnv);
-  running = false; cancelAnimationFrame(frame); cleanupActive();
+  running = false; cancelAnimationFrame(frame);
+  // The next terrain is already staged off-screen. Only now release the
+  // previous scene, immediately before making the new terrain visible.
+  cleanupActive();
   activeEnvironment = config;
   sequenceIndex = ENVIRONMENTS.findIndex(item => item.id === config.id);
   biome = config.biome; seed = stagedTerrain?.preloadSeed ?? randSeed();
@@ -151,43 +154,35 @@ async function activateLandscape(index, stagedTerrain = null) {
   animate();
 }
 
-// Terrain generation is deferred until the transition. Building 225 chunks
-// synchronously during a live view caused visible stalls and white screens.
-
+// Prepare the next terrain invisibly while keeping the current scene intact.
+// Terrain construction is synchronous, so the browser retains the last rendered
+// frame instead of clearing the canvas to a white transition screen.
 async function advanceLandscape() {
   if (!playlistEnabled || transitioning) return;
   transitioning = true;
-  transitionState = "whiteout";
-  running = false; cancelAnimationFrame(frame);
-  landscapeLabel.style.opacity = "0";
-  fade.classList.add("white"); fade.style.opacity = "1";
+  transitionState = "preparing next landscape";
   const requestedNext = nextIndex(sequenceIndex);
-  const staged = null;
-  await new Promise(resolve => setTimeout(resolve, 350));
+  const nextConfig = ENVIRONMENTS[requestedNext];
+  let staged = null;
+
   try {
-    transitionState = "activating " + ENVIRONMENTS[requestedNext].id;
-    await withEightSecondTimeout(activateLandscape(requestedNext, staged), "Landscape activation");
+    const nextSeed = randSeed();
+    staged = createTerrainFor(nextConfig, nextSeed, false);
+    staged.preloadSeed = nextSeed;
+    if (!staged.isReady()) throw new Error("Next landscape terrain is incomplete: " + nextConfig.name);
+
+    transitionState = "switching to " + nextConfig.id;
+    await activateLandscape(requestedNext, staged);
+    staged = null;
+    transitionState = "idle";
   } catch (error) {
-    console.error("[THE FALL] Landscape transition failed; rebuilding without preload.", error);
+    console.error("[THE FALL] Landscape transition failed; keeping the current view when possible.", error);
     if (staged) { try { staged.dispose(); } catch {} }
-    cleanupActive();
-    try {
-      await withEightSecondTimeout(activateLandscape(requestedNext, null), "Landscape fallback activation");
-    } catch (fallbackError) {
-      console.error("[THE FALL] Landscape fallback failed.", fallbackError);
-      transitionState = "error";
-      transitionStarted = false;
-      transitioning = false;
-      console.error("[THE FALL] Playlist can be retried with N or on the next scheduled transition.");
-      return;
-    }
+    transitionStarted = false;
+    transitionState = "error";
+  } finally {
+    transitioning = false;
   }
-  transitionState = "emerging";
-  await new Promise(resolve => setTimeout(resolve, 500));
-  fade.style.opacity = "0"; fade.classList.remove("white");
-  landscapeLabel.style.opacity = "1";
-  transitioning = false;
-  transitionState = "idle";
 }
 
 async function beginDescent() {
