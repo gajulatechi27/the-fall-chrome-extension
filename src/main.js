@@ -56,7 +56,7 @@ const sceneParam = id => ({himalayas:"himalaya",green:"hills",delta:"river"}[id]
 const weatherParam = value => value === "clouds" ? "light clouds" : value;
 const testSettings = {
   scene: params.get("scene") || "hills",
-  seed: params.has("seed") && Number.isFinite(Number(params.get("seed"))) ? Number(params.get("seed")) : randomSeed(),
+  seed: params.has("seed") && Number.isFinite(Number(params.get("seed"))) ? Number(params.get("seed")) : Math.floor(Math.random() * 0x7fffffff),
   time: ["dawn","noon","sunset","night"].includes(params.get("time")) ? params.get("time") : "noon",
   weather: ["clear","clouds","mist","rain","storm"].includes(params.get("weather")) ? params.get("weather") : "clear",
   freeze: params.get("freeze") === "1",
