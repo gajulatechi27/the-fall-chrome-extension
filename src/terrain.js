@@ -497,7 +497,7 @@ function createFarRanges(scene, noise, environment = null) {
           : greenHills ? [0x536e4d, 0x718966, 0x9aaf89][layer] : [0x849889, 0x91a5a8, 0xa9b9bd][layer]
       );
       tint.lerp(new THREE.Color(himalayan ? 0x8fa5b6 : greenHills ? 0x405a3d : 0x65756f), rock * (himalayan ? 0.22 : 1));
-      tint.lerp(new THREE.Color(alpine || himalayan ? 0xf2f7fb : 0xc5d0d0), high);
+      tint.lerp(new THREE.Color(alpine || himalayan ? 0xf2f7fb : greenHills ? 0xb8c9a8 : 0xc5d0d0), high);
       tint.lerp(new THREE.Color(himalayan ? [0xc9d9e6, 0xd9e5ee, 0xe7eff5][layer] : greenHills ? [0x8ba187, 0xa4b59a, 0xb9c8ad][layer] : 0xd0dadd), [0.34, 0.56, 0.76][layer]);
       colorValues.push(tint.r, tint.g, tint.b);
     }
