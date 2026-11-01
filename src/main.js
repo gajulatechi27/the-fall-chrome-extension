@@ -143,22 +143,8 @@ async function activateLandscape(index, stagedTerrain = null) {
   animate();
 }
 
-async function preloadNextLandscape() {
-  if (!playlistEnabled || preloadAttempted || preloadedTerrain || !activeEnvironment) return;
-  preloadAttempted = true;
-  preloadedIndex = nextIndex();
-  const next = ENVIRONMENTS[preloadedIndex];
-  const nextSeed = randSeed();
-  try {
-    preloadedTerrain = createTerrainFor(next, nextSeed, false);
-    preloadedTerrain.preloadSeed = nextSeed;
-    console.info("[THE FALL] Preloaded next landscape:", next.name);
-  } catch (error) {
-    preloadedIndex = -1;
-    console.error("[THE FALL] Next landscape preload failed; transition will build it on demand.", error);
-    throw error;
-  }
-}
+// Terrain generation is deferred until the transition. Building 225 chunks
+// synchronously during a live view caused visible stalls and white screens.
 
 async function advanceLandscape() {
   if (!playlistEnabled || transitioning) return;
@@ -167,10 +153,8 @@ async function advanceLandscape() {
   running = false; cancelAnimationFrame(frame);
   landscapeLabel.style.opacity = "0";
   fade.classList.add("white"); fade.style.opacity = "1";
-  const requestedNext = preloadedTerrain && preloadedIndex >= 0 ? preloadedIndex : nextIndex(sequenceIndex);
-  const staged = preloadedTerrain && preloadedIndex === requestedNext ? preloadedTerrain : null;
-  if (preloadedTerrain && !staged) { try { preloadedTerrain.dispose(); } catch {} }
-  preloadedTerrain = null; preloadedIndex = -1; preloadAttempted = false;
+  const requestedNext = nextIndex(sequenceIndex);
+  const staged = null;
   await new Promise(resolve => setTimeout(resolve, 350));
   try {
     transitionState = "activating " + ENVIRONMENTS[requestedNext].id;
@@ -185,8 +169,6 @@ async function advanceLandscape() {
       console.error("[THE FALL] Landscape fallback failed.", fallbackError);
       transitionState = "error";
       transitionStarted = false;
-      preloadedTerrain = null;
-      preloadedIndex = -1;
       transitioning = false;
       console.error("[THE FALL] Playlist can be retried with N or on the next scheduled transition.");
       return;
@@ -340,15 +322,9 @@ function animate() {
   // Keep the unchanged procedural sky sphere centered on the high-altitude
   // camera so its BackSide shader remains visible throughout the flight.
   sky?.update(camera);
-  // Four-second soft white-out while crossing the cloud bank. The overlay
-  // is independent of the sky shader, so the sky's colours are untouched.
-  if (!startBelow) {
-    const whiteout = THREE.MathUtils.smoothstep(time, 3.0, 4.0) *
-      (1.0 - THREE.MathUtils.smoothstep(time, 7.0, 8.0));
-    fade.style.opacity = String(whiteout);
-  } else {
-    fade.style.opacity = "0";
-  }
+  // Keep the active landscape visible; whiteout is reserved for the
+  // actual playlist transition in advanceLandscape().
+  fade.style.opacity = "0";
   try {
     terrain?.update(dt, speed, altitude, camera);
   } catch (error) { console.error("Terrain streaming update failed", error); }
@@ -371,10 +347,10 @@ function animate() {
   }
 
   updateDebug(dt);
-  if (playlistEnabled && time >= duration - 10 && !preloadedTerrain) {
-    preloadNextLandscape().catch(error => console.error("[THE FALL] Next landscape preload failed:", error));
+  if (playlistEnabled && time >= duration && !transitionStarted) {
+    transitionStarted = true;
+    advanceLandscape();
   }
-  if (playlistEnabled && time >= duration && !transitionStarted) { transitionStarted = true; advanceLandscape(); }
 }
 
 document.addEventListener("visibilitychange", () => {
