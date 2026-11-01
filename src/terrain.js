@@ -258,6 +258,59 @@ function createWaterMaterial(seed) {
   });
 }
 
+function createFarRanges(scene) {
+  const layers = [];
+  const colors = [0x536f83, 0x7896a8, 0xa4bac5];
+  const distances = [23500, 28500, 34500];
+  for (let layer = 0; layer < 3; layer++) {
+    const positions = [], indices = [];
+    const nx = 160, nz = 8, width = 80000, depth = 6500;
+    for (let iz = 0; iz <= nz; iz++) {
+      for (let ix = 0; ix <= nx; ix++) {
+        const x = -width * .5 + width * ix / nx;
+        const z = depth * iz / nz;
+        const envelope = Math.sin(Math.PI * iz / nz) * .28 + .72;
+        const ridge = Math.abs(Math.sin(x * (.00031 + layer * .000035) + layer * 2.1)) * 480 +
+          Math.sin(x * .00083 + layer * 4.7) * 170 +
+          Math.sin(x * .0019 + layer) * 75;
+        const y = Math.max(80, (360 + ridge) * envelope);
+        positions.push(x, y, z);
+      }
+    }
+    for (let iz = 0; iz < nz; iz++) for (let ix = 0; ix < nx; ix++) {
+      const a = iz * (nx + 1) + ix, b = a + 1, c = a + nx + 1, d = c + 1;
+      indices.push(a, c, b, b, c, d);
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setIndex(indices);
+    geometry.computeVertexNormals();
+    const material = new THREE.MeshStandardMaterial({
+      color: colors[layer], roughness: 1, metalness: 0,
+      side: THREE.DoubleSide, fog: true
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.z = -distances[layer];
+    mesh.userData.distance = -distances[layer];
+    mesh.frustumCulled = false;
+    scene.add(mesh);
+    layers.push(mesh);
+  }
+  return {
+    update(camera) {
+      for (const mesh of layers) {
+        mesh.position.x = camera.position.x;
+        mesh.position.z = camera.position.z + mesh.userData.distance;
+      }
+    },
+    dispose() {
+      for (const mesh of layers) {
+        scene.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose();
+      }
+    }
+  };
+}
+
 export class Terrain {
   constructor(scene, seed, biome, routeTheme = "") {
     this.scene = scene;
@@ -272,6 +325,8 @@ export class Terrain {
     this.gridCenterZ = Number.NaN;
     this.ringCounts = { near: 0, mid: 0, far: 0, horizon: 0 };
     this.ensureGrid(0, 0);
+    this.farRanges = createFarRanges(scene);
+    this.farRanges.layers?.forEach(() => {});
 
     this.water = null;
     if (biome === "islands") {
@@ -336,7 +391,10 @@ export class Terrain {
   }
 
   update(dt, speed, altitude, camera) {
-    if (camera) this.ensureGrid(camera.position.x, camera.position.z);
+    if (camera) {
+      this.ensureGrid(camera.position.x, camera.position.z);
+      this.farRanges?.update(camera);
+    }
     if (this.water) {
       this.water.position.x = camera?.position.x || 0;
       this.water.position.z = camera?.position.z || 0;
@@ -369,7 +427,7 @@ export class Terrain {
     for (let a = 0; a < 360; a += 15) {
       const r = a * Math.PI / 180;
       const x = Math.sin(r) * radius, z = Math.cos(r) * radius;
-      if (!this.hasChunkNear(this.gridCenterX + x, this.gridCenterZ + z, step * 0.72)) return false;
+      if (!this.hasChunkNear(this.gridCenterX + x, this.gridCenterZ + z, step * 1.5)) return false;
     }
     return true;
   }
@@ -408,6 +466,7 @@ export class Terrain {
       chunk.geometry.dispose(); chunk.material.dispose();
     }
     this.group.parent?.remove(this.group);
+    this.farRanges?.dispose();
     if (this.water) {
       this.scene.remove(this.water); this.water.geometry.dispose(); this.water.material.dispose();
     }
