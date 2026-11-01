@@ -2,7 +2,6 @@ import * as THREE from "three";
 import { createSky } from "./sky.js";
 import { CloudField } from "./clouds.js";
 import { Terrain } from "./terrain.js";
-import { JourneyPath } from "./path.js";
 import { CinematicEffects } from "./effects.js";
 import { WeatherSystem } from "./weather.js";
 import { JourneyAudio } from "./audio.js";
@@ -56,7 +55,7 @@ const debug=document.createElement("pre");debug.id="fall-debug";debug.style.cssT
 const muteButton=document.createElement("button");muteButton.id="fall-mute";muteButton.type="button";muteButton.textContent="SOUND: OFF";muteButton.setAttribute("aria-label","Enable or mute THE FALL audio");document.body.appendChild(muteButton);
 const whiteout=document.createElement("div");whiteout.id="weather-whiteout";document.body.appendChild(whiteout);
 
-let sky,clouds,terrain,effects,weatherSystem,journeyPath;
+let sky,clouds,terrain,effects,weatherSystem;
 const audio=new JourneyAudio();
 let seed=testSettings.seed,activeScene=sceneTypes[0],weather=testSettings.weather,timeOfDay=testSettings.time;
 let phaseIndex=0,phaseElapsed=0,journeyElapsed=0,phaseTimeLeft=7,phaseName="FREEFALL";
@@ -76,7 +75,6 @@ function disposeScene(){
  try{clouds?.dispose();}catch(e){}clouds=undefined;
  try{weatherSystem?.dispose();}catch(e){}weatherSystem=undefined;
  try{terrain?.dispose();}catch(e){}terrain=undefined;
- try{journeyPath?.dispose();}catch(e){}journeyPath=undefined;
  scene.clear();
 }
 function weatherForBiome(biome, requested){
@@ -93,7 +91,6 @@ function createScene(nextScene,nextSeed,nextWeather,nextTime){
  const fogDensity=weather==="mist"?.000052:weather==="storm"||weather==="heavy rain"?.000044:.000027;
  scene.fog=new THREE.FogExp2(sky.horizonColor,fogDensity);
  terrain=new Terrain(scene,seed,activeScene.id);
- journeyPath=new JourneyPath(seed,activeScene.id);scene.add(journeyPath.group);
  const ground=Math.max(terrain.getHeightAt(camera.position.x,camera.position.z),terrain.getWaterLevel());
  camera.position.y=ground+500;
  clouds=new CloudField(scene,seed,normalizeWeather(weather));
@@ -145,67 +142,49 @@ function setForcedPhase(name){
 function updateCamera(dt){
  const motion=getPhaseMotion(dt);
  speed=testMode&&testSettings.speed!==null?testSettings.speed:motion.speed;
- if(testMode&&testSettings.freeze)speed=0;
- const forwardSpeed=speed;
- if(phaseName==="TRAVELLER FLIGHT"&&journeyPath){
-   const route=journeyPath.getAt(worldDistance);
-   const ahead=journeyPath.getAt(worldDistance+125);
-   const lowFlight=activeScene.id==="himalayas";
-   eyeHeight=lowFlight?85:3;
-   const ground=Math.max(terrain.getHeightAt(route.point.x,route.point.z),terrain.getWaterLevel());
-   const targetY=ground+eyeHeight;
-   const spring=lowFlight?2.2:4.5;
-   camera.position.x=route.point.x;
-   camera.position.z=route.point.z;
-   camera.position.y=THREE.MathUtils.damp(camera.position.y,targetY,spring,dt);
-   const lookPoint=ahead.point.clone();
-   // Stable forward sightline: terrain height must not pitch the camera into a nearby hillside.
-   lookPoint.y=camera.position.y- Math.tan(THREE.MathUtils.degToRad(5.5))*125;
-   camera.up.set(0,1,0);
-   camera.lookAt(lookPoint);
-   pathCurvature=route.curvature;
-   const bank=THREE.MathUtils.clamp(-pathCurvature*speed*0.055,-THREE.MathUtils.degToRad(4),THREE.MathUtils.degToRad(4));
-   const vibration=Math.sin(journeyElapsed*18)*.012*(speed/80);
-   camera.rotateZ(bank+vibration);
-   camera.position.y+=Math.sin(journeyElapsed*7.5)*.035*(speed/80);
-   pitchDegrees=-5;
-   cameraClearance=camera.position.y-ground;
-   terrainHeightUnder=ground;
-   altitude=Math.round(camera.position.y);
-   camera.fov=THREE.MathUtils.damp(camera.fov,motion.fov,5.5,dt);
-   camera.updateProjectionMatrix();
-   worldDistance+=forwardSpeed*dt;
-   const direction=new THREE.Vector3().subVectors(lookPoint,camera.position).normalize();
-   horizonVisible=direction.y<0.12&&direction.y>-0.22;
-   return motion;
- }
+ if(testMode&&testSettings.freeze){speed=0;}
+ const phaseProgress=phaseElapsed/phaseFor(phaseIndex).duration;
+ const forwardSpeed=speed; // metres/second; displacement below is forwardSpeed * dt (metres)
  const curve=Math.sin(worldDistance*.00042)*420+Math.sin(worldDistance*.00017)*260;
  const curveNext=Math.sin((worldDistance+forwardSpeed*dt+400)*.00042)*420+Math.sin((worldDistance+forwardSpeed*dt+400)*.00017)*260;
+ const x=curve;
  if(!(testMode&&testSettings.freeze)){
-   camera.position.x=THREE.MathUtils.damp(camera.position.x,curve,1.8,dt);
+   camera.position.x=THREE.MathUtils.damp(camera.position.x,x,phaseName==="TRAVELLER FLIGHT"?1.1:1.8,dt);
    camera.position.z-=forwardSpeed*dt;
  }
+ const lookDistance=phaseName==="TRAVELLER FLIGHT"?2200:1100;
+ const yaw=Math.atan2(curveNext-curve,400);
  const pitch=THREE.MathUtils.degToRad(motion.pitch);
  camera.rotation.order="YXZ";
  if(!(testMode&&testSettings.freeze)){
-   camera.lookAt(camera.position.x+(curveNext-curve),camera.position.y-Math.tan(-pitch)*1100,camera.position.z-1100);
-   const bank=THREE.MathUtils.clamp(Math.sin(journeyElapsed*.7)*.035,-.14,.14);
+   camera.lookAt(camera.position.x+Math.sin(yaw)*lookDistance,camera.position.y-Math.tan(-pitch)*lookDistance,camera.position.z-lookDistance);
+   const scenicYaw=Math.sin(journeyElapsed*.16)*.16+Math.sin(journeyElapsed*.055)*.07;
+   camera.rotateY(scenicYaw);
+   const bank=THREE.MathUtils.clamp(-yaw*1.25+Math.sin(journeyElapsed*.7)*.025,-.14,.14);
    camera.rotateZ(bank);
+ }else{
+   camera.lookAt(camera.position.x,camera.position.y-Math.tan(THREE.MathUtils.degToRad(20))*1200,camera.position.z-1200);
  }
  pitchDegrees=motion.pitch;
+ const forward=new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
  const samples=[0,100,250,500,850].map(distance=>terrain.getHeightAt(camera.position.x,camera.position.z-distance));
  terrainHeightUnder=samples[0];
  const ridge=Math.max(...samples,terrain.getWaterLevel());
- const targetY=ridge+(phaseName==="BREAKTHROUGH"?70:95);
+ const requiredClearance=phaseName==="TRAVELLER FLIGHT"?90:phaseName==="BREAKTHROUGH"?70:95;
+ const targetY=ridge+requiredClearance;
+ // Clearance is a one-way, damped safety correction: it never snaps the camera
+ // down to the terrain or overwrites forward movement.
  if(camera.position.y<targetY){
    const gap=targetY-camera.position.y;
    verticalVelocity=Math.max(verticalVelocity,0);
    verticalVelocity+=Math.min(gap*2.2,42)*dt;
- }else verticalVelocity=Math.max(0,verticalVelocity*Math.exp(-2.4*dt));
+ }else{
+   verticalVelocity=Math.max(0,verticalVelocity*Math.exp(-2.4*dt));
+ }
  camera.position.y+=verticalVelocity*dt;
+ groundWarning=camera.position.y<targetY-8?"CLEARANCE RECOVERY":"";
  cameraClearance=camera.position.y-terrainHeightUnder;
- altitude=Math.round(camera.position.y);
- horizonVisible=true;
+ altitude=Math.round(camera.position.y*10);
  camera.fov=THREE.MathUtils.damp(camera.fov,motion.fov,3.5,dt);camera.updateProjectionMatrix();
  worldDistance+=forwardSpeed*dt;
  return motion;
