@@ -7,7 +7,7 @@ export const ENVIRONMENTS = [
     vegetation: { types: ["meadow-grass", "deciduous-trees"], density: 0.55, clumpSize: 42 },
     sun: { position: [-220, 95, -310], intensity: 1.65 }, sky: { horizon: "#a9c5d5", zenith: "#315675", sun: "#fff0d2" },
     fog: { color: "#b5c9d0", density: 0.00009 }, clouds: { cover: 0.24, speed: 0.8 }, weather: "clear", particles: "pollen",
-    camera: { altitude: 420, speed: 42 }, duration: 68
+    camera: { altitude: 420, speed: 42 }, duration: 42
   },
   {
     id: "river-valley", name: "River valley with farmland", timeOfDay: "morning",
@@ -17,7 +17,7 @@ export const ENVIRONMENTS = [
     vegetation: { types: ["farmland", "hedgerows", "deciduous-trees"], density: 0.42, clumpSize: 68 },
     sun: { position: [-90, 210, -340], intensity: 1.9 }, sky: { horizon: "#b9d0d5", zenith: "#426985", sun: "#fff0cf" },
     fog: { color: "#b7cbd0", density: 0.000095 }, clouds: { cover: 0.22, speed: 0.9 }, weather: "clear", particles: "none",
-    camera: { altitude: 390, speed: 44 }, duration: 68
+    camera: { altitude: 390, speed: 44 }, duration: 42
   },
   {
     id: "tropical-beach", name: "Tropical beach and coast", timeOfDay: "noon",
@@ -27,7 +27,7 @@ export const ENVIRONMENTS = [
     vegetation: { types: ["palms", "coastal-grass"], density: 0.34, clumpSize: 55 },
     sun: { position: [-260, 420, -310], intensity: 2.5 }, sky: { horizon: "#9fc8d9", zenith: "#244766", sun: "#ffdfb4" },
     fog: { color: "#9fc8d9", density: 0.00012 }, clouds: { cover: 0.26, speed: 1.0 }, weather: "clear", particles: "sea-spray",
-    camera: { altitude: 330, speed: 46 }, duration: 68
+    camera: { altitude: 330, speed: 46 }, duration: 42
   },
   {
     id: "alpine-lake", name: "Alpine lake with mountains", timeOfDay: "golden hour",
@@ -37,7 +37,7 @@ export const ENVIRONMENTS = [
     vegetation: { types: ["pine", "alpine-grass"], density: 0.28, clumpSize: 76 },
     sun: { position: [-300, 180, -260], intensity: 2.0 }, sky: { horizon: "#d7a77f", zenith: "#304968", sun: "#ffd39d" },
     fog: { color: "#b9c3c7", density: 0.0001 }, clouds: { cover: 0.2, speed: 0.72 }, weather: "clear", particles: "mist",
-    camera: { altitude: 480, speed: 38 }, duration: 68
+    camera: { altitude: 480, speed: 38 }, duration: 42
   }
 ];
 
