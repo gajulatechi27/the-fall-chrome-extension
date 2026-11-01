@@ -31,9 +31,11 @@ function fbm(noise, x, z, octaves = 6) {
 }
 
 function riverCenterX(noise, worldZ) {
-  return Math.sin(worldZ * 0.00019 + 0.7) * 185 +
-    Math.sin(worldZ * 0.000071 - 1.2) * 95 +
-    noise(0.0, worldZ * 0.00016) * 70;
+  // Broad, overlapping bends create a continuous meander visible from the
+  // flight camera. Keep the same path function for terrain carving and water.
+  return Math.sin(worldZ * 0.00042 + 0.7) * 420 +
+    Math.sin(worldZ * 0.00017 - 1.2) * 190 +
+    noise(0.0, worldZ * 0.00032) * 105;
 }
 
 function applyRiverChannel(height, x, worldZ, noise, environment) {
