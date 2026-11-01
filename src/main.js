@@ -39,7 +39,7 @@ const phases=[
 const phaseDuration=phases.reduce((n,p)=>n+p.duration,0);
 const params=new URLSearchParams(location.search);
 const sceneAliases={himalaya:"himalayas",hills:"green",river:"delta"};
-const phaseAliases={"freefall":"FREEFALL","storm":"STORM LAYER","storm-layer":"STORM LAYER","breakthrough":"BREAKTHROUGH","flight":"TRAVELLER FLIGHT","traveller":"TRAVELLER FLIGHT","transition":"TRANSITION"};
+const phaseAliases={"freefall":"FREEFALL","storm":"STORM LAYER","storm-layer":"STORM LAYER","storm layer":"STORM LAYER","breakthrough":"BREAKTHROUGH","flight":"TRAVELLER FLIGHT","traveller":"TRAVELLER FLIGHT","traveller flight":"TRAVELLER FLIGHT","transition":"TRANSITION"};
 const testMode=["scene","biome","seed","time","weather","freeze","speed","phase"].some(k=>params.has(k));
 const testSettings={
  scene:params.get("biome")||params.get("scene")||"hills",
