@@ -4,17 +4,17 @@ export const ENVIRONMENTS = [
     biome: "forest", paletteTint: "vec3(0.82,1.08,0.82)", terrain: { biome: "forest", baseHeight: 152, noiseOctaves: 7, ridgeWeight: 0.16, valleyCarving: 0.24, seaLevel: -28 },
     materialMix: { rock: [175, 265], grass: [-18, 105], dryGrass: [82, 142], sand: [-28, -8], snow: [520, 900] },
     water: { type: "river", level: -28, width: 158, color: "#438f91" },
-    vegetation: { types: ["meadow-grass", "deciduous-trees"], density: 0.72, clumpSize: 48, grassDensity: 1.0 },
+    vegetation: { types: ["meadow-grass"], density: 0.72, clumpSize: 48, grassDensity: 1.0 },
     sun: { position: [-220, 145, -310], intensity: 2.58 }, sky: { horizon: "#b9d5e0", zenith: "#39749a", sun: "#fff1d7" },
     fog: { color: "#c9d9c2", density: 0.000062 }, clouds: { cover: 0.28, speed: 0.8 }, weather: "clear", particles: "pollen",
     camera: { altitude: 420, speed: 42 }, duration: 25
   },
   {
     id: "river-valley", name: "River valley with farmland", timeOfDay: "morning",
-    biome: "forest", paletteTint: "vec3(1.02,1.06,0.82)", terrain: { biome: "forest", baseHeight: 112, noiseOctaves: 6, ridgeWeight: 0.04, valleyCarving: 0.42, seaLevel: -28 },
+    biome: "forest", paletteTint: "vec3(1.02,1.06,0.82)", terrain: { biome: "forest", baseHeight: 88, noiseOctaves: 5, ridgeWeight: 0.015, valleyCarving: 0.30, seaLevel: -28 },
     materialMix: { rock: [230, 370], grass: [-12, 62], dryGrass: [38, 112], sand: [-28, -10], snow: [600, 950] },
     water: { type: "river", level: -28, width: 270, color: "#398f98" },
-    vegetation: { types: ["farmland", "hedgerows", "deciduous-trees"], density: 0.56, clumpSize: 68 },
+    vegetation: { types: ["farmland", "field-boundaries"], density: 0, clumpSize: 68 },
     sun: { position: [-90, 260, -340], intensity: 2.38 }, sky: { horizon: "#c7dce0", zenith: "#4b7896", sun: "#fff1d9" },
     fog: { color: "#c2d5d0", density: 0.000064 }, clouds: { cover: 0.22, speed: 0.9 }, weather: "clear", particles: "none",
     camera: { altitude: 390, speed: 44 }, duration: 25
