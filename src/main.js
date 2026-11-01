@@ -159,7 +159,8 @@ function updateCamera(dt){
    camera.position.z=route.point.z;
    camera.position.y=THREE.MathUtils.damp(camera.position.y,targetY,spring,dt);
    const lookPoint=ahead.point.clone();
-   lookPoint.y=Math.max(terrain.getHeightAt(lookPoint.x,lookPoint.z),terrain.getWaterLevel())+eyeHeight*.55;
+   // Stable forward sightline: terrain height must not pitch the camera into a nearby hillside.
+   lookPoint.y=camera.position.y- Math.tan(THREE.MathUtils.degToRad(5.5))*125;
    camera.up.set(0,1,0);
    camera.lookAt(lookPoint);
    pathCurvature=route.curvature;
@@ -282,7 +283,7 @@ function resize(){quality=Math.min(devicePixelRatio,2);renderer.setPixelRatio(qu
 window.addEventListener("resize",resize);
 document.addEventListener("visibilitychange",()=>{if(document.hidden){paused=true;cancelAnimationFrame(frame);}else{paused=false;lastFrameTime=performance.now();if(running)animate();}});
 window.addEventListener("error",e=>console.error("THE FALL runtime error",e.error||e.message));
-const initial=sceneTypes.find(s=>s.id===(sceneAliases[testSettings.scene]||testSettings.scene))||sceneTypes[0];
+const initial=testMode?(sceneTypes.find(s=>s.id===(sceneAliases[testSettings.scene]||testSettings.scene))||sceneTypes[0]):sceneTypes[Math.floor(Math.random()*sceneTypes.length)];
 createScene(initial,seed,testSettings.weather,testSettings.time);
 if(testMode)setForcedPhase(testSettings.phase);
 if(testMode&&testSettings.freeze){camera.position.y=Math.max(terrain.getHeightAt(camera.position.x,camera.position.z)+80,terrain.getWaterLevel()+40);}
