@@ -51,6 +51,7 @@ let groundWarning = "";
 
 const params = new URLSearchParams(location.search);
 const testMode = ["scene","seed","time","weather","freeze","speed"].some(k => params.has(k));
+let terrainDebugOptions = { wireframe:false, lodColors:false, chunkBorders:false, trees:true };
 const sceneAliases = { himalaya:"himalayas", hills:"green", river:"delta", lake:"lake", coast:"coast", desert:"desert", forest:"forest", rainforest:"rainforest" };
 const sceneParam = id => ({himalayas:"himalaya",green:"hills",delta:"river"}[id] || id);
 const weatherParam = value => value === "clouds" ? "light clouds" : value;
@@ -117,7 +118,6 @@ function createScene(nextScene, nextSeed, forcedWeather = null) {
   }
   label.textContent = activeScene.name;
   label.classList.add("visible");
-  if (testMode) terrain.setDebugOptions({wireframe:el("wireframe")?.checked || false,lodColors:el("lod")?.checked || false,chunkBorders:el("borders")?.checked || false,trees:el("trees")?.checked !== false});
   if (testMode && testSettings.freeze) {
     camera.lookAt(camera.position.x + 1350, camera.position.y - Math.tan(THREE.MathUtils.degToRad(25)) * 1350, camera.position.z - 1350);
     camera.rotation.z = 0;
@@ -272,7 +272,7 @@ if (testMode) {
  document.body.appendChild(panel);
  const el=id=>panel.querySelector("#dt-"+id);
  el("scene").value=testSettings.scene; el("seed").value=testSettings.seed; el("time").value=testSettings.time; el("weather").value=testSettings.weather; el("speed").value=testSettings.speed??""; el("freeze").checked=testSettings.freeze;
- const applyTerrainDebug=()=>terrain?.setDebugOptions({wireframe:el("wireframe").checked,lodColors:el("lod").checked,chunkBorders:el("borders").checked,trees:el("trees").checked});
+ const applyTerrainDebug=()=>{terrainDebugOptions={wireframe:el("wireframe").checked,lodColors:el("lod").checked,chunkBorders:el("borders").checked,trees:el("trees").checked};terrain?.setDebugOptions(terrainDebugOptions);};
  ["wireframe","lod","borders","trees"].forEach(id=>el(id).addEventListener("change",applyTerrainDebug));
  let open=false;
  document.addEventListener("keydown",event=>{if(event.key.toLowerCase()==="t"&&!event.repeat){open=!open;panel.classList.toggle("open",open);}});
@@ -317,6 +317,7 @@ if (testMode) {
   const selected = sceneTypes.find(item => item.id === sceneAliases[testSettings.scene]) || sceneTypes[1];
   previousSceneId = selected.id;
   createScene(selected, testSettings.seed, weatherParam(testSettings.weather));
+  terrain?.setDebugOptions(terrainDebugOptions);
 } else {
   createScene(chooseScene(), randomSeed());
 }
