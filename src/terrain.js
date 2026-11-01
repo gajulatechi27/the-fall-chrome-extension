@@ -46,7 +46,7 @@ function terrainHeight(noise, x, z, biome) {
   if (biome === "lake") {
     const lakeRadius = 850 + noise(1200, 300) * 90;
     const d = Math.hypot(x, z);
-    h = THREE.MathUtils.lerp(h, -42, 1 - THREE.MathUtils.smoothstep(d, lakeRadius - 90, lakeRadius + 90));
+    h = THREE.MathUtils.lerp(h, -62, 1 - THREE.MathUtils.smoothstep(d, lakeRadius - 90, lakeRadius + 90));
   }
   if (biome === "green" || biome === "forest" || biome === "delta" || biome === "rainforest") {
     const center = Math.sin(warpZ * 0.00032 + noise(80, warpZ * 0.00018) * 1.6) * 1100;
@@ -56,15 +56,22 @@ function terrainHeight(noise, x, z, biome) {
     h += Math.exp(-Math.pow((distance - width * 1.45) / 110, 2)) * 15;
   }
   if (biome === "desert") {
-    h = h * 0.68 + Math.sin(warpX * 0.00045 + noise(0, warpZ * 0.0002) * 2.1) * 38;
-    h += Math.pow(Math.max(0, 1 - Math.abs(noise(warpX * 0.00017, warpZ * 0.00017))), 3) * 95;
+    const dune = Math.sin(warpX * 0.00042 + noise(0, warpZ * 0.0002) * 2.8) * 58;
+    const crossDune = Math.sin(warpZ * 0.00028 + noise(warpX * 0.00012, 12) * 1.8) * 26;
+    const canyon = Math.pow(Math.max(0, 1 - Math.abs(noise(warpX * 0.00017, warpZ * 0.00017))), 3) * 145;
+    h = h * 0.72 + dune + crossDune + canyon;
+    h += Math.pow(Math.max(0, 1 - Math.abs(noise(warpX * 0.00011 + 7, warpZ * 0.00011 - 4))), 5) * 105;
   }
   if (biome === "islands" || biome === "coast") {
     const coastNoise = fbm(noise, warpX + 17000, warpZ - 8000);
     h = h * 0.65 - 65 + Math.max(0, coastNoise + 0.15) * 290;
     h += Math.pow(Math.max(0, 1 - Math.abs(noise(warpX * 0.00065, warpZ * 0.00065))), 4) * 55;
   }
-  if (biome === "green" || biome === "forest" || biome === "rainforest") {
+  if (biome === "green") {
+    const terraceSignal = Math.sin(warpX * 0.0017 + noise(warpX * 0.00035, warpZ * 0.00035) * 2.4);
+    h = Math.round(h / 7) * 7 + terraceSignal * 2.2;
+  }
+  if (biome === "forest" || biome === "rainforest") {
     h += Math.sin(warpX * 0.0013 + warpZ * 0.0007) * 12;
   }
   return h;
@@ -271,6 +278,7 @@ export class Terrain {
         }
       }
     }
+    if (this.riverMaterial) this.riverMaterial.uniforms.uTime.value += dt;
     if (this.water) {
       this.water.position.x = camera.position.x;
       this.water.position.z = camera.position.z;
@@ -296,6 +304,11 @@ export class Terrain {
     }
     this.chunks.clear();
     this.scene.remove(this.group);
+    if (this.river) {
+      this.scene.remove(this.river);
+      this.river.geometry.dispose();
+      this.river.material.dispose();
+    }
     if (this.water) {
       this.scene.remove(this.water);
       this.water.geometry.dispose();
