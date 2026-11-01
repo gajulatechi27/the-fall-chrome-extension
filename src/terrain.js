@@ -512,7 +512,7 @@ export class Terrain {
     return {
       chunkCount: this.chunks.length, chunksUnderCamera,
       ringCounts: { ...this.ringCounts }, coverage20km: this.hasCoverage(20000),
-      seaLevel: WATER_LEVEL, waterEnabled: Boolean(this.water),
+      seaLevel: WATER_LEVEL, waterEnabled: Boolean(this.water), waterTerrainClipping: Boolean(this.water?.geometry?.attributes?.terrainHeight),
       minHeight: Math.min(...this.chunks.map(c => c.userData.minHeight ?? Infinity)),
       maxHeight: Math.max(...this.chunks.map(c => c.userData.maxHeight ?? -Infinity))
     };
