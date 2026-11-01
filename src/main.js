@@ -23,7 +23,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 0.1, 12000);
+const camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 0.1, 30000);
 const sceneTypes = [
   { id: "himalayas", name: "Himalayan Peaks" },
   { id: "green", name: "Green Hills & Valleys" },
@@ -78,7 +78,7 @@ function createScene(nextScene, nextSeed) {
   camera.position.set(0, 350, 20);
   sky = createSky(scene, renderer, seed);
   scene.background = sky.horizonColor.clone();
-  scene.fog = new THREE.FogExp2(sky.horizonColor, 0.000012);
+  scene.fog = new THREE.FogExp2(sky.horizonColor, 0.000075);
   terrain = new Terrain(scene, seed, activeScene.id);
   clouds = new CloudField(scene, seed);
   try {
@@ -141,7 +141,7 @@ function animate() {
   try { terrain?.update(dt, 90, altitude, camera); } catch (error) { console.error("Terrain update failed", error); }
   try { clouds?.update(dt, 90, camera, altitude); } catch (error) { console.error("Cloud update failed", error); }
   if (scene.fog instanceof THREE.FogExp2 && sky?.horizonColor) scene.fog.color.copy(sky.horizonColor);
-  if (scene.fog instanceof THREE.FogExp2) scene.fog.density = 0.000012;
+  if (scene.fog instanceof THREE.FogExp2) scene.fog.density = 0.000075;
 
   fpsFrames++;
   fpsElapsed += dt;
@@ -172,6 +172,8 @@ function animate() {
       "Pitch: " + pitchDegrees.toFixed(1) + "°\n" +
       "Cloud count: " + (clouds?.count ?? 0) + "\n" +
       "Chunk count: " + (stats.chunkCount ?? 0) + "\n" +
+      "View distance: " + ((stats.viewDistance ?? 0) / 1000).toFixed(1) + " km\n" +
+      "Terrain min/max: " + Math.round(stats.minHeight ?? 0) + " / " + Math.round(stats.maxHeight ?? 0) + " m\n" +
       "FPS: " + fps.toFixed(1);
   }
 
