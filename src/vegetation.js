@@ -91,7 +91,12 @@ function hashChunk(seed, x, z) {
 export function createVegetation({ seed, biome, environment, xOffset, chunkZ, chunkSize, segments, heightAt, seaLevel = -28 }) {
   const types = environment?.vegetation?.types || [];
   const desert = biome === "desert" && types.includes("desert-shrub");
-  const supportsTrees = types.includes("pine") || types.includes("deciduous-trees");
+  // These two countryside environments are intentionally treeless. Keep
+  // this rule here as well as in environments.js so grass/field vegetation
+  // can never accidentally enable the shared tree-instancing path.
+  const treelessCountryside = environment?.id === "green-hills" || environment?.id === "river-valley";
+  const supportsTrees = !treelessCountryside &&
+    (types.includes("pine") || types.includes("deciduous-trees"));
   const supportsMeadowGrass = types.includes("meadow-grass") && environment?.id === "green-hills";
   if ((!supportsTrees && !desert && !supportsMeadowGrass) || (!desert && biome !== "forest" && biome !== "snow") || segments < 32) return null;
 
@@ -103,7 +108,9 @@ export function createVegetation({ seed, biome, environment, xOffset, chunkZ, ch
   // collapse to a few sub-pixel pale points under atmospheric fog, which
   // look like white markers rather than trees. Keep trees only on near chunks.
   const lodFactor = segments >= 128 ? 1 : (greenHills ? 0 : segments >= 64 ? 0.62 : 0.2);
-  const targetCount = Math.round((desert ? 34 : biome === "snow" ? 150 : greenHills ? 245 : 112) * density * lodFactor);
+  const targetCount = supportsTrees || desert
+    ? Math.round((desert ? 34 : biome === "snow" ? 150 : greenHills ? 245 : 112) * density * lodFactor)
+    : 0;
 
   const random = seededRandom(hashChunk(seed, xOffset, chunkZ));
   const shrubGeometry = desert ? new THREE.DodecahedronGeometry(1, 0) : treeGeometry;
