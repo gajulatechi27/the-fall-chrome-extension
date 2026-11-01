@@ -31,10 +31,10 @@ function makeTerrainShader(material, biome) {
   material.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader.replace(
       "#include <common>",
-      "#include <common>\nvarying vec3 vFallWorldPosition;"
+      "#include <common>\nvarying vec3 vFallWorldPosition;\nvarying vec3 vFallWorldNormal;"
     ).replace(
       "#include <worldpos_vertex>",
-      "#include <worldpos_vertex>\nvFallWorldPosition = (modelMatrix * vec4(transformed, 1.0)).xyz;"
+      "#include <worldpos_vertex>\nvFallWorldPosition = (modelMatrix * vec4(transformed, 1.0)).xyz;\nvFallWorldNormal = normalize(mat3(modelMatrix) * objectNormal);"
     );
     shader.fragmentShader = shader.fragmentShader.replace(
       "#include <common>",
@@ -54,7 +54,7 @@ float fallDetail(vec2 p){
     ).replace(
       "#include <color_fragment>",
       `#include <color_fragment>
-float fallSlope = 1.0 - abs(normalize(vViewPosition).z);
+float fallSlope = 1.0 - clamp(abs(normalize(vFallWorldNormal).y), 0.0, 1.0);
 float fallHeight = vFallWorldPosition.y;
 float fallNoiseValue = fallDetail(vFallWorldPosition.xz * 0.018);
 float fallWet = 1.0 - smoothstep(-91.0, -78.0, fallHeight + fallNoiseValue * 7.0);
@@ -242,7 +242,7 @@ function createWaterMaterial(seed) {
 }
 
 export class Terrain {
-  constructor(scene, seed, biome) {
+  constructor(scene, seed, biome, routeTheme = "") {
     this.scene = scene;
     this.seed = seed;
     this.biome = biome;
@@ -258,7 +258,7 @@ export class Terrain {
     }
 
     this.water = null;
-    if (biome === "islands") {
+    if (biome === "islands" || routeTheme === "sea" || routeTheme === "river") {
       const geometry = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
       this.waterMaterial = createWaterMaterial(seed);
       this.water = new THREE.Mesh(geometry, this.waterMaterial);
