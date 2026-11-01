@@ -148,16 +148,16 @@ function animate() {
 
   const forward = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation);
   const h0 = terrain.getHeightAt(camera.position.x, camera.position.z);
-  const h50 = terrain.getHeightAt(camera.position.x + forward.x * 50, camera.position.z + forward.z * 50);
-  const h150 = terrain.getHeightAt(camera.position.x + forward.x * 150, camera.position.z + forward.z * 150);
-  const h400 = terrain.getHeightAt(camera.position.x + forward.x * 400, camera.position.z + forward.z * 400);
+  const h50 = terrain.getHeightAt(camera.position.x + forward.x * 5, camera.position.z + forward.z * 5);
+  const h150 = terrain.getHeightAt(camera.position.x + forward.x * 15, camera.position.z + forward.z * 15);
+  const h400 = terrain.getHeightAt(camera.position.x + forward.x * 40, camera.position.z + forward.z * 40);
   terrainHeightUnder = h0;
   const ridgeHeight = Math.max(h0, h50, h150, h400);
   const ridgeClearance = ridgeHeight > 180 || ridgeHeight - h0 > 35 ? 15 : 6;
   const waterFloor = terrain.getWaterLevel() + 4;
   const collisionFloor = Math.max(ridgeHeight + ridgeClearance, waterFloor);
-  const lowTargetX = camera.position.x + forward.x * 1200;
-  const lowTargetZ = camera.position.z + forward.z * 1200;
+  const lowTargetX = camera.position.x + forward.x * 120;
+  const lowTargetZ = camera.position.z + forward.z * 120;
   const targetGround = Math.max(terrain.getHeightAt(lowTargetX, lowTargetZ), terrain.getWaterLevel());
   const fallPhase = THREE.MathUtils.smoothstep(elapsed, 0, 7.2);
   const climbPhase = THREE.MathUtils.smoothstep(elapsed, sceneDuration - 5.5, sceneDuration);
