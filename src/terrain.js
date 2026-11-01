@@ -55,6 +55,40 @@ function applyRiverChannel(height, x, worldZ, noise, environment) {
   return height - channel * 126;
 }
 
+function applyAlpineLakeTerrain(height, x, worldZ, noise, warpX, warpZ) {
+  // One coherent, irregular lake basin. The same field is used by chunk
+  // generation, height queries and water clipping to prevent detached water.
+  const nx = x / 4300;
+  const nz = (worldZ + 2500) / 5350;
+  const shoreWarp = noise(x * 0.00052 + 31, worldZ * 0.00052 - 17) * 0.055 +
+    noise(x * 0.00115 - 9, worldZ * 0.00115 + 23) * 0.022;
+  const basinRadius = Math.sqrt(nx * nx + nz * nz) + shoreWarp;
+  const basin = 1.0 - THREE.MathUtils.smoothstep(basinRadius, 0.82, 1.025);
+  const bed = -154 + noise(warpX * 0.00038, warpZ * 0.00038) * 7;
+  let result = THREE.MathUtils.lerp(height, bed, basin);
+
+  // Deliberate islands and peninsulas, not accidental terrain peaks poking
+  // through a huge flat water plane. Each island has a soft, irregular shore.
+  const islands = [
+    [-1550, -2950, 760, 145],
+    [650, -3900, 620, 128],
+    [1880, -2050, 690, 152],
+    [-650, -900, 560, 118],
+    [-2350, -4450, 520, 105]
+  ];
+  for (let i = 0; i < islands.length; i++) {
+    const [cx, cz, radius, lift] = islands[i];
+    const dx = (x - cx) / radius;
+    const dz = (worldZ - cz) / (radius * 0.78);
+    const edgeNoise = noise((x + i * 713) * 0.0011, (worldZ - i * 419) * 0.0011) * 0.11;
+    const distance = Math.sqrt(dx * dx + dz * dz) + edgeNoise;
+    const island = 1.0 - THREE.MathUtils.smoothstep(distance, 0.68, 1.12);
+    const crown = lift * island * (0.78 + noise(warpX * 0.0012 + i, warpZ * 0.0012 - i) * 0.18);
+    result = Math.max(result, bed + crown);
+  }
+  return result;
+}
+
 function makeTerrainShader(material, biome, environment = null) {
   const paletteTint = environment?.paletteTint || (biome === "desert" ? "vec3(1.12,0.91,0.68)" : biome === "snow" || biome === "mountains" ? "vec3(0.91,0.97,1.04)" : "vec3(0.92,1.04,0.88)");
   const snowLineLow = environment?.materialMix?.snow?.[0] ?? 145;
@@ -129,13 +163,7 @@ function makeChunk(noise, seed, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, s
     if (environment?.terrain?.valleyCarving) h -= Math.abs(noise(warpX * 0.00048, warpZ * 0.00048)) * environment.terrain.valleyCarving * amplitude * 0.34;
     h = applyRiverChannel(h, x, worldZ, noise, environment);
     if (environment?.water?.type === "lake") {
-      // The previous shallow depression left much of the alpine terrain above
-      // the water plane, so the shader exposed hundreds of tiny land patches.
-      // Form one continuous submerged basin, then blend naturally into shore.
-      const lakeRadius = Math.hypot(x, worldZ + 2500);
-      const basin = 1.0 - THREE.MathUtils.smoothstep(lakeRadius, 3300, 4700);
-      const lakeBed = -112 + noise(warpX * 0.00042, warpZ * 0.00042) * 9;
-      h = THREE.MathUtils.lerp(h, lakeBed, basin);
+      h = applyAlpineLakeTerrain(h, x, worldZ, noise, warpX, warpZ);
     }
     if (biome === "islands") {
       const ridgeA = 1.0 - Math.abs(noise(warpX * 0.00145, warpZ * 0.00145));
@@ -342,13 +370,14 @@ function createWaterMaterial(seed) {
   });
 }
 
-function createFarRanges(scene, noise) {
+function createFarRanges(scene, noise, environment = null) {
+  const alpine = environment?.water?.type === "lake";
   const layers = [];
-  const colors = [0x718b91, 0x91a9ad, 0xb4c7c9];
+  const colors = alpine ? [0x66869a, 0x87a7bd, 0xb4cbd8] : [0x718b91, 0x91a9ad, 0xb4c7c9];
   const distances = [10500, 14500, 18500];
   for (let layer = 0; layer < 3; layer++) {
     const positions = [], indices = [];
-    const nx = 320, nz = 28, width = 76000, depth = 7200;
+    const nx = alpine ? 520 : 320, nz = alpine ? 42 : 28, width = 76000, depth = 7200;
     for (let iz = 0; iz <= nz; iz++) {
       for (let ix = 0; ix <= nx; ix++) {
         const x = -width * .5 + width * ix / nx;
@@ -357,8 +386,8 @@ function createFarRanges(scene, noise) {
         const r1 = 1.0 - Math.abs(noise(x * (.00027 + layer * .00003), z * .00024 + layer * 2.1));
         const r2 = 1.0 - Math.abs(noise(x * (.00071 + layer * .000035) + 17.0, z * .00061 - layer * 4.7));
         const r3 = 1.0 - Math.abs(noise(x * (.00155 + layer * .00005) - 9.0, z * .0012 + layer));
-        const ridge = Math.pow(r1, 2.0) * 410 + Math.pow(r2, 2.6) * 165 + Math.pow(r3, 3.0) * 52;
-        const base = 72 + Math.sin(x * .00014 + layer) * 26 + Math.sin(z * .00045 + layer) * 9;
+        const ridge = Math.pow(r1, alpine ? 1.55 : 2.0) * (alpine ? 920 : 410) + Math.pow(r2, 2.15) * (alpine ? 310 : 165) + Math.pow(r3, 2.7) * (alpine ? 90 : 52);
+        const base = (alpine ? 118 : 72) + Math.sin(x * .00014 + layer) * (alpine ? 34 : 26) + Math.sin(z * .00045 + layer) * 9;
         const y = Math.max(12, (base + ridge) * envelope);
         positions.push(x, y, z);
       }
@@ -372,10 +401,10 @@ function createFarRanges(scene, noise) {
       const height = positions[i + 1];
       const slopeHint = Math.abs(Math.sin(positions[i] * .0013 + layer) * Math.cos(positions[i + 2] * .0008));
       const rock = THREE.MathUtils.smoothstep(slopeHint, .42, .88);
-      const high = THREE.MathUtils.smoothstep(height, 420, 820);
+      const high = THREE.MathUtils.smoothstep(height, alpine ? 390 : 420, alpine ? 760 : 820);
       const tint = new THREE.Color([0x849889, 0x91a5a8, 0xa9b9bd][layer]);
       tint.lerp(new THREE.Color([0x65756f, 0x78888b, 0x929fa3][layer]), rock);
-      tint.lerp(new THREE.Color(0xc5d0d0), high);
+      tint.lerp(new THREE.Color(alpine ? 0xeaf4fa : 0xc5d0d0), high);
       tint.lerp(new THREE.Color(0xd0dadd), [0.12, 0.25, 0.42][layer]);
       colorValues.push(tint.r, tint.g, tint.b);
     }
@@ -430,7 +459,7 @@ export class Terrain {
     this.gridCenterZ = Number.NaN;
     this.ringCounts = { near: 0, mid: 0, far: 0, horizon: 0 };
     this.ensureGrid(0, 0);
-    this.farRanges = createFarRanges(scene, this.noise);
+    this.farRanges = createFarRanges(scene, this.noise, this.environment);
     this.farRanges.layers?.forEach(mesh => { mesh.userData.farRangeOwner = this; });
 
     this.water = null;
@@ -524,10 +553,7 @@ export class Terrain {
     if (this.environment?.terrain?.valleyCarving) h -= Math.abs(this.noise(warpX * 0.00048, warpZ * 0.00048)) * this.environment.terrain.valleyCarving * (this.environment.terrain.baseHeight || 145) * 0.34;
     h = applyRiverChannel(h, x, z, this.noise, this.environment);
     if (this.environment?.water?.type === "lake") {
-      const lakeRadius = Math.hypot(x, z + 2500);
-      const basin = 1.0 - THREE.MathUtils.smoothstep(lakeRadius, 3300, 4700);
-      const lakeBed = -112 + this.noise(warpX * 0.00042, warpZ * 0.00042) * 9;
-      h = THREE.MathUtils.lerp(h, lakeBed, basin);
+      h = applyAlpineLakeTerrain(h, x, z, this.noise, warpX, warpZ);
     }
     if (this.biome === "islands") {
       const ridgeA = 1.0 - Math.abs(this.noise(warpX * 0.00145, warpZ * 0.00145));
@@ -588,8 +614,12 @@ export class Terrain {
         // A lake is one bounded basin, not every low spot in the terrain.
         // Suppress water outside the basin so distant depressions cannot turn
         // into disconnected pools or floating-looking water patches.
-        const lakeRadius = Math.hypot(wx, wz + 2500);
-        const lakeMask = 1.0 - THREE.MathUtils.smoothstep(lakeRadius, 4300, 4850);
+        const lakeNx = wx / 4300;
+        const lakeNz = (wz + 2500) / 5350;
+        const shoreWarp = this.noise(wx * 0.00052 + 31, wz * 0.00052 - 17) * 0.055 +
+          this.noise(wx * 0.00115 - 9, wz * 0.00115 + 23) * 0.022;
+        const basinRadius = Math.sqrt(lakeNx * lakeNx + lakeNz * lakeNz) + shoreWarp;
+        const lakeMask = 1.0 - THREE.MathUtils.smoothstep(basinRadius, 0.82, 1.025);
         out[i] = THREE.MathUtils.lerp(this.seaLevel + 1.0, terrainHeight, lakeMask);
       } else {
         out[i] = terrainHeight;
