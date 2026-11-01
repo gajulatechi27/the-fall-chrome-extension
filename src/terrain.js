@@ -414,14 +414,45 @@ export class Terrain {
     this.ringCounts = counts;
   }
 
+  heightAtWorld(x, z) {
+    const warpX = x + this.noise(x * 0.0007, z * 0.0007) * 115;
+    const warpZ = z + this.noise((x + 900) * 0.0007, (z - 400) * 0.0007) * 115;
+    let h = fbm(this.noise, warpX, warpZ) * (BIOME_HEIGHT[this.biome] || 145);
+    if (this.biome === "islands") {
+      const shoreZ = Math.sin(x * 0.00022) * 1150 + Math.sin(x * 0.00061 + 1.7) * 360 +
+        this.noise(x * 0.00048, z * 0.00031) * 260;
+      const coast = THREE.MathUtils.smoothstep(shoreZ - z, -720, 260);
+      const headland = Math.pow(Math.max(0, Math.sin(x * 0.00016 + 0.8)), 5) * 95;
+      const dune = Math.max(0, this.noise(x * 0.0013, z * 0.0011)) * 18;
+      h = THREE.MathUtils.lerp(-72 + h * 0.12, h * 0.48 + 24 + headland + dune, coast) - 92;
+    }
+    return h;
+  }
+
+  updateWaterClip(centerX, centerZ) {
+    if (!this.water || (centerX === this.waterCenterX && centerZ === this.waterCenterZ)) return;
+    this.waterCenterX = centerX;
+    this.waterCenterZ = centerZ;
+    const pos = this.water.geometry.attributes.position;
+    const out = this.waterHeights;
+    for (let i = 0; i < pos.count; i++) {
+      const wx = centerX + pos.getX(i);
+      const wz = centerZ - pos.getY(i);
+      out[i] = HEIGHT_BASE + this.heightAtWorld(wx, wz);
+    }
+    this.water.geometry.attributes.terrainHeight.needsUpdate = true;
+  }
+
   update(dt, speed, altitude, camera) {
     if (camera) {
       this.ensureGrid(camera.position.x, camera.position.z);
       this.farRanges?.update(camera);
     }
     if (this.water) {
-      this.water.position.x = camera?.position.x || 0;
-      this.water.position.z = camera?.position.z || 0;
+      const wx = camera?.position.x || 0, wz = camera?.position.z || 0;
+      this.updateWaterClip(wx, wz);
+      this.water.position.x = wx;
+      this.water.position.z = wz;
       this.waterMaterial.uniforms.uTime.value += dt;
     }
   }
