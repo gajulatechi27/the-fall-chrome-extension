@@ -180,7 +180,9 @@ function updateDebug(dt) {
       "Ground objects: 0 (Stage 1)\n" +
       "Asset failures: " + (assetFailures.length ? assetFailures.join(", ") : "none") + "\n" +
       "Safety: " + (stats.safetyWarning || (stats.coverage20km ? "OK" : "WARNING — TERRAIN EDGE / GAP")) + "\n" +
-      "Sea level: " + (stats.seaLevel == null ? "off" : stats.seaLevel.toFixed(1)) + "\n" +
+      "Sea level: " + (stats.seaLevel == null ? "off" : stats.seaLevel.toFixed(1)) + " m\n" +
+      "Camera above water: " + (stats.seaLevel == null ? "n/a" : (camera.position.y - stats.seaLevel).toFixed(1) + " m") + "\n" +
+      "Water terrain clipping: " + (stats.waterTerrainClipping ? "ON" : "OFF") + "\n" +
       "Terrain min/max: " + (stats.minHeight ?? 0).toFixed(1) + " / " + (stats.maxHeight ?? 0).toFixed(1) + "\n" +
       "FPS: " + fps.toFixed(1);
   }
