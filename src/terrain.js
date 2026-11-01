@@ -471,8 +471,9 @@ export class Terrain {
             const distance = Math.hypot(gx, gz) * CHUNK_SIZE;
             const segments = distance < CHUNK_SIZE * 0.9 ? HIGH_SEGMENTS : this.lodForDistance(distance);
             const chunk = makeChunk(this.noise, x, z, this.biome, segments);
-            this.group.add(chunk);
+                    this.group.add(chunk);
             this.chunks.set(key, chunk);
+            this.applyChunkDebug(chunk);
           }
         }
       }
@@ -492,11 +493,44 @@ export class Terrain {
     }
   }
 
+  setDebugOptions(options = {}) {
+    this.debugOptions = { ...(this.debugOptions || {}), ...options };
+    for (const chunk of this.chunks.values()) this.applyChunkDebug(chunk);
+  }
+
+  applyChunkDebug(chunk) {
+    const opts = this.debugOptions || {};
+    const material = chunk.material;
+    material.wireframe = !!opts.wireframe;
+    if (opts.lodColors) {
+      material.color.set(chunk.userData.lod >= HIGH_SEGMENTS ? 0x75d8ff : chunk.userData.lod >= MID_SEGMENTS ? 0xf3c969 : 0xe78b91);
+    } else {
+      material.color.set(0xffffff);
+    }
+    chunk.traverse(object => {
+      if (object.isInstancedMesh) object.visible = opts.trees !== false;
+    });
+    if (opts.chunkBorders && !chunk.userData.border) {
+      const edges = new THREE.EdgesGeometry(chunk.geometry, 1);
+      const lines = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xffd36a, transparent: true, opacity: .72, depthWrite: false }));
+      lines.position.copy(chunk.position);
+      lines.frustumCulled = false;
+      this.group.add(lines);
+      chunk.userData.border = lines;
+    } else if (!opts.chunkBorders && chunk.userData.border) {
+      this.group.remove(chunk.userData.border);
+      chunk.userData.border.geometry.dispose();
+      chunk.userData.border.material.dispose();
+      chunk.userData.border = null;
+    }
+  }
+
   getDebugInfo() {
     const chunks = [...this.chunks.values()];
     return {
       chunkCount: chunks.length,
       viewDistance: GRID_RADIUS * CHUNK_SIZE,
+      noiseOctaves: 2,
       minHeight: chunks.length ? Math.min(...chunks.map(c => c.userData.minHeight)) : 0,
       maxHeight: chunks.length ? Math.max(...chunks.map(c => c.userData.maxHeight)) : 0
     };
