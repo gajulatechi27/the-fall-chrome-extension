@@ -306,9 +306,11 @@ function animate() {
   altitude = targetAltitude;
 
   // A gentle forward drift and broad turn keep the view moving over new terrain.
-  const turn = Math.sin(time * 0.105) * 0.62 + Math.sin(time * 0.037) * 0.22;
-  const driftX = Math.sin(time * 0.105) * 150 + Math.sin(time * 0.29) * 12;
-  const forwardZ = 15.5 - time * 2.2;
+  // Match visible forward travel to the environment's configured flight speed.
+  // The previous 2.2 units/s made the landscape appear almost stationary.
+  const turn = Math.sin(time * 0.16) * 0.72 + Math.sin(time * 0.058) * 0.26;
+  const driftX = Math.sin(time * 0.16) * 190 + Math.sin(time * 0.38) * 22;
+  const forwardZ = 15.5 - time * (targetSpeed * 0.55);
   const shake = Math.min(0.035, speed * 0.00024);
   cameraDesired.set(
     driftX + Math.sin(time * 1.1) * 0.12 + Math.sin(time * 13) * shake,
@@ -321,7 +323,7 @@ function animate() {
   // Hold the camera if the terrain streamer ever loses the ground footprint.
   const groundReady = (terrain?.hasChunkNear(cameraDesired.x, cameraDesired.z, 500) ?? false) && (terrain?.hasCoverage(20000) ?? false);
   if (groundReady) {
-    camera.position.lerp(cameraDesired, 1 - Math.exp(-2.8 * dt));
+    camera.position.lerp(cameraDesired, 1 - Math.exp(-4.2 * dt));
     cameraTarget.set(
       camera.position.x + Math.sin(turn) * 220,
       camera.position.y + Math.sin(pitchRadians) * lookDistance,
