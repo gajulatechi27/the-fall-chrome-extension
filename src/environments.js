@@ -5,8 +5,8 @@ export const ENVIRONMENTS = [
     materialMix: { rock: [150, 230], grass: [-10, 85], dryGrass: [70, 125], sand: [-28, -8], snow: [520, 900] },
     water: { type: "river", level: -28, width: 110, color: "#4c9d9a" },
     vegetation: { types: ["meadow-grass", "deciduous-trees"], density: 0.55, clumpSize: 42 },
-    sun: { position: [-220, 95, -310], intensity: 1.65 }, sky: { horizon: "#a9c5d5", zenith: "#315675", sun: "#fff0d2" },
-    fog: { color: "#b5c9d0", density: 0.00009 }, clouds: { cover: 0.24, speed: 0.8 }, weather: "clear", particles: "pollen",
+    sun: { position: [-220, 95, -310], intensity: 2.455 }, sky: { horizon: "#a9c5d5", zenith: "#315675", sun: "#fff0d2" },
+    fog: { color: "#b5c9d0", density: 0.000075 }, clouds: { cover: 0.24, speed: 0.8 }, weather: "clear", particles: "pollen",
     camera: { altitude: 420, speed: 42 }, duration: 42
   },
   {
@@ -15,8 +15,8 @@ export const ENVIRONMENTS = [
     materialMix: { rock: [190, 320], grass: [-12, 55], dryGrass: [45, 105], sand: [-28, -10], snow: [600, 950] },
     water: { type: "river", level: -28, width: 180, color: "#4caaa5" },
     vegetation: { types: ["farmland", "hedgerows", "deciduous-trees"], density: 0.42, clumpSize: 68 },
-    sun: { position: [-90, 210, -340], intensity: 1.9 }, sky: { horizon: "#b9d0d5", zenith: "#426985", sun: "#fff0cf" },
-    fog: { color: "#b7cbd0", density: 0.000095 }, clouds: { cover: 0.22, speed: 0.9 }, weather: "clear", particles: "none",
+    sun: { position: [-90, 210, -340], intensity: 2.25 }, sky: { horizon: "#b9d0d5", zenith: "#426985", sun: "#fff0cf" },
+    fog: { color: "#b7cbd0", density: 0.000078 }, clouds: { cover: 0.22, speed: 0.9 }, weather: "clear", particles: "none",
     camera: { altitude: 390, speed: 44 }, duration: 42
   },
   {
@@ -25,8 +25,8 @@ export const ENVIRONMENTS = [
     materialMix: { rock: [95, 210], grass: [20, 85], dryGrass: [35, 115], sand: [-28, 24], snow: [900, 1400] },
     water: { type: "sea", level: -28, width: 30000, color: "#20aeb0" },
     vegetation: { types: ["palms", "coastal-grass"], density: 0.34, clumpSize: 55 },
-    sun: { position: [-260, 420, -310], intensity: 2.5 }, sky: { horizon: "#9fc8d9", zenith: "#244766", sun: "#ffdfb4" },
-    fog: { color: "#9fc8d9", density: 0.00012 }, clouds: { cover: 0.26, speed: 1.0 }, weather: "clear", particles: "sea-spray",
+    sun: { position: [-260, 420, -310], intensity: 2.8 }, sky: { horizon: "#9fc8d9", zenith: "#244766", sun: "#ffdfb4" },
+    fog: { color: "#9fc8d9", density: 0.0000820 }, clouds: { cover: 0.26, speed: 1.0 }, weather: "clear", particles: "sea-spray",
     camera: { altitude: 330, speed: 46 }, duration: 42
   },
   {
