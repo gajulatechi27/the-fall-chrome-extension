@@ -64,10 +64,10 @@ function mountainRelief(noise, x, z, ridgeWeight = 1, himalayan = false) {
     const glacialCut = Math.pow(Math.abs(noise(x * 0.00042 + 53, z * 0.00042 - 37)), 1.25);
     const massif = Math.max(0, noise(x * 0.00024 - 17, z * 0.00024 + 23) + 0.18);
     return (
-      Math.pow(Math.max(0, primary), 1.62) * 132 +
-      Math.pow(Math.max(0, secondary), 2.25) * 27 +
-      Math.pow(Math.max(0, fine), 2.8) * 6 +
-      massif * 38 + shoulder * 11 - glacialCut * 13
+      Math.pow(Math.max(0, primary), 1.72) * 112 +
+      Math.pow(Math.max(0, secondary), 2.35) * 19 +
+      Math.pow(Math.max(0, fine), 2.9) * 3 +
+      massif * 48 + shoulder * 9 - glacialCut * 11
     ) * ridgeWeight;
   }
   return (
@@ -534,10 +534,11 @@ export class Terrain {
 
   lodForDistance(distance) {
     const river = this.environment?.water?.type === "river";
-    if (distance < 400) return { segments: 128, ring: "near" };
-    if (distance < 1500) return { segments: 64, ring: "mid" };
-    if (distance < 5000) return { segments: river ? 64 : 48, ring: "far" };
-    return { segments: river ? 32 : 32, ring: "horizon" };
+    const himalayan = this.environment?.id === "himalayan-range";
+    if (distance < 400) return { segments: himalayan ? 192 : 128, ring: "near" };
+    if (distance < 1500) return { segments: himalayan ? 96 : 64, ring: "mid" };
+    if (distance < 5000) return { segments: himalayan ? 64 : river ? 64 : 48, ring: "far" };
+    return { segments: 32, ring: "horizon" };
   }
 
   ensureGrid(cameraX, cameraZ) {
