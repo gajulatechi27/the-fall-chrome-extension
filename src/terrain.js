@@ -77,25 +77,26 @@ float fallDetail(vec2 p){
       `#include <color_fragment>
 float fallSlope = 1.0 - clamp(abs(normalize(vFallWorldNormal).y), 0.0, 1.0);
 float fallHeight = vFallWorldPosition.y;
-float fallNoiseValue = fallDetail(vFallWorldPosition.xz * 0.018);
+float fallNoiseValue = fallDetail(vFallWorldPosition.xz * 0.012);
+float fallMicro = fallDetail(vFallWorldPosition.xz * 0.045);
 float fallWet = 1.0 - smoothstep(-34.0, -23.0, fallHeight + fallNoiseValue * 5.0);
 float fallDry = smoothstep(-31.0, -8.0, fallHeight + fallNoiseValue * 5.0);
 float fallGrass = smoothstep(-12.0, 24.0, fallHeight);
-float fallRock = smoothstep(0.22, 0.62, fallSlope);
+float fallRock = smoothstep(0.18 + fallMicro * 0.035, 0.56 + fallMicro * 0.035, fallSlope);
 float fallSnowLine = smoothstep(${snowLineLow.toFixed(1)} + fallNoiseValue * 18.0, ${snowLineHigh.toFixed(1)} + fallNoiseValue * 18.0, fallHeight);
-vec3 fallWetSand = vec3(0.34, 0.39, 0.34);
-vec3 fallDrySand = vec3(0.67, 0.53, 0.34);
-vec3 fallGrassColor = vec3(0.19, 0.32, 0.19);
-vec3 fallForestFloor = vec3(0.12, 0.22, 0.14);
-vec3 fallRockColor = vec3(0.31, 0.32, 0.31);
-vec3 fallSnowColor = vec3(0.78, 0.83, 0.86);
+vec3 fallWetSand = vec3(0.25, 0.32, 0.30);
+vec3 fallDrySand = vec3(0.62, 0.48, 0.31);
+vec3 fallGrassColor = vec3(0.16, 0.29, 0.17);
+vec3 fallForestFloor = vec3(0.095, 0.18, 0.12);
+vec3 fallRockColor = vec3(0.27, 0.29, 0.30);
+vec3 fallSnowColor = vec3(0.82, 0.87, 0.90);
 vec3 fallBiomeTint = ${paletteTint};
 vec3 fallGround = mix(fallWetSand, fallDrySand, fallDry);
 fallGround = mix(fallGround, fallGrassColor * fallBiomeTint, fallGrass);
 fallGround = mix(fallGround, fallForestFloor * fallBiomeTint, smoothstep(22.0, 58.0, fallHeight) * 0.35);
-fallGround = mix(fallGround, fallRockColor, fallRock);
+fallGround = mix(fallGround, fallRockColor * (0.94 + fallMicro * 0.12), fallRock);
 fallGround = mix(fallGround, fallSnowColor, fallSnowLine);
-fallGround *= 0.91 + fallNoiseValue * 0.42;
+fallGround *= 0.94 + fallNoiseValue * 0.16 + fallMicro * 0.055;
 diffuseColor.rgb = mix(diffuseColor.rgb, fallGround, 0.98);`
     );
   };
@@ -131,10 +132,18 @@ function makeChunk(noise, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, segment
       const dune = Math.max(0, noise(x * 0.0013, worldZ * 0.0011)) * 18;
       h = THREE.MathUtils.lerp(-100 + h * 0.12, 80 + h * 0.48 + headland + dune, coast);
     }
-    if (biome === "desert") h = h * 0.76 + Math.sin(warpX * 0.0022 + noise(0, warpZ * 0.001) * 2.0) * 13;
+    if (biome === "forest") {
+      const rolling = noise(warpX * 0.00034 + 31.0, warpZ * 0.00034 - 17.0);
+      const shoulder = noise(warpX * 0.00082 - 9.0, warpZ * 0.00082 + 23.0);
+      h += rolling * 24 + shoulder * 7;
+    }
+    if (biome === "desert") h = h * 0.76 + Math.sin(warpX * 0.0018 + noise(0, warpZ * 0.0008) * 1.6) * 10;
     if (biome === "mountains" || biome === "snow") {
-      const ridge = 1.0 - Math.abs(noise(warpX * 0.0012, warpZ * 0.0012));
-      h += Math.pow(Math.max(0, ridge), 2.2) * (biome === "snow" ? 95 : 62) * (environment?.terrain?.ridgeWeight == null ? 1 : environment.terrain.ridgeWeight);
+      const ridge = 1.0 - Math.abs(noise(warpX * 0.00105, warpZ * 0.00105));
+      const secondary = 1.0 - Math.abs(noise(warpX * 0.00215 + 13.0, warpZ * 0.00215 - 7.0));
+      const ridgeWeight = environment?.terrain?.ridgeWeight == null ? 1 : environment.terrain.ridgeWeight;
+      h += Math.pow(Math.max(0, ridge), 2.65) * (biome === "snow" ? 112 : 76) * ridgeWeight;
+      h += Math.pow(Math.max(0, secondary), 3.1) * (biome === "snow" ? 24 : 18) * ridgeWeight;
     }
     return h;
   };
@@ -501,15 +510,23 @@ export class Terrain {
       const dune = Math.max(0, this.noise(x * 0.0013, z * 0.0011)) * 18;
       h = THREE.MathUtils.lerp(-100 + h * 0.12, 80 + h * 0.48 + headland + dune, coast);
     }
+    if (this.biome === "forest") {
+      const rolling = this.noise(warpX * 0.00034 + 31.0, warpZ * 0.00034 - 17.0);
+      const shoulder = this.noise(warpX * 0.00082 - 9.0, warpZ * 0.00082 + 23.0);
+      h += rolling * 24 + shoulder * 7;
+    }
     if (this.biome === "desert") {
-      h = h * 0.76 + Math.sin(warpX * 0.0022 + this.noise(0, warpZ * 0.001) * 2.0) * 13;
+      h = h * 0.76 + Math.sin(warpX * 0.0018 + this.noise(0, warpZ * 0.0008) * 1.6) * 10;
     }
     if (this.biome === "mountains" || this.biome === "snow") {
-      const ridge = 1.0 - Math.abs(this.noise(warpX * 0.0012, warpZ * 0.0012));
+      const ridge = 1.0 - Math.abs(this.noise(warpX * 0.00105, warpZ * 0.00105));
+      const secondary = 1.0 - Math.abs(this.noise(warpX * 0.00215 + 13.0, warpZ * 0.00215 - 7.0));
       const ridgeWeight = this.environment?.terrain?.ridgeWeight == null
         ? 1 : this.environment.terrain.ridgeWeight;
-      h += Math.pow(Math.max(0, ridge), 2.2) *
-        (this.biome === "snow" ? 95 : 62) * ridgeWeight;
+      h += Math.pow(Math.max(0, ridge), 2.65) *
+        (this.biome === "snow" ? 112 : 76) * ridgeWeight;
+      h += Math.pow(Math.max(0, secondary), 3.1) *
+        (this.biome === "snow" ? 24 : 18) * ridgeWeight;
     }
     return h;
   }
