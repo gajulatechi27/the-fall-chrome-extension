@@ -692,11 +692,27 @@ export class Terrain {
       } else { h += rolling * 24 + shoulder * 7; }
     }
     if (this.biome === "desert") {
-      const duneField = warpZ * 0.00034 + this.noise(warpX * 0.00028, warpZ * 0.00016) * 1.25 +
-        Math.sin(warpX * 0.00022) * 0.38;
-      const broadDune = Math.sin(duneField) * 62 + Math.sin(duneField * 0.52 + 1.3) * 34;
-      const ripple = Math.sin(duneField * 3.7 + warpX * 0.00055) * 5;
-      h = h * 0.48 + broadDune + ripple;
+      // Wind-built dune systems: broad crescent-like ridges carry smaller,
+      // independently warped dunelets rather than repeating parallel waves.
+      const windWarp = this.noise(warpX * 0.00024 + 19.0, warpZ * 0.00018 - 7.0);
+      const duneField = warpZ * 0.00034 +
+        this.noise(warpX * 0.00028, warpZ * 0.00016) * 1.25 +
+        Math.sin(warpX * 0.00022 + windWarp * 1.4) * 0.38;
+      const broadDune = Math.sin(duneField) * 58 +
+        Math.sin(duneField * 0.52 + 1.3 + windWarp * 0.3) * 30;
+
+      // Medium and small dune trains break up the broad slopes at several
+      // scales. Noise modulation varies their height and prevents banding.
+      const duneletsField = duneField * 2.65 +
+        this.noise(warpX * 0.00072 + 41.0, warpZ * 0.00058) * 0.9;
+      const dunelets = Math.sin(duneletsField) *
+        (10 + this.noise(warpX * 0.0009, warpZ * 0.00075) * 4.5);
+      const smallDunesField = duneField * 6.2 +
+        this.noise(warpX * 0.00145 - 13.0, warpZ * 0.0012 + 29.0) * 0.65;
+      const smallDunes = Math.sin(smallDunesField) * 4.2;
+      const windRipples = Math.sin(duneField * 11.5 + warpX * 0.0011) * 1.35;
+
+      h = h * 0.32 + broadDune + dunelets + smallDunes + windRipples;
     }
     if (this.biome === "mountains" || this.biome === "snow") {
       const ridgeWeight = this.environment?.terrain?.ridgeWeight ?? 1;
