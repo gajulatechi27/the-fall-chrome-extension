@@ -59,14 +59,15 @@ function mountainRelief(noise, x, z, ridgeWeight = 1, himalayan = false) {
   const primary = 1 - Math.abs(noise(x * (himalayan ? 0.00082 : 0.00105), z * (himalayan ? 0.00082 : 0.00105)));
   const secondary = 1 - Math.abs(noise(x * 0.00215 + 13, z * 0.00215 - 7));
   if (himalayan) {
-    const fine = 1 - Math.abs(noise(x * 0.0039 - 29, z * 0.0039 + 41));
-    const shoulder = noise(x * 0.00031 + 7, z * 0.00031 - 11);
-    const glacialCut = Math.pow(Math.abs(noise(x * 0.00048 + 53, z * 0.00048 - 37)), 1.35);
+    const fine = 1 - Math.abs(noise(x * 0.0028 - 29, z * 0.0028 + 41));
+    const shoulder = noise(x * 0.00027 + 7, z * 0.00027 - 11);
+    const glacialCut = Math.pow(Math.abs(noise(x * 0.00042 + 53, z * 0.00042 - 37)), 1.25);
+    const massif = Math.max(0, noise(x * 0.00024 - 17, z * 0.00024 + 23) + 0.18);
     return (
-      Math.pow(Math.max(0, primary), 1.42) * 168 +
-      Math.pow(Math.max(0, secondary), 2.15) * 42 +
-      Math.pow(Math.max(0, fine), 2.6) * 15 +
-      shoulder * 13 - glacialCut * 19
+      Math.pow(Math.max(0, primary), 1.62) * 132 +
+      Math.pow(Math.max(0, secondary), 2.25) * 27 +
+      Math.pow(Math.max(0, fine), 2.8) * 6 +
+      massif * 38 + shoulder * 11 - glacialCut * 13
     ) * ridgeWeight;
   }
   return (
@@ -149,11 +150,11 @@ float fallDry = smoothstep(-31.0, -8.0, fallHeight + fallNoiseValue * 5.0);
 float fallGrass = smoothstep(-12.0, 24.0, fallHeight);
 float fallRock = smoothstep(0.18 + fallMicro * 0.035, 0.56 + fallMicro * 0.035, fallSlope);
 float fallSnowLine = smoothstep(${snowLineLow.toFixed(1)} + fallNoiseValue * 18.0, ${snowLineHigh.toFixed(1)} + fallNoiseValue * 18.0, fallHeight);
-float fallSnowCoverage = fallSnowLine * ${environment?.id === "himalayan-range" ? "(1.0 - smoothstep(0.48, 0.88, fallSlope) * 0.48)" : "1.0"};
+float fallSnowCoverage = fallSnowLine * ${environment?.id === "himalayan-range" ? "(1.0 - smoothstep(0.56, 0.94, fallSlope) * 0.34)" : "1.0"};
 vec3 fallWetSand = ${biome === "desert" ? "vec3(0.48, 0.34, 0.20)" : "vec3(0.34, 0.42, 0.39)"};
 vec3 fallDrySand = ${biome === "desert" ? "vec3(0.88, 0.62, 0.30)" : "vec3(0.72, 0.57, 0.37)"};
-vec3 fallGrassColor = ${biome === "desert" ? "vec3(0.79, 0.52, 0.23)" : "vec3(0.23, 0.39, 0.23)"};
-vec3 fallForestFloor = ${biome === "desert" ? "vec3(0.66, 0.43, 0.22)" : "vec3(0.14, 0.25, 0.17)"};
+vec3 fallGrassColor = ${biome === "desert" ? "vec3(0.79, 0.52, 0.23)" : biome === "snow" ? "vec3(0.31, 0.37, 0.32)" : "vec3(0.23, 0.39, 0.23)"};
+vec3 fallForestFloor = ${biome === "desert" ? "vec3(0.66, 0.43, 0.22)" : biome === "snow" ? "vec3(0.19, 0.23, 0.22)" : "vec3(0.14, 0.25, 0.17)"};
 vec3 fallRockColor = ${biome === "desert" ? "vec3(0.55, 0.37, 0.25)" : "vec3(0.37, 0.39, 0.40)"};
 vec3 fallSnowColor = vec3(0.91, 0.94, 0.97);
 vec3 fallBiomeTint = ${paletteTint};
@@ -410,7 +411,9 @@ function createFarRanges(scene, noise, environment = null) {
       for (let ix = 0; ix <= nx; ix++) {
         const x = -width * .5 + width * ix / nx;
         const z = depth * iz / nz;
-        const envelope = 0.24 + Math.sin(Math.PI * iz / nz) * 0.76;
+        // Fade each distant ridge mass into the atmospheric horizon instead
+        // of exposing a flat lower edge that reads as a detached mountain wall.
+        const envelope = Math.pow(Math.max(0, Math.sin(Math.PI * iz / nz)), 0.72);
         const r1 = 1.0 - Math.abs(noise(x * (.00027 + layer * .00003), z * .00024 + layer * 2.1));
         const r2 = 1.0 - Math.abs(noise(x * (.00071 + layer * .000035) + 17.0, z * .00061 - layer * 4.7));
         const r3 = 1.0 - Math.abs(noise(x * (.00155 + layer * .00005) - 9.0, z * .0012 + layer));
@@ -422,7 +425,7 @@ function createFarRanges(scene, noise, environment = null) {
             ? Math.pow(r1, 1.55) * 920 + Math.pow(r2, 2.15) * 310 + Math.pow(r3, 2.7) * 90
             : Math.pow(r1, 2.0) * 410 + Math.pow(r2, 2.15) * 165 + Math.pow(r3, 2.7) * 52;
         const base = (alpine || himalayan ? 118 : 72) + Math.sin(x * .00014 + layer) * (alpine || himalayan ? 34 : 26) + Math.sin(z * .00045 + layer) * 9;
-        const y = Math.max(12, (base + ridge) * envelope);
+        const y = Math.max(0.5, (base + ridge) * envelope);
         positions.push(x, y, z);
       }
     }
