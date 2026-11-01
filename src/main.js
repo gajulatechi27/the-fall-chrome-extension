@@ -33,7 +33,8 @@ const envAliases = {
   mounthills: "mountains", lake: "snow"
 };
 const requestedEnv = new URLSearchParams(location.search).get("env");
-const requestedSeed = Number(new URLSearchParams(location.search).get("seed"));
+const seedParam = new URLSearchParams(location.search).get("seed");
+const requestedSeed = seedParam === null ? Number.NaN : Number(seedParam);
 const startBelow = new URLSearchParams(location.search).get("start") === "below";
 const biomes = ["mountains", "desert", "islands", "forest", "snow"];
 const randSeed = () => Number.isFinite(requestedSeed) ? (requestedSeed >>> 0) : Math.floor(Math.random() * 0x7fffffff);
