@@ -2,7 +2,6 @@ import * as THREE from "three";
 import { createSky } from "./sky.js";
 import { CloudField } from "./clouds.js";
 import { Terrain } from "./terrain.js";
-import { Landmarks, themes } from "./landmarks.js";
 import { CinematicEffects } from "./effects.js";
 import "./style.css";
 
@@ -23,7 +22,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 0.1, 12000);
+const camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 1.5, 45000);
 camera.position.set(0, 3.4, 15.5);
 
 const cameraTarget = new THREE.Vector3();
@@ -38,7 +37,8 @@ const requestedSeed = seedParam === null ? Number.NaN : Number(seedParam);
 const startBelow = new URLSearchParams(location.search).get("start") === "below";
 const biomes = ["mountains", "desert", "islands", "forest", "snow"];
 const randSeed = () => Number.isFinite(requestedSeed) ? (requestedSeed >>> 0) : Math.floor(Math.random() * 0x7fffffff);
-let sky, clouds, terrain, landmarks, effects;
+let sky, clouds, terrain, effects;
+const assetFailures = window.__fallAssetFailures || [];
 let seed = 0, biome = "mountains", time = 0, altitude = 32000, speed = 90;
 let running = false, paused = false, transitioning = false, frame = 0, descentNumber = 0;
 let lastDebugLog = 0, fpsFrames = 0, fpsTime = 0, fps = 0;
@@ -78,8 +78,6 @@ function cleanup() {
   clouds = undefined;
   terrain?.dispose();
   terrain = undefined;
-  landmarks?.dispose();
-  landmarks = undefined;
   scene.clear();
 }
 
@@ -107,7 +105,11 @@ async function beginDescent() {
   scene.background = sky.horizonColor.clone();
   scene.fog = new THREE.FogExp2(sky.horizonColor, 0.000018);
   terrain = new Terrain(scene, seed, biome, route);
-  landmarks = new Landmarks(scene, seed, route);
+  // Terrain generation is synchronous. Do not begin the journey until the
+  // complete near-field runway and its bounds are available.
+  if (!terrain.isReady()) {
+    throw new Error("Terrain preload incomplete; refusing to start an empty-ground journey.");
+  }
   clouds = new CloudField(scene, seed);
   // The existing cloud artwork is preserved; position the bank across the
   // descent path so the camera physically passes through it.
@@ -144,7 +146,7 @@ function updateDebug(dt) {
   }
   if (time - lastDebugLog >= 1) {
     lastDebugLog = time;
-    const stats = terrain?.getDebugInfo?.() || {};
+    const stats = terrain?.getDebugInfo?.(camera) || {};
     console.info(
       "[THE FALL]",
       "biome:", biome,
@@ -157,14 +159,24 @@ function updateDebug(dt) {
     );
   }
   if (debugVisible) {
-    const stats = terrain?.getDebugInfo?.() || {};
+    const stats = terrain?.getDebugInfo?.(camera) || {};
+    stats.cameraGroundHeight = terrain?.sampleHeight(camera.position.x, camera.position.z) ?? null;
+    stats.cameraPitch = THREE.MathUtils.radToDeg(Math.asin(THREE.MathUtils.clamp(camera.getWorldDirection(new THREE.Vector3()).y, -1, 1)));
+    stats.safetyWarning = terrain?.hasChunkNear(camera.position.x, camera.position.z, 500) ? null : "HOLD — NO CHUNK WITHIN 500 m";
     debug.textContent =
       "THE FALL — DEBUG (D to hide)\n" +
       "Biome: " + biome + "\n" +
       "Seed: " + seed + "\n" +
       "Altitude: " + Math.round(altitude) + " m\n" +
       "Camera X/Z: " + camera.position.x.toFixed(1) + " / " + camera.position.z.toFixed(1) + "\n" +
-      "Chunks: " + (stats.chunkCount ?? 0) + "\n" +
+      "Terrain chunks: " + (stats.chunkCount ?? 0) + "\n" +
+      "Chunks under camera: " + (stats.chunksUnderCamera ?? 0) + "\n" +
+      "Terrain height at camera: " + (stats.cameraGroundHeight == null ? "OUTSIDE CHUNKS" : stats.cameraGroundHeight.toFixed(1) + " m") + "\n" +
+      "Camera altitude: " + camera.position.y.toFixed(1) + " m\n" +
+      "Camera pitch: " + (stats.cameraPitch ?? 0).toFixed(1) + " deg\n" +
+      "Ground objects: 0 (Stage 1)\n" +
+      "Asset failures: " + (assetFailures.length ? assetFailures.join(", ") : "none") + "\n" +
+      "Safety: " + (stats.safetyWarning || "OK") + "\n" +
       "Sea level: " + (stats.seaLevel == null ? "off" : stats.seaLevel.toFixed(1)) + "\n" +
       "Terrain min/max: " + (stats.minHeight ?? 0).toFixed(1) + " / " + (stats.maxHeight ?? 0).toFixed(1) + "\n" +
       "FPS: " + fps.toFixed(1);
@@ -200,12 +212,22 @@ function animate() {
     forwardZ + Math.sin(time * 0.8) * 0.18
   );
   camera.position.lerp(cameraDesired, 1 - Math.exp(-2.8 * dt));
+  const pitchRadians = THREE.MathUtils.degToRad(-28);
+  const lookDistance = 1200;
   cameraTarget.set(
-    camera.position.x + Math.sin(turn) * 28,
-    camera.position.y - 12,
-    camera.position.z - 48
+    camera.position.x + Math.sin(turn) * 220,
+    camera.position.y + Math.sin(pitchRadians) * lookDistance,
+    camera.position.z - Math.cos(pitchRadians) * lookDistance
   );
-  camera.lookAt(cameraTarget);
+  // Hold the camera if the terrain streamer ever loses the ground footprint.
+  const groundReady = terrain?.hasChunkNear(cameraDesired.x, cameraDesired.z, 500) ?? false;
+  if (groundReady) {
+    camera.position.lerp(cameraDesired, 1 - Math.exp(-2.8 * dt));
+    camera.lookAt(cameraTarget);
+  } else {
+    cameraDesired.copy(camera.position);
+    console.warn("[THE FALL] SAFETY HOLD: no terrain chunk within 500 m of camera footprint.");
+  }
 
   // Keep every subsystem isolated: one bad chunk must not stop the render loop.
   try { clouds?.update(dt, speed); } catch (error) { console.error("Cloud update failed", error); }
@@ -220,9 +242,8 @@ function animate() {
   }
   try {
     terrain?.update(dt, speed, altitude, camera);
-    if (landmarks) landmarks.group.position.x = camera.position.x * 0.82;
   } catch (error) { console.error("Terrain streaming update failed", error); }
-  try { landmarks?.update(dt, speed); } catch (error) { console.error("Landmark update failed", error); }
+
 
   if (scene.fog instanceof THREE.FogExp2) {
     scene.fog.density = THREE.MathUtils.lerp(0.000018, 0.00016, THREE.MathUtils.smoothstep(progress, 0.45, 1));
