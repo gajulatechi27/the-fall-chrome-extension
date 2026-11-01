@@ -2,11 +2,11 @@ import * as THREE from "three";
 import { createNoise2D } from "simplex-noise";
 
 const CHUNK_SIZE = 2500;
-const GRID_RADIUS = 4; // 9 x 9 chunks; smaller live set avoids frame stalls
+const GRID_RADIUS = 2; // 5 x 5 chunks: keep terrain generation and draw calls bounded
 const WATER_LEVEL = -12;
 const WATER_SIZE = 52000;
-const HIGH_SEGMENTS = 48;
-const MID_SEGMENTS = 24;
+const HIGH_SEGMENTS = 32;
+const MID_SEGMENTS = 16;
 const LOW_SEGMENTS = 8;
 const SKIRT_DEPTH = 55;
 const NORMAL_SAMPLE = 8;
@@ -259,13 +259,15 @@ function makeBlob(radius, seed) {
 }
 function makeTreeModels() {
   const pine = [];
-  pine.push(part(new THREE.CylinderGeometry(0.22, 0.32, 1.45, 6), 0, 0.73, 0));
-  for (let tier = 0; tier < 5; tier++) {
-    const h = 3.6 - tier * 0.27;
-    const r = 2.05 - tier * 0.31;
-    const y = 1.65 + tier * 2.75;
-    const g = new THREE.CylinderGeometry(0.035, r, h, 10 + (tier % 2) * 2, 1, false);
-    pine.push(part(g, 0, y, 0, 1, 1, 1, (tier % 2 ? 0.035 : -0.028)));
+  pine.push(part(new THREE.CylinderGeometry(0.22, 0.34, 5.8, 7), 0, 2.9, 0));
+  // Rounded, overlapping foliage clusters replace the repeated cone silhouette.
+  for (let tier = 0; tier < 7; tier++) {
+    const angle = tier * 2.399;
+    const radius = tier < 3 ? 1.15 : 1.65;
+    const y = 3.0 + (tier % 4) * 1.45;
+    const blob = makeBlob(2.0 + (tier % 3) * 0.28, 100 + tier);
+    pine.push(part(blob, Math.cos(angle) * radius, y, Math.sin(angle) * radius,
+      0.88 + (tier % 2) * 0.16, 0.78 + (tier % 3) * 0.12, 0.88 + (tier % 2) * 0.14));
   }
 
   const broad = [part(new THREE.CylinderGeometry(0.28, 0.42, 7.5, 8), 0, 3.75, 0)];
@@ -302,8 +304,8 @@ function addHillVegetation(mesh, noise, chunkX, chunkZ, biome) {
   const random = makeRandom((Math.abs(Math.floor(chunkX * 17 + chunkZ * 31)) ^ 0x5f3759df) >>> 0);
   const models = makeTreeModels();
   const palette = [0x315f3b, 0x477a45, 0x6b8b4b];
-  const target = 3000;
-  const mix = biome === "himalayas" ? [0.86, 0.10, 0.04] : [0.62, 0.28, 0.10];
+  const target = 850;
+  const mix = biome === "himalayas" ? [0.42, 0.48, 0.10] : [0.28, 0.58, 0.14];
   const counts = mix.map(v => Math.round(target * v));
   const dummy = new THREE.Object3D();
   const stats = { pine: 0, broadleaf: 0, bush: 0 };
