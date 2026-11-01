@@ -5,11 +5,11 @@ const CHUNK_SIZE = 2500;
 const GRID_RADIUS = 2; // 5 x 5 chunks: keep terrain generation and draw calls bounded
 const WATER_LEVEL = -12;
 const WATER_SIZE = 52000;
-const HIGH_SEGMENTS = 32;
-const MID_SEGMENTS = 16;
-const LOW_SEGMENTS = 8;
-const SKIRT_DEPTH = 55;
-const NORMAL_SAMPLE = 8;
+const HIGH_SEGMENTS = 128;
+const MID_SEGMENTS = 64;
+const LOW_SEGMENTS = 24;
+const SKIRT_DEPTH = 22;
+const NORMAL_SAMPLE = 5;
 
 function makeRandom(seed) {
   let s = seed >>> 0;
@@ -46,11 +46,14 @@ function terrainHeight(noise, x, z, biome) {
   const warpZ = warp1Z + noise((warp1X + 3100) * 0.00031, (warp1Z - 700) * 0.00031) * 115;
   let h = fbm(noise, warpX, warpZ) * 115;
   if (["himalayas", "mountains", "snow", "lake", "forest", "rainforest"].includes(biome)) {
-    const ridgeNoise = noise(warpX * (biome === "himalayas" ? 0.00036 : 0.00048), warpZ * (biome === "himalayas" ? 0.00036 : 0.00048));
-    const ridgeBase = smoothRidge(ridgeNoise, biome === "himalayas" ? 1.35 : 1.8);
+    const ridgeFreq = biome === "himalayas" ? 0.00031 : 0.00042;
+    const ridgeNoise = noise(warpX * ridgeFreq, warpZ * ridgeFreq);
+    const ridgeBase = smoothRidge(ridgeNoise, biome === "himalayas" ? 1.18 : 1.65);
+    const ridgeWarp = noise((warpX + 680) * 0.000105, (warpZ - 940) * 0.000105) * 260;
+    const ridgeSpine = Math.pow(Math.max(0, 1 - Math.abs(noise((warpX + ridgeWarp) * 0.00019, (warpZ - ridgeWarp * 0.55) * 0.00019))), 2.35);
     const ridgeDetail = smoothRidge(noise((warpX + 680) * 0.00021, (warpZ - 940) * 0.00021), 2.2);
-    const ridgeSlopeWeight = THREE.MathUtils.smoothstep(ridgeBase, 0.08, 0.72);
-    const ridges = smoothLimit(ridgeBase * 0.82 + ridgeDetail * ridgeSlopeWeight * 0.18, 0.92);
+    const ridgeSlopeWeight = THREE.MathUtils.smoothstep(ridgeBase, 0.06, 0.62);
+    const ridges = smoothLimit(ridgeBase * 0.58 + ridgeDetail * ridgeSlopeWeight * 0.12 + ridgeSpine * 0.30, 0.96);
     const rangeMask = biome === "lake"
       ? THREE.MathUtils.smoothstep(Math.hypot(x, z), 900, 3200)
       : 1;
@@ -59,7 +62,7 @@ function terrainHeight(noise, x, z, biome) {
     if (biome === "himalayas") {
       const secondary =  smoothRidge(noise((warpX + 1250) * 0.00029, (warpZ - 760) * 0.00029), 1.65);
       const spine =  smoothRidge(noise(warpX * 0.00017 + 13, warpZ * 0.00017 - 6), 3.2);
-      h += secondary * 185 + spine * 115;
+      h += secondary * 205 + spine * 155 + ridgeSpine * 145;
       const glacier =  smoothRidge(noise(warpX * 0.00019 + 8, warpZ * 0.00019 - 3), 5.5);
       h -= glacier * 105;
       h += smoothRidge(noise(warpX * 0.00038, warpZ * 0.00038), 2.5) * ridges * 9;
@@ -80,10 +83,17 @@ function terrainHeight(noise, x, z, biome) {
     h += Math.exp(-Math.pow((distance - width * 1.45) / 110, 2)) * 15;
   }
   if (biome === "desert") {
-    const dune = Math.sin(warpX * 0.00042 + noise(0, warpZ * 0.0002) * 2.8) * 58;
-    const crossDune = Math.sin(warpZ * 0.00028 + noise(warpX * 0.00012, 12) * 1.8) * 26;
-    const canyon =  smoothRidge(noise(warpX * 0.00017, warpZ * 0.00017), 2.8) * 145;
-    h = h * 0.72 + dune + crossDune + canyon;
+    const dunePhase = THREE.MathUtils.euclideanModulo(warpX * 0.00029 + noise(0, warpZ * 0.00016) * 0.17, 1);
+    const windward = THREE.MathUtils.clamp(dunePhase / 0.76, 0, 1);
+    const lee = THREE.MathUtils.clamp((1 - dunePhase) / 0.24, 0, 1);
+    const asymmetricDune = dunePhase < 0.76
+      ? Math.pow(windward, 0.82) * 2 - 1
+      : Math.pow(lee, 0.48) * 2 - 1;
+    const dune = asymmetricDune * 76;
+    const crossDune = Math.sin(warpZ * 0.00024 + noise(warpX * 0.00012, 12) * 1.8) * 18;
+    const ripple = Math.sin(warpX * 0.010 + warpZ * 0.0017) * 1.15 + Math.sin(warpX * 0.017 - warpZ * 0.0024) * 0.55;
+    const canyon = smoothRidge(noise(warpX * 0.00017, warpZ * 0.00017), 2.8) * 165;
+    h = h * 0.52 + dune + crossDune + ripple + canyon;
     h +=  smoothRidge(noise(warpX * 0.00011 + 7, warpZ * 0.00011 - 4), 4.5) * 105;
   }
   if (biome === "islands" || biome === "coast") {
@@ -160,11 +170,12 @@ float terrainNoise(vec2 p) {
   float materialGrain = (broadDetail - 0.5) * 0.12 + (mediumDetail - 0.5) * 0.10 + (fineDetail - 0.5) * 0.045;
   float dryPatch = smoothstep(0.56, 0.78, terrainNoise(terrainXZ * 0.0017 + 31.7));
   float rockMask = smoothstep(0.24, 0.62, vTerrainSlope);
+  float sandRipple = sin(vTerrainWorld.x * 0.075 + vTerrainWorld.z * 0.018) * 0.5 + sin(vTerrainWorld.x * 0.12 - vTerrainWorld.z * 0.027) * 0.25;
   if (uTerrainBiome < 0.5) {
     diffuseColor.rgb *= 0.94 + materialGrain;
   } else if (uTerrainBiome < 1.5) {
-    diffuseColor.rgb *= 0.91 + materialGrain * 0.8;
-    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.48,0.27,0.17), dryPatch * 0.13);
+    diffuseColor.rgb *= 0.98 + materialGrain * 0.55 + sandRipple * 0.035;
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.55,0.35,0.22), dryPatch * 0.10);
   } else if (uTerrainBiome < 2.5) {
     diffuseColor.rgb *= 0.93 + materialGrain;
     diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.64,0.53,0.37), dryPatch * 0.10);
@@ -415,8 +426,10 @@ function makeChunk(noise, chunkX, chunkZ, biome, segments) {
         color.lerp(new THREE.Color(0x354d43), valleyShade * 0.42);
       }
       if (["himalayas", "snow", "lake", "forest", "rainforest"].includes(biome)) {
-        const snowLine = (isHimalaya ? 285 : 225) + noise(wx * 0.001, wz * 0.001) * (isHimalaya ? 55 : 42);
-        color.lerp(snow, THREE.MathUtils.smoothstep(h, snowLine - 22, snowLine + 32));
+        const snowLine = (isHimalaya ? 315 : 225) + noise(wx * 0.00072, wz * 0.00072) * (isHimalaya ? 72 : 42);
+        const snowCoverage = THREE.MathUtils.smoothstep(h, snowLine - 34, snowLine + 28);
+        const exposedRock = THREE.MathUtils.smoothstep(slope, 0.34, 0.72);
+        color.lerp(snow, snowCoverage * (1 - exposedRock * 0.72));
       }
       if (biome === "lake" && Math.hypot(wx, wz) < 1080) color.lerp(grass, 0.35);
       if (biome === "green") {
@@ -454,11 +467,11 @@ function makeChunk(noise, chunkX, chunkZ, biome, segments) {
   for (const [a, b] of edgePairs) {
     const sa = positions.length / 3;
     positions.push(positions[a * 3], positions[a * 3 + 1] - SKIRT_DEPTH, positions[a * 3 + 2]);
-    colors.push(colors[a * 3] * .82, colors[a * 3 + 1] * .82, colors[a * 3 + 2] * .82);
+    colors.push(colors[a * 3], colors[a * 3 + 1], colors[a * 3 + 2]);
     normals.push(normals[a * 3], normals[a * 3 + 1], normals[a * 3 + 2]);
     const sb = positions.length / 3;
     positions.push(positions[b * 3], positions[b * 3 + 1] - SKIRT_DEPTH, positions[b * 3 + 2]);
-    colors.push(colors[b * 3] * .82, colors[b * 3 + 1] * .82, colors[b * 3 + 2] * .82);
+    colors.push(colors[b * 3], colors[b * 3 + 1], colors[b * 3 + 2]);
     normals.push(normals[b * 3], normals[b * 3 + 1], normals[b * 3 + 2]);
     indices.push(a, sa, b, b, sa, sb);
   }
