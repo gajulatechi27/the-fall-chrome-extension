@@ -97,7 +97,7 @@ export function createVegetation({ seed, biome, environment, xOffset, chunkZ, ch
 
   const density = THREE.MathUtils.clamp(environment?.vegetation?.density ?? 0.3, 0.08, 0.8);
   const lodFactor = segments >= 128 ? 1 : segments >= 64 ? 0.62 : 0.2;
-  const targetCount = Math.round((desert ? 34 : biome === "snow" ? 150 : environment?.id === "green-hills" ? 190 : 112) * density * lodFactor);
+  const targetCount = Math.round((desert ? 34 : biome === "snow" ? 150 : environment?.id === "green-hills" ? 245 : 112) * density * lodFactor);
 
   const random = seededRandom(hashChunk(seed, xOffset, chunkZ));
   const shrubGeometry = desert ? new THREE.DodecahedronGeometry(1, 0) : treeGeometry;
@@ -134,7 +134,7 @@ export function createVegetation({ seed, biome, environment, xOffset, chunkZ, ch
     if (environment?.water?.type === "river" && worldHeight < seaLevel + 78) continue;
     if (random() < 0.09) continue;
 
-    const scale = desert ? 0.8 + random() * 1.15 : environment?.id === "green-hills" ? 4.6 + random() * 3.0 : (biome === "snow" ? 3.0 : 3.1) + random() * (biome === "snow" ? 2.1 : 2.4);
+    const scale = desert ? 0.8 + random() * 1.15 : environment?.id === "green-hills" ? 6.0 + random() * 3.2 : (biome === "snow" ? 3.0 : 3.1) + random() * (biome === "snow" ? 2.1 : 2.4);
     dummy.position.set(x, worldHeight, z);
     dummy.rotation.set(0, random() * Math.PI * 2, 0);
     dummy.scale.set(scale * (0.82 + random() * 0.34), scale, scale * (0.82 + random() * 0.34));
