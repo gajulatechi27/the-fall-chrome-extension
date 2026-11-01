@@ -44,7 +44,6 @@ export class JourneyPath {
     this.nodes = points;
     this.curve = new THREE.CatmullRomCurve3(points, false, "catmullrom", 0.35);
     this.curve.arcLengthDivisions = Math.max(200, points.length * 20);
-    this.curve.updateArcLengths();
     if (this.line) {
       this.group.remove(this.line);
       this.line.geometry.dispose();
@@ -70,10 +69,10 @@ export class JourneyPath {
 
   getAt(distance) {
     this.ensureAhead(distance);
-    const local = THREE.MathUtils.clamp(distance - this.startDistance, 0, this.endDistance - this.startDistance);
-    const t = local / (this.endDistance - this.startDistance);
-    const point = this.curve.getPointAt(t);
-    const tangent = this.curve.getTangentAt(t).normalize();
+    const local = THREE.MathUtils.clamp(distance - (this.startDistance - NODE_SPACING), 0, this.endDistance - this.startDistance + NODE_SPACING * 2);
+    const t = local / (this.endDistance - this.startDistance + NODE_SPACING * 2);
+    const point = this.curve.getPoint(t);
+    const tangent = this.curve.getTangent(t).normalize();
     return { point, tangent, curvature: this.getCurvature(distance) };
   }
 
@@ -84,8 +83,8 @@ export class JourneyPath {
   }
 
   getTangent(distance) {
-    const local = THREE.MathUtils.clamp(distance - this.startDistance, 0, this.endDistance - this.startDistance);
-    return this.curve.getTangentAt(local / (this.endDistance - this.startDistance)).normalize();
+    const local = THREE.MathUtils.clamp(distance - (this.startDistance - NODE_SPACING), 0, this.endDistance - this.startDistance + NODE_SPACING * 2);
+    return this.curve.getTangent(local / (this.endDistance - this.startDistance + NODE_SPACING * 2)).normalize();
   }
 
   dispose() {
