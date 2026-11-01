@@ -59,6 +59,20 @@ const treeMaterial = new THREE.MeshStandardMaterial({
   metalness: 0
 });
 
+const meadowGrassGeometry = (() => {
+  const blade = new THREE.BufferGeometry();
+  blade.setAttribute("position", new THREE.Float32BufferAttribute([
+    -0.22, 0, 0, 0.22, 0, 0, 0.015, 1.35, 0,
+    0, 0, -0.22, 0, 0, 0.22, 0, 1.35, 0.015
+  ], 3));
+  blade.setIndex([0, 1, 2, 3, 4, 5]);
+  blade.computeVertexNormals();
+  return blade;
+})();
+const meadowGrassMaterial = new THREE.MeshStandardMaterial({
+  color: 0xffffff, vertexColors: true, roughness: 1, side: THREE.DoubleSide
+});
+
 function seededRandom(seed) {
   let state = seed >>> 0;
   return () => {
@@ -78,17 +92,17 @@ export function createVegetation({ seed, biome, environment, xOffset, chunkZ, ch
   const types = environment?.vegetation?.types || [];
   const desert = biome === "desert" && types.includes("desert-shrub");
   const supportsTrees = types.includes("pine") || types.includes("deciduous-trees");
-  if ((!supportsTrees && !desert) || (!desert && biome !== "forest" && biome !== "snow") || segments < 32) return null;
+  const supportsMeadowGrass = types.includes("meadow-grass") && environment?.id === "green-hills";
+  if ((!supportsTrees && !desert && !supportsMeadowGrass) || (!desert && biome !== "forest" && biome !== "snow") || segments < 32) return null;
 
   const density = THREE.MathUtils.clamp(environment?.vegetation?.density ?? 0.3, 0.08, 0.8);
   const lodFactor = segments >= 128 ? 1 : segments >= 64 ? 0.62 : 0.2;
   const targetCount = Math.round((desert ? 34 : biome === "snow" ? 150 : 112) * density * lodFactor);
-  if (targetCount < 1) return null;
 
   const random = seededRandom(hashChunk(seed, xOffset, chunkZ));
   const shrubGeometry = desert ? new THREE.DodecahedronGeometry(1, 0) : treeGeometry;
   const shrubMaterial = desert ? new THREE.MeshStandardMaterial({ color: 0x9b7542, roughness: 1 }) : treeMaterial;
-  const instances = new THREE.InstancedMesh(shrubGeometry, shrubMaterial, targetCount);
+  const instances = new THREE.InstancedMesh(shrubGeometry, shrubMaterial, Math.max(1, targetCount));
   instances.name = "procedural-vegetation";
   instances.frustumCulled = false;
   const dummy = new THREE.Object3D();
@@ -137,10 +151,48 @@ export function createVegetation({ seed, biome, environment, xOffset, chunkZ, ch
     placed++;
   }
 
-  if (placed === 0) return null;
-  instances.count = placed;
-  instances.instanceMatrix.needsUpdate = true;
-  if (instances.instanceColor) instances.instanceColor.needsUpdate = true;
-  instances.computeBoundingSphere();
-  return instances;
+  const group = new THREE.Group();
+  if (placed > 0) {
+    instances.count = placed;
+    instances.instanceMatrix.needsUpdate = true;
+    if (instances.instanceColor) instances.instanceColor.needsUpdate = true;
+    instances.computeBoundingSphere();
+    group.add(instances);
+  }
+
+  if (supportsMeadowGrass) {
+    const grassCount = Math.round(720 * density * lodFactor * (environment?.vegetation?.grassDensity ?? 1));
+    const grass = new THREE.InstancedMesh(meadowGrassGeometry, meadowGrassMaterial, grassCount);
+    grass.name = "meadow-grass";
+    grass.frustumCulled = false;
+    let grassPlaced = 0;
+    for (let attempt = 0; attempt < grassCount * 3 && grassPlaced < grassCount; attempt++) {
+      const x = (random() - 0.5) * chunkSize * 0.96;
+      const z = (random() - 0.5) * chunkSize * 0.96;
+      const worldX = xOffset + x;
+      const worldZ = chunkZ + z;
+      const height = heightAt(worldX, worldZ);
+      if (20 + height < seaLevel + 82) continue;
+      const sample = 28;
+      const dx = heightAt(worldX + sample, worldZ) - heightAt(worldX - sample, worldZ);
+      const dz = heightAt(worldX, worldZ + sample) - heightAt(worldX, worldZ - sample);
+      if (Math.hypot(dx, dz) / (sample * 2) > 0.34) continue;
+      if (random() < 0.22) continue;
+      const scale = 1.1 + random() * 1.8;
+      dummy.position.set(x, 20 + height, z);
+      dummy.rotation.set(0, random() * Math.PI * 2, 0);
+      dummy.scale.set(scale, scale, scale);
+      dummy.updateMatrix();
+      grass.setMatrixAt(grassPlaced, dummy.matrix);
+      tint.setHSL(0.25 + random() * 0.08, 0.48 + random() * 0.18, 0.31 + random() * 0.18);
+      grass.setColorAt(grassPlaced, tint);
+      grassPlaced++;
+    }
+    grass.count = grassPlaced;
+    grass.instanceMatrix.needsUpdate = true;
+    if (grass.instanceColor) grass.instanceColor.needsUpdate = true;
+    grass.computeBoundingSphere();
+    if (grassPlaced > 0) group.add(grass);
+  }
+  return group.children.length ? group : null;
 }
