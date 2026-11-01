@@ -240,6 +240,11 @@ function animate() {
   fpsElapsed += dt;
   if (fpsElapsed >= 0.5) { fps = fpsFrames / fpsElapsed; fpsFrames = 0; fpsElapsed = 0; }
   const stats = terrain?.getDebugInfo?.() || {};
+  if (vegetationStatsEl) {
+    const v = stats.vegetation || {};
+    vegetationStatsEl.textContent = "Vegetation instances — Total: " + (v.total || 0) +
+      " | Pine: " + (v.pine || 0) + " | Broadleaf: " + (v.broadleaf || 0) + " | Bush: " + (v.bush || 0);
+  }
   if (debugVisible) {
     debug.textContent =
       "THE FALL — FLIGHT DEBUG (D to hide) | " + (testMode ? "DEV TEST" : "NORMAL") + "\n" +
