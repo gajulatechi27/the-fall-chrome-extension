@@ -471,7 +471,7 @@ export class Terrain {
             const distance = Math.hypot(gx, gz) * CHUNK_SIZE;
             const segments = distance < CHUNK_SIZE * 0.9 ? HIGH_SEGMENTS : this.lodForDistance(distance);
             const chunk = makeChunk(this.noise, x, z, this.biome, segments);
-                    this.group.add(chunk);
+            this.group.add(chunk);
             this.chunks.set(key, chunk);
             this.applyChunkDebug(chunk);
           }
@@ -480,6 +480,11 @@ export class Terrain {
       for (const [key, chunk] of this.chunks) {
         if (!wanted.has(key)) {
           this.group.remove(chunk);
+          if (chunk.userData.border) {
+            this.group.remove(chunk.userData.border);
+            chunk.userData.border.geometry.dispose();
+            chunk.userData.border.material.dispose();
+          }
           disposeChunk(chunk);
           this.chunks.delete(key);
         }
