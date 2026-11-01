@@ -259,6 +259,29 @@ function animate() {
   }
 }
 
+
+if (testMode) {
+ const panel=document.createElement("section"); panel.id="dev-test-panel";
+ panel.innerHTML='<strong>DEV TEST MODE</strong><label>Scene<select id="dt-scene"><option value="himalaya">Himalaya</option><option value="hills">Hills</option><option value="river">River</option><option value="lake">Lake</option><option value="coast">Coast</option><option value="desert">Desert</option><option value="forest">Forest</option><option value="rainforest">Rainforest</option></select></label><label>Seed<input id="dt-seed" type="number"></label><label>Time<select id="dt-time"><option>dawn</option><option>noon</option><option>sunset</option><option>night</option></select></label><label>Weather<select id="dt-weather"><option>clear</option><option>clouds</option><option>mist</option><option>rain</option><option>storm</option></select></label><label>Speed<input id="dt-speed" type="number" min="0" max="250"></label><label class="dt-check"><input id="dt-freeze" type="checkbox"> Freeze viewpoint</label><button id="dt-apply">Apply live</button><button id="dt-copy">Copy settings</button>';
+ document.body.appendChild(panel);
+ const el=id=>panel.querySelector("#dt-"+id);
+ el("scene").value=testSettings.scene; el("seed").value=testSettings.seed; el("time").value=testSettings.time; el("weather").value=testSettings.weather; el("speed").value=testSettings.speed??""; el("freeze").checked=testSettings.freeze;
+ let open=false;
+ document.addEventListener("keydown",event=>{if(event.key.toLowerCase()==="t"&&!event.repeat){open=!open;panel.classList.toggle("open",open);}});
+ el("apply").addEventListener("click",()=>{
+  testSettings.scene=el("scene").value; testSettings.seed=Number(el("seed").value)||1; testSettings.time=el("time").value; testSettings.weather=el("weather").value; testSettings.speed=el("speed").value===""?null:Math.max(0,Number(el("speed").value)); testSettings.freeze=el("freeze").checked;
+  const selected=sceneTypes.find(item=>item.id===sceneAliases[testSettings.scene])||sceneTypes[1]; const x=camera.position.x,z=camera.position.z;
+  disposeScene(); camera.position.set(x,0,z); camera.rotation.set(0,0,0); createScene(selected,testSettings.seed,weatherParam(testSettings.weather));
+  if(testSettings.freeze){camera.position.y=Math.max(terrain.getHeightAt(x,z)+80,terrain.getWaterLevel()+40);camera.lookAt(x+1350,camera.position.y-Math.tan(THREE.MathUtils.degToRad(25))*1350,z-1350);speed=testSettings.speed??0;}
+ });
+ el("copy").addEventListener("click",async()=>{
+  const q=new URLSearchParams({scene:testSettings.scene,seed:String(testSettings.seed),time:testSettings.time,weather:testSettings.weather,freeze:testSettings.freeze?"1":"0"});
+  if(testSettings.speed!==null)q.set("speed",String(testSettings.speed));
+  const url=location.origin+location.pathname+"?"+q.toString();
+  try{await navigator.clipboard.writeText(url);el("copy").textContent="Copied!";}catch{window.prompt("Copy test URL:",url);}
+ });
+}
+
 const clock = sceneClock;
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
