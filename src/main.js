@@ -30,7 +30,7 @@ const cameraTarget = new THREE.Vector3();
 const cameraDesired = new THREE.Vector3();
 const params = new URLSearchParams(location.search);
 const requestedEnv = params.get("env");
-const playlistEnabled = params.get("playlist") === "1" || !requestedEnv;
+const playlistEnabled = params.get("playlist") === "1" || (!requestedEnv && params.get("playlist") !== "0");
 const skipOnLoad = params.get("skip") === "1";
 const seedParam = new URLSearchParams(location.search).get("seed");
 const requestedSeed = seedParam === null ? Number.NaN : Number(seedParam);
@@ -42,7 +42,7 @@ window.__fallAssetFailures ||= [];
 const assetFailures = window.__fallAssetFailures;
 let seed = 0, biome = "forest", time = 0, altitude = 32000, speed = 90;
 let activeEnvironment = null, sequenceIndex = -1, orderMode = "In order";
-let preloadedTerrain = null, preloadedIndex = -1, transitionStarted = false;
+let preloadedTerrain = null, preloadedIndex = -1, transitionStarted = false, transitionState = "idle";
 const directEnvironment = resolveEnvironment(requestedEnv);
 let running = false, paused = false, transitioning = false, frame = 0, descentNumber = 0;
 let lastDebugLog = 0, fpsFrames = 0, fpsTime = 0, fps = 0;
@@ -82,13 +82,19 @@ async function savePlaylistState() {
 }
 
 function nextIndex(from = sequenceIndex) {
+  if (ENVIRONMENTS.length < 2) return from;
   if (orderMode === "Shuffle") {
-    if (ENVIRONMENTS.length < 2) return from;
-    let next = from;
-    while (next === from) next = Math.floor(Math.random() * ENVIRONMENTS.length);
-    return next;
+    const choices = ENVIRONMENTS.map((_, index) => index).filter(index => index !== from);
+    return choices[Math.floor(Math.random() * choices.length)];
   }
   return (from + 1) % ENVIRONMENTS.length;
+}
+
+function withEightSecondTimeout(promise, label) {
+  let timer;
+  return Promise.race([Promise.resolve(promise), new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(label + " timed out after 8 seconds")), 8000);
+  })]).finally(() => clearTimeout(timer));
 }
 
 function createTerrainFor(config, terrainSeed, visible = true) {
@@ -127,7 +133,7 @@ async function activateLandscape(index, stagedTerrain = null) {
   landscapeLabel.textContent = config.name;
   landscapeLabel.style.opacity = "1";
   await savePlaylistState();
-  running = true; paused = false; transitioning = false; transitionStarted = false;
+  running = true; paused = false; transitionStarted = false;
   fpsFrames = 0; fpsTime = 0; lastDebugLog = 0;
   clock.start();
   animate();
