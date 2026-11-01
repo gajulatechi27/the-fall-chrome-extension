@@ -64,7 +64,12 @@ export function createSky(scene, renderer, seed) {
       pmrem.dispose();
     },
     undefined,
-    () => console.info("Optional local HDRI not found; blue atmospheric gradient remains active.")
+    () => {
+      const message = "/assets/toposcope_sunset_1k.hdr (optional HDRI)";
+      window.__fallAssetFailures ||= [];
+      window.__fallAssetFailures.push(message);
+      console.warn("Optional local HDRI failed; procedural sky fallback remains active:", message);
+    }
   );
 
   return {
