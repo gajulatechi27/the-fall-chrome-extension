@@ -37,3 +37,26 @@ The renderer caps pixel ratio at 1.5 on desktop and 1 on narrow screens. Wind pa
 ## Roadmap
 - Next: improve landmark realism, terrain blending, cloud volume and scene transitions based on real device screenshots.
 - Dashboard and settings are intentionally not included in this build.
+
+
+## Standalone travel discovery website
+
+The existing Chrome New Tab experience remains the root entry at `/`. A separate web experience is available at `/travel.html` and is built alongside the extension by Vite's multi-page HTML entry discovery.
+
+### Current web experience
+- Cinematic destination-led landing page with responsive editorial layouts.
+- Destination discovery cards and category filters.
+- Save destinations locally in the browser.
+- Trip outline builder with destination, dates, duration, travel style and budget preferences.
+- Generates a local sample itinerary draft that can be copied; it does not claim live prices, availability or bookings.
+- No backend or external booking integrations are connected yet.
+
+### Planned platform architecture
+- **Presentation:** standalone Vite web entry (`travel.html`) with its own CSS and browser interactions, isolated from the extension entry.
+- **Destination domain:** destination records, media, highlights, seasons, access notes and verified travel facts.
+- **Experience layer:** cinematic 3D destination scenes reusing the existing Three.js terrain, sky, clouds and post-processing modules where appropriate.
+- **Trip planning:** saved trip drafts, itinerary days, budget estimates and traveller preferences.
+- **Data and integrations (future):** a documented API boundary for verified destination content, maps/routing, weather, lodging and transport providers. Live prices and bookings must come from connected providers, never from demo values.
+
+### Local preview
+Run `npm install` and `npm run dev`, then open `http://localhost:5173/travel.html`. The existing extension preview remains at `http://localhost:5173/`.
