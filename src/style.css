@@ -15,3 +15,8 @@ html,body{margin:0;padding:0;width:100%;height:100%;min-width:0;min-height:0;ove
 #dev-test-panel .dt-check{display:flex;align-items:center;gap:7px}
 #dev-test-panel .dt-check input{width:auto}
 #dev-test-panel button{padding:7px;border:0;border-radius:5px;background:#247ca4;color:#fff;font-weight:600;cursor:pointer}
+
+#fall-mute{position:fixed;right:14px;bottom:14px;z-index:40;padding:8px 11px;border:1px solid rgba(220,240,255,.35);border-radius:999px;background:rgba(5,16,26,.48);color:#edf7ff;font:600 10px/1 system-ui,sans-serif;letter-spacing:.12em;cursor:pointer;backdrop-filter:blur(8px)}
+#fall-mute:hover{background:rgba(5,16,26,.72)}
+#weather-whiteout{position:fixed;inset:0;z-index:20;background:rgba(230,242,245,.9);opacity:0;pointer-events:none;transition:opacity .12s linear}
+#dev-test-panel{z-index:50}
