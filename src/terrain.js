@@ -275,6 +275,27 @@ export class Terrain {
       this.chunks.push(chunk);
     }
 
+    this.river = null;
+    if (["green", "forest", "delta"].includes(biome)) {
+      const riverPositions = [];
+      const riverIndices = [];
+      const segments = 180;
+      const width = biome === "delta" ? 125 : 78;
+      for (let i = 0; i <= segments; i++) {
+        const z = -CHUNK_SIZE * 4 + (CHUNK_SIZE * 4 * i) / segments;
+        const center = Math.sin(z * 0.00072 + this.noise(80, z * 0.0004) * 1.7) * 245;
+        riverPositions.push(center - width, WATER_LEVEL, z, center + width, WATER_LEVEL, z);
+        if (i < segments) { const a = i * 2; riverIndices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+      }
+      const riverGeometry = new THREE.BufferGeometry();
+      riverGeometry.setAttribute("position", new THREE.Float32BufferAttribute(riverPositions, 3));
+      riverGeometry.setIndex(riverIndices);
+      riverGeometry.computeVertexNormals();
+      const riverMaterial = new THREE.MeshBasicMaterial({ color: biome === "delta" ? 0x287f9b : 0x328fa4, side: THREE.DoubleSide });
+      this.river = new THREE.Mesh(riverGeometry, riverMaterial);
+      this.group.add(this.river);
+    }
+
     this.water = null;
     if (["islands", "coast", "lake"].includes(biome)) {
       const geometry = new THREE.PlaneGeometry(biome === "lake" ? 760 : WATER_SIZE, biome === "lake" ? 760 : WATER_SIZE, 1, 1);
@@ -326,6 +347,7 @@ export class Terrain {
       chunk.material.dispose();
     }
     this.group.parent?.remove(this.group);
+    if (this.river) { this.river.geometry.dispose(); this.river.material.dispose(); }
     if (this.water) {
       this.scene.remove(this.water);
       this.water.geometry.dispose();
