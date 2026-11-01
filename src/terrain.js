@@ -830,7 +830,7 @@ export class Terrain {
     return this.chunks.length !== GRID_DIAMETER * GRID_DIAMETER;
   }
 
-  hasCoverage(radius = 20000) {
+  hasCoverage(radius = 14000) {
     const step = 1500;
     for (let a = 0; a < 360; a += 15) {
       const r = a * Math.PI / 180;
@@ -862,7 +862,7 @@ export class Terrain {
       camera.position.z <= this.group.position.z + c.position.z + this.chunkSize * .5).length : 0;
     return {
       chunkCount: this.chunks.length, chunksUnderCamera,
-      ringCounts: { ...this.ringCounts }, coverage20km: this.hasCoverage(20000),
+      ringCounts: { ...this.ringCounts }, coverage14km: this.hasCoverage(14000),
       chunkGapWarning: this.hasChunkGaps(),
       seaLevel: this.seaLevel, waterEnabled: Boolean(this.water), waterTerrainClipping: Boolean(this.water?.geometry?.attributes?.terrainHeight),
       minHeight: Math.min(...this.chunks.map(c => c.userData.minHeight ?? Infinity)),
