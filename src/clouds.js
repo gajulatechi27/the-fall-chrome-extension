@@ -49,8 +49,8 @@ export class CloudField {
 
     // Two narrow altitude bands: 3000–3500 m and 1500–1800 m.
     const bands = [
-      { y: 325, count: 8, opacity: 0.12, width: [100, 205] },
-      { y: 165, count: 6, opacity: 0.15, width: [85, 175] }
+      { y: 325, count: 6, opacity: 0.09, width: [75, 155] },
+      { y: 165, count: 5, opacity: 0.11, width: [65, 135] }
     ];
     for (const band of bands) {
       for (let i = 0; i < band.count; i++) {
@@ -58,7 +58,7 @@ export class CloudField {
           map: this.texture,
           color: i % 3 === 0 ? 0xffffff : 0xdceafa,
           transparent: true,
-          opacity: band.opacity + random() * 0.035,
+          opacity: band.opacity + random() * 0.02,
           depthWrite: false,
           depthTest: true
         });
@@ -68,7 +68,7 @@ export class CloudField {
         sprite.userData.bandY = band.y;
         sprite.userData.phase = random() * Math.PI * 2;
         sprite.userData.drift = 3 + random() * 7;
-        sprite.userData.radius = 260 + random() * 650;
+        sprite.userData.radius = 360 + random() * 650;
         sprite.userData.depth = 420 + random() * 1050;
         this.group.add(sprite);
         this.clouds.push(sprite);
@@ -80,7 +80,7 @@ export class CloudField {
     const cameraY = camera?.position.y ?? 0;
     for (const cloud of this.clouds) {
       const bandY = cloud.userData.bandY;
-      const inBand = Math.abs(cameraY - bandY) < 105;
+      const inBand = Math.abs(cameraY - bandY) < 42;
       const phase = cloud.userData.phase;
       cloud.visible = inBand;
       if (!inBand) continue;
