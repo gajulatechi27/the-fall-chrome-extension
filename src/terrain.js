@@ -129,11 +129,11 @@ float fallDry = smoothstep(-31.0, -8.0, fallHeight + fallNoiseValue * 5.0);
 float fallGrass = smoothstep(-12.0, 24.0, fallHeight);
 float fallRock = smoothstep(0.18 + fallMicro * 0.035, 0.56 + fallMicro * 0.035, fallSlope);
 float fallSnowLine = smoothstep(${snowLineLow.toFixed(1)} + fallNoiseValue * 18.0, ${snowLineHigh.toFixed(1)} + fallNoiseValue * 18.0, fallHeight);
-vec3 fallWetSand = vec3(0.34, 0.42, 0.39);
-vec3 fallDrySand = vec3(0.72, 0.57, 0.37);
-vec3 fallGrassColor = vec3(0.23, 0.39, 0.23);
-vec3 fallForestFloor = vec3(0.14, 0.25, 0.17);
-vec3 fallRockColor = vec3(0.37, 0.39, 0.40);
+vec3 fallWetSand = ${biome === "desert" ? "vec3(0.48, 0.34, 0.20)" : "vec3(0.34, 0.42, 0.39)"};
+vec3 fallDrySand = ${biome === "desert" ? "vec3(0.88, 0.62, 0.30)" : "vec3(0.72, 0.57, 0.37)"};
+vec3 fallGrassColor = ${biome === "desert" ? "vec3(0.79, 0.52, 0.23)" : "vec3(0.23, 0.39, 0.23)"};
+vec3 fallForestFloor = ${biome === "desert" ? "vec3(0.66, 0.43, 0.22)" : "vec3(0.14, 0.25, 0.17)"};
+vec3 fallRockColor = ${biome === "desert" ? "vec3(0.55, 0.37, 0.25)" : "vec3(0.37, 0.39, 0.40)"};
 vec3 fallSnowColor = vec3(0.91, 0.94, 0.97);
 vec3 fallBiomeTint = ${paletteTint};
 vec3 fallGround = mix(fallWetSand, fallDrySand, fallDry);
@@ -145,7 +145,7 @@ fallGround *= 1.04 + fallNoiseValue * 0.12 + fallMicro * 0.04;
 diffuseColor.rgb = mix(diffuseColor.rgb, fallGround, 0.98);`
     );
   };
-  material.customProgramCacheKey = () => "the-fall-terrain-shore-v2-" + biome + "-" + (environment?.paletteTint || "default") + "-" + (environment?.materialMix?.snow?.[0] || 145);
+  material.customProgramCacheKey = () => "the-fall-terrain-shore-v3-" + biome + "-" + (environment?.paletteTint || "default") + "-" + (environment?.materialMix?.snow?.[0] || 145);
 }
 
 function makeChunk(noise, seed, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, segments = SEGMENTS, environment = null) {
