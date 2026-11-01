@@ -47,32 +47,35 @@ export class CloudField {
       return state / 4294967296;
     };
 
-    // Two narrow altitude bands: 3000–3500 m and 1500–1800 m.
-    const dense = weather === "heavy clouds" || weather === "storm" || weather === "rain";
+    // Three camera-relative cloud decks; they pass around the viewer instead of
+    // requiring the camera to cross fixed world-space altitude bands.
+    const stormy = weather === "heavy clouds" || weather === "storm" || weather === "rain";
     const bands = [
-      { y: 325, count: dense ? 14 : 9, opacity: dense ? 0.22 : 0.13, width: [95, 205] },
-      { y: 165, count: dense || weather === "mist" ? 13 : 7, opacity: dense ? 0.2 : weather === "mist" ? 0.18 : 0.12, width: [75, 165] }
+      { y: 105, count: stormy ? 18 : 12, opacity: stormy ? 0.30 : 0.17, width: [180, 330], depth: [420, 1100], drift: 1.0 },
+      { y: 235, count: stormy ? 15 : 9, opacity: stormy ? 0.24 : 0.13, width: [140, 280], depth: [850, 1750], drift: 0.62 },
+      { y: 390, count: stormy ? 12 : 7, opacity: stormy ? 0.19 : 0.10, width: [110, 240], depth: [1450, 2600], drift: 0.34 }
     ];
-    for (const band of bands) {
-      for (let i = 0; i < band.count; i++) {
-        const material = new THREE.SpriteMaterial({
-          map: this.texture,
-          color: i % 3 === 0 ? 0xffffff : 0xdceafa,
-          transparent: true,
-          opacity: band.opacity + random() * 0.02,
-          depthWrite: false,
-          depthTest: true
+    for (let bandIndex=0;bandIndex<bands.length;bandIndex++) {
+      const band=bands[bandIndex];
+      for(let i=0;i<band.count;i++){
+        const material=new THREE.SpriteMaterial({
+          map:this.texture,
+          color:stormy&&bandIndex===0?0x71808b:(i%3===0?0xffffff:0xdceafa),
+          transparent:true,
+          opacity:band.opacity+random()*0.035,
+          depthWrite:false,
+          depthTest:true
         });
-        const sprite = new THREE.Sprite(material);
-        const width = band.width[0] + random() * (band.width[1] - band.width[0]);
-        sprite.scale.set(width, width * (0.22 + random() * 0.12), 1);
-        sprite.userData.bandY = band.y;
-        sprite.userData.phase = random() * Math.PI * 2;
-        sprite.userData.drift = 3 + random() * 7;
-        sprite.userData.radius = 360 + random() * 650;
-        sprite.userData.depth = 420 + random() * 1050;
-        this.group.add(sprite);
-        this.clouds.push(sprite);
+        const sprite=new THREE.Sprite(material);
+        const width=band.width[0]+random()*(band.width[1]-band.width[0]);
+        sprite.scale.set(width,width*(0.24+random()*0.18),1);
+        sprite.userData.bandOffset=band.y+(random()-.5)*65;
+        sprite.userData.phase=random()*Math.PI*2;
+        sprite.userData.drift=band.drift*(3+random()*8);
+        sprite.userData.radius=280+random()*1250;
+        sprite.userData.depth=band.depth[0]+random()*(band.depth[1]-band.depth[0]);
+        sprite.userData.bandIndex=bandIndex;
+        this.group.add(sprite);this.clouds.push(sprite);
       }
     }
   }
