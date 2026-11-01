@@ -352,8 +352,8 @@ function createFarRanges(scene, noise) {
         const r1 = 1.0 - Math.abs(noise(x * (.00027 + layer * .00003), z * .00024 + layer * 2.1));
         const r2 = 1.0 - Math.abs(noise(x * (.00071 + layer * .000035) + 17.0, z * .00061 - layer * 4.7));
         const r3 = 1.0 - Math.abs(noise(x * (.00155 + layer * .00005) - 9.0, z * .0012 + layer));
-        const ridge = Math.pow(r1, 2.15) * 270 + Math.pow(r2, 2.7) * 105 + Math.pow(r3, 3.2) * 32;
-        const base = 58 + Math.sin(x * .00014 + layer) * 22 + Math.sin(z * .00045 + layer) * 8;
+        const ridge = Math.pow(r1, 2.0) * 410 + Math.pow(r2, 2.6) * 165 + Math.pow(r3, 3.0) * 52;
+        const base = 72 + Math.sin(x * .00014 + layer) * 26 + Math.sin(z * .00045 + layer) * 9;
         const y = Math.max(12, (base + ridge) * envelope);
         positions.push(x, y, z);
       }
@@ -437,8 +437,9 @@ export class Terrain {
       const waterDepth = isRiver ? WATER_SIZE : waterWidth;
       // Rivers are narrow strips; keep their long axis detailed without
       // allocating a huge square water grid.
-      const segmentsX = isRiver ? 16 : 192;
-      const segmentsZ = isRiver ? 1024 : 192;
+      const isLake = this.environment?.water?.type === "lake";
+      const segmentsX = isRiver ? 16 : (isLake ? 384 : 192);
+      const segmentsZ = isRiver ? 1024 : (isLake ? 384 : 192);
       const geometry = new THREE.PlaneGeometry(waterWidth, waterDepth, segmentsX, segmentsZ);
       const heights = new Float32Array(geometry.attributes.position.count);
       geometry.setAttribute("terrainHeight", new THREE.BufferAttribute(heights, 1));
@@ -576,7 +577,17 @@ export class Terrain {
         : 1;
       if (isRiver) pos.setX(i, baseX * widthScale + localCurveOffset);
       const wx = isRiver ? riverCenterX(this.noise, wz) + baseX : centerX + baseX;
-      out[i] = HEIGHT_BASE + this.heightAtWorld(wx, wz);
+      const terrainHeight = HEIGHT_BASE + this.heightAtWorld(wx, wz);
+      if (this.environment?.water?.type === "lake") {
+        // A lake is one bounded basin, not every low spot in the terrain.
+        // Suppress water outside the basin so distant depressions cannot turn
+        // into disconnected pools or floating-looking water patches.
+        const lakeRadius = Math.hypot(wx, wz + 2500);
+        const lakeMask = 1.0 - THREE.MathUtils.smoothstep(lakeRadius, 3850, 4350);
+        out[i] = THREE.MathUtils.lerp(this.seaLevel + 1.0, terrainHeight, lakeMask);
+      } else {
+        out[i] = terrainHeight;
+      }
     }
     if (isRiver) pos.needsUpdate = true;
     this.water.geometry.attributes.terrainHeight.needsUpdate = true;
