@@ -390,7 +390,7 @@ export class Terrain {
         const distance = Math.hypot(x - cameraX, z - cameraZ);
         const lod = this.lodForDistance(distance);
         counts[lod.ring]++;
-        const key = gx + ":" + gz;
+        const key = x + ":" + z;
         let chunk = keep.get(key);
         if (chunk && chunk.userData.lodSegments === lod.segments &&
             chunk.userData.worldX === x && chunk.userData.baseZ === z) {
