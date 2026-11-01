@@ -293,7 +293,7 @@ function createWaterMaterial(seed) {
   });
 }
 
-function createFarRanges(scene) {
+function createFarRanges(scene, noise) {
   const layers = [];
   const colors = [0x536f83, 0x7896a8, 0xa4bac5];
   const distances = [10500, 14500, 18500];
@@ -305,10 +305,10 @@ function createFarRanges(scene) {
         const x = -width * .5 + width * ix / nx;
         const z = depth * iz / nz;
         const envelope = Math.sin(Math.PI * iz / nz) * .28 + .72;
-        const r1 = Math.abs(Math.sin(x * (.00031 + layer * .000035) + layer * 2.1));
-        const r2 = Math.abs(Math.sin(x * (.00083 + layer * .00004) + layer * 4.7 + Math.sin(z * .0007)));
-        const r3 = Math.abs(Math.sin(x * (.0019 + layer * .00006) + layer + Math.sin(x * .00012 + z * .0004)));
-        const ridge = Math.pow(r1, 1.8) * 410 + Math.pow(r2, 2.4) * 180 + Math.pow(r3, 3.0) * 85;
+        const r1 = 1.0 - Math.abs(noise(x * (.00031 + layer * .000035), z * .00028 + layer * 2.1));
+        const r2 = 1.0 - Math.abs(noise(x * (.00083 + layer * .00004) + 17.0, z * .00072 - layer * 4.7));
+        const r3 = 1.0 - Math.abs(noise(x * (.0019 + layer * .00006) - 9.0, z * .0014 + layer));
+        const ridge = Math.pow(r1, 1.8) * 520 + Math.pow(r2, 2.4) * 205 + Math.pow(r3, 3.0) * 92;
         const base = 150 + Math.sin(x * .00017 + layer) * 55 + Math.sin(z * .001 + layer) * 18;
         const y = Math.max(24, (base + ridge) * envelope);
         positions.push(x, y, z);
@@ -377,7 +377,7 @@ export class Terrain {
     this.gridCenterZ = Number.NaN;
     this.ringCounts = { near: 0, mid: 0, far: 0, horizon: 0 };
     this.ensureGrid(0, 0);
-    this.farRanges = createFarRanges(scene);
+    this.farRanges = createFarRanges(scene, this.noise);
     this.farRanges.layers?.forEach(mesh => { mesh.userData.farRangeOwner = this; });
 
     this.water = null;
