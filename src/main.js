@@ -12,7 +12,7 @@ label.id = "scene-label";
 document.body.appendChild(label);
 
 const isSmall = matchMedia("(max-width:700px)").matches;
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: "high-performance", stencil: false, alpha: false });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: "high-performance", stencil: false, alpha: false, logarithmicDepthBuffer: true });
 let quality = Math.min(devicePixelRatio, 2);
 renderer.setPixelRatio(quality);
 renderer.setSize(innerWidth, innerHeight, false);
@@ -23,7 +23,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 0.1, 30000);
+const camera = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 1.5, 30000);
 const sceneTypes = [
   { id: "himalayas", name: "Himalayan Peaks & Glaciers" },
   { id: "green", name: "Green Hills & Terraced Valleys" },
@@ -44,6 +44,10 @@ let previousSceneId = "";
 let sceneClock = new THREE.Clock();
 let transitionTimer = 0;
 let worldDistance = 0;
+let verticalVelocity = 0;
+let terrainHeightUnder = 0;
+let cameraClearance = 0;
+let groundWarning = "";
 
 const debug = document.createElement("pre");
 debug.id = "fall-debug";
@@ -82,10 +86,13 @@ function createScene(nextScene, nextSeed) {
   sceneDuration = 22 + (seed % 5000) / 625; // 22–30 seconds
   weather = weatherTypes[(seed >>> 5) % weatherTypes.length];
   altitude = 4000;
+  verticalVelocity = 0;
   sky = createSky(scene, renderer, seed, activeScene.id, weather);
   scene.background = sky.horizonColor.clone();
   scene.fog = new THREE.Fog(sky.horizonColor, 900, weather === "mist" || weather === "storm" ? 8500 : 18500);
   terrain = new Terrain(scene, seed, activeScene.id);
+  const initialGround = Math.max(terrain.getHeightAt(camera.position.x, camera.position.z), terrain.getWaterLevel());
+  camera.position.y = initialGround + 400;
   clouds = new CloudField(scene, seed, weather);
   try {
     effects = new CinematicEffects(renderer, scene, camera, quality, weather);
@@ -120,7 +127,7 @@ function animate() {
   const dt = Math.min(sceneClock.getDelta(), 0.033);
   elapsed += dt;
   speed = speedAt(elapsed);
-  altitude = altitudeAt(elapsed);
+
   worldDistance += speed * dt;
 
   const fall = THREE.MathUtils.smoothstep(elapsed, 0, 7.2);
@@ -128,7 +135,6 @@ function animate() {
   const turn = Math.sin(elapsed * 0.22) * 0.62 + Math.sin(elapsed * 0.51) * 0.12;
   const lateral = Math.sin(elapsed * 0.31) * 210 + Math.sin(elapsed * 0.83) * 42;
   camera.position.x = lateral;
-  camera.position.y = altitude * 0.1;
   camera.position.z -= speed * 0.1 * dt;
   // A small banking turn and a stronger downward attitude during the initial dive.
   // Aim below and ahead so every biome occupies the view, not just the horizon.
@@ -139,6 +145,43 @@ function animate() {
   camera.lookAt(camera.position.x + Math.sin(turn * 0.28) * lookAhead, camera.position.y - verticalDrop, camera.position.z - lookAhead);
   camera.rotateZ(-bank);
   pitchDegrees = -THREE.MathUtils.radToDeg(Math.atan2(verticalDrop, lookAhead));
+
+  const forward = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation);
+  const h0 = terrain.getHeightAt(camera.position.x, camera.position.z);
+  const h50 = terrain.getHeightAt(camera.position.x + forward.x * 50, camera.position.z + forward.z * 50);
+  const h150 = terrain.getHeightAt(camera.position.x + forward.x * 150, camera.position.z + forward.z * 150);
+  const h400 = terrain.getHeightAt(camera.position.x + forward.x * 400, camera.position.z + forward.z * 400);
+  terrainHeightUnder = h0;
+  const ridgeHeight = Math.max(h0, h50, h150, h400);
+  const ridgeClearance = ridgeHeight > 180 || ridgeHeight - h0 > 35 ? 15 : 6;
+  const waterFloor = terrain.getWaterLevel() + 4;
+  const collisionFloor = Math.max(ridgeHeight + ridgeClearance, waterFloor);
+  const lowTargetX = camera.position.x + forward.x * 1200;
+  const lowTargetZ = camera.position.z + forward.z * 1200;
+  const targetGround = Math.max(terrain.getHeightAt(lowTargetX, lowTargetZ), terrain.getWaterLevel());
+  const fallPhase = THREE.MathUtils.smoothstep(elapsed, 0, 7.2);
+  const climbPhase = THREE.MathUtils.smoothstep(elapsed, sceneDuration - 5.5, sceneDuration);
+  const plannedClearance = targetGround > 180 ? 15 : 8;
+  const plannedY = targetGround + THREE.MathUtils.lerp(400, plannedClearance, fallPhase) + climbPhase * 210;
+  const desiredY = Math.max(plannedY, collisionFloor);
+  const spring = 13;
+  const damping = 2 * Math.sqrt(spring) * 0.92;
+  const acceleration = (desiredY - camera.position.y) * spring - verticalVelocity * damping;
+  verticalVelocity += acceleration * dt;
+  camera.position.y += verticalVelocity * dt;
+  cameraClearance = camera.position.y - terrainHeightUnder;
+  groundWarning = "";
+  if (camera.position.y < terrainHeightUnder + 1) {
+    camera.position.y = terrainHeightUnder + Math.max(ridgeClearance, 6);
+    verticalVelocity = Math.max(0, verticalVelocity);
+    groundWarning = "SAFETY TELEPORT: camera was below terrain";
+    console.warn(groundWarning, { cameraY: camera.position.y, terrainHeightUnder });
+  } else if (camera.position.y < collisionFloor) {
+    groundWarning = "WARNING: below sampled ground clearance";
+    console.warn(groundWarning, { cameraY: camera.position.y, collisionFloor });
+  }
+  altitude = camera.position.y * 10;
+
   const targetFov = THREE.MathUtils.mapLinear(speed, 60, 200, 60, 85);
   camera.fov = THREE.MathUtils.damp(camera.fov, THREE.MathUtils.clamp(targetFov, 60, 85), 4.5, dt);
   camera.updateProjectionMatrix();
@@ -169,7 +212,9 @@ function animate() {
     debug.textContent =
       "THE FALL — FLIGHT DEBUG (D to hide)\n" +
       "Scene: " + activeScene.name + "\nWeather: " + weather + "\nSeed: " + seed + "\n" +
-      "Speed: " + Math.round(speed) + " m/s\nAltitude: " + Math.round(altitude) + " m\n" +
+      "Speed: " + Math.round(speed) + " m/s\nCamera Y: " + camera.position.y.toFixed(1) + " | Terrain: " + terrainHeightUnder.toFixed(1) + " | Clearance: " + cameraClearance.toFixed(1) + "\n" +
+      "Altitude: " + Math.round(altitude) + " m | LOD: " + (terrain?.lodAt(camera.position.x, camera.position.z) ?? "n/a") + "\n" +
+      (groundWarning ? groundWarning + "\n" : "") +
       "Time left: " + Math.max(0, sceneDuration - elapsed).toFixed(1) + " s\n" +
       "Pitch: " + pitchDegrees.toFixed(1) + "° | FOV: " + camera.fov.toFixed(1) + "°\n" +
       "Chunks: " + (stats.chunkCount ?? 0) + " | View: " + ((stats.viewDistance ?? 0) / 1000).toFixed(1) + " km\n" +
@@ -181,7 +226,6 @@ function animate() {
     transitionTimer += dt;
     if (transitionTimer >= 1.15) {
       disposeScene();
-      camera.position.y = 400;
       createScene(chooseScene(), randomSeed());
       transitioning = false;
       fade.classList.remove("dissolve");
