@@ -6,3 +6,12 @@ html,body{margin:0;padding:0;width:100%;height:100%;min-width:0;min-height:0;ove
 #scene-label{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:10;color:rgba(245,250,255,.86);font:500 11px/1.2 system-ui,sans-serif;letter-spacing:.16em;text-transform:uppercase;text-shadow:0 1px 8px rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:opacity .5s ease;white-space:nowrap}
 #scene-label.visible{display:block}
 @media(prefers-reduced-motion:reduce){#fade{transition:none}}
+
+#dev-test-panel{display:none;position:fixed;z-index:50;right:14px;top:14px;width:220px;padding:13px;background:rgba(5,14,24,.92);border:1px solid rgba(190,220,240,.35);border-radius:9px;color:#e8f4fa;font:12px/1.4 system-ui,sans-serif;box-shadow:0 8px 30px rgba(0,0,0,.3)}
+#dev-test-panel.open{display:grid;gap:8px}
+#dev-test-panel strong{font-size:11px;letter-spacing:.12em;color:#8ed8ff}
+#dev-test-panel label{display:grid;gap:3px;color:#cbd8e2}
+#dev-test-panel input,#dev-test-panel select{width:100%;min-width:0;padding:6px;border:1px solid #506477;border-radius:5px;background:#142536;color:#fff;font:12px system-ui}
+#dev-test-panel .dt-check{display:flex;align-items:center;gap:7px}
+#dev-test-panel .dt-check input{width:auto}
+#dev-test-panel button{padding:7px;border:0;border-radius:5px;background:#247ca4;color:#fff;font-weight:600;cursor:pointer}
