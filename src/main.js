@@ -3,332 +3,243 @@ import { createSky } from "./sky.js";
 import { CloudField } from "./clouds.js";
 import { Terrain } from "./terrain.js";
 import { CinematicEffects } from "./effects.js";
+import { WeatherSystem } from "./weather.js";
+import { JourneyAudio } from "./audio.js";
 import "./style.css";
 
-const canvas = document.querySelector("#world");
-const fade = document.querySelector("#fade");
-const label = document.createElement("div");
-label.id = "scene-label";
-document.body.appendChild(label);
+const canvas=document.querySelector("#world");
+const fade=document.querySelector("#fade");
+const isSmall=matchMedia("(max-width:700px)").matches;
+const renderer=new THREE.WebGLRenderer({canvas,antialias:false,powerPreference:"high-performance",stencil:false,alpha:false,logarithmicDepthBuffer:true});
+let quality=Math.min(devicePixelRatio,2);
+renderer.setPixelRatio(quality);renderer.setSize(innerWidth,innerHeight,false);
+renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 
-const isSmall = matchMedia("(max-width:700px)").matches;
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: "high-performance", stencil: false, alpha: false, logarithmicDepthBuffer: true });
-let quality = Math.min(devicePixelRatio, 2);
-renderer.setPixelRatio(quality);
-renderer.setSize(innerWidth, innerHeight, false);
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.12;
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 1.5, 30000);
-const sceneTypes = [
-  { id: "himalayas", name: "Himalayan Peaks & Glaciers" },
-  { id: "green", name: "Green Hills & Terraced Valleys" },
-  { id: "delta", name: "Winding River & Farmland" },
-  { id: "lake", name: "Alpine Lake & Mountains" },
-  { id: "coast", name: "Coast, Beaches & Islands" },
-  { id: "desert", name: "Desert Dunes & Red Canyons" },
-  { id: "forest", name: "Dense Forest & Waterfall" },
-  { id: "rainforest", name: "Misty Rainforest Valley" }
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(68,innerWidth/innerHeight,1.5,30000);
+const sceneTypes=[
+ {id:"himalayas",param:"himalaya",name:"Himalayan Peaks & Glaciers"},
+ {id:"green",param:"hills",name:"Green Hills & Terraced Valleys"},
+ {id:"delta",param:"river",name:"Winding River & Farmland"},
+ {id:"lake",param:"lake",name:"Alpine Lake & Mountains"},
+ {id:"coast",param:"coast",name:"Coast, Beaches & Islands"},
+ {id:"desert",param:"desert",name:"Desert Dunes & Red Canyons"},
+ {id:"forest",param:"forest",name:"Dense Forest & Waterfall"},
+ {id:"rainforest",param:"rainforest",name:"Misty Rainforest Valley"}
 ];
-const weatherTypes = ["clear", "light clouds", "heavy clouds", "mist", "rain", "storm"];
-let sky, clouds, terrain, effects;
-let seed = 0, activeScene = sceneTypes[0], weather = "clear";
-let elapsed = 0, altitude = 4000, speed = 145, sceneDuration = 24;
-let running = false, paused = false, transitioning = false, frame = 0;
-let fps = 0, fpsFrames = 0, fpsElapsed = 0, pitchDegrees = -48;
-let previousSceneId = "";
-let sceneClock = new THREE.Clock();
-let transitionTimer = 0;
-let worldDistance = 0;
-let verticalVelocity = 0;
-let terrainHeightUnder = 0;
-let cameraClearance = 0;
-let groundWarning = "";
-
-const params = new URLSearchParams(location.search);
-const testMode = ["scene","seed","time","weather","freeze","speed"].some(k => params.has(k));
-let terrainDebugOptions = { wireframe:false, lodColors:false, chunkBorders:false, trees:true };
-const sceneAliases = { himalaya:"himalayas", hills:"green", river:"delta", lake:"lake", coast:"coast", desert:"desert", forest:"forest", rainforest:"rainforest" };
-const sceneParam = id => ({himalayas:"himalaya",green:"hills",delta:"river"}[id] || id);
-const weatherParam = value => value === "clouds" ? "light clouds" : value;
-const testSettings = {
-  scene: params.get("scene") || "hills",
-  seed: params.has("seed") && Number.isFinite(Number(params.get("seed"))) ? Number(params.get("seed")) : Math.floor(Math.random() * 0x7fffffff),
-  time: ["dawn","noon","sunset","night"].includes(params.get("time")) ? params.get("time") : "noon",
-  weather: ["clear","clouds","mist","rain","storm"].includes(params.get("weather")) ? params.get("weather") : "clear",
-  freeze: params.get("freeze") === "1",
-  speed: params.has("speed") && Number.isFinite(Number(params.get("speed"))) ? Math.max(0, Number(params.get("speed"))) : null
+const weatherTypes=["clear","scattered clouds","overcast","mist","light rain","heavy rain","storm","dust haze","golden dusk"];
+const phases=[
+ {id:"FREEFALL",duration:12},
+ {id:"STORM LAYER",duration:10},
+ {id:"BREAKTHROUGH",duration:5},
+ {id:"TRAVELLER FLIGHT",duration:45},
+ {id:"TRANSITION",duration:5}
+];
+const phaseDuration=phases.reduce((n,p)=>n+p.duration,0);
+const params=new URLSearchParams(location.search);
+const sceneAliases={himalaya:"himalayas",hills:"green",river:"delta"};
+const phaseAliases={"freefall":"FREEFALL","storm":"STORM LAYER","storm-layer":"STORM LAYER","breakthrough":"BREAKTHROUGH","flight":"TRAVELLER FLIGHT","traveller":"TRAVELLER FLIGHT","transition":"TRANSITION"};
+const testMode=["scene","biome","seed","time","weather","freeze","speed","phase"].some(k=>params.has(k));
+const testSettings={
+ scene:params.get("biome")||params.get("scene")||"hills",
+ seed:Number.isFinite(Number(params.get("seed")))?Number(params.get("seed")):Math.floor(Math.random()*0x7fffffff),
+ time:["dawn","noon","sunset","night"].includes(params.get("time"))?params.get("time"):"noon",
+ weather:weatherTypes.includes(params.get("weather"))?params.get("weather"):params.get("weather")==="clouds"?"scattered clouds":"clear",
+ freeze:params.get("freeze")==="1",
+ speed:params.has("speed")&&Number.isFinite(Number(params.get("speed")))?Math.max(0,Number(params.get("speed"))):null,
+ phase:phaseAliases[(params.get("phase")||"").toLowerCase()]||"FREEFALL"
 };
+const label=document.createElement("div");label.id="scene-label";document.body.appendChild(label);
+const debug=document.createElement("pre");debug.id="fall-debug";debug.style.cssText="display:none;position:fixed;z-index:30;left:12px;top:12px;margin:0;padding:12px 14px;max-width:min(520px,calc(100vw - 24px));background:rgba(3,12,20,.84);color:#d8f3ff;border:1px solid rgba(180,220,240,.35);border-radius:8px;font:12px/1.55 ui-monospace,monospace;white-space:pre-wrap;pointer-events:none";document.body.appendChild(debug);
+const muteButton=document.createElement("button");muteButton.id="fall-mute";muteButton.type="button";muteButton.textContent="SOUND: OFF";muteButton.setAttribute("aria-label","Enable or mute THE FALL audio");document.body.appendChild(muteButton);
+const whiteout=document.createElement("div");whiteout.id="weather-whiteout";document.body.appendChild(whiteout);
 
-
-const debug = document.createElement("pre");
-debug.id = "fall-debug";
-debug.style.cssText = "display:none;position:fixed;z-index:30;left:12px;top:12px;margin:0;padding:12px 14px;max-width:min(520px,calc(100vw - 24px));background:rgba(3,12,20,.84);color:#d8f3ff;border:1px solid rgba(180,220,240,.35);border-radius:8px;font:12px/1.55 ui-monospace,monospace;white-space:pre-wrap;pointer-events:none";
-document.body.appendChild(debug);
-let debugVisible = false;
-let vegetationStatsEl = null;
-document.addEventListener("keydown", event => {
-  if (event.key.toLowerCase() === "d" && !event.repeat) {
-    debugVisible = !debugVisible;
-    debug.style.display = debugVisible ? "block" : "none";
-  }
-});
-
-const randomSeed = () => Math.floor(Math.random() * 0x7fffffff);
-function chooseScene() {
-  const choices = sceneTypes.filter(item => item.id !== previousSceneId);
-  const next = choices[Math.floor(Math.random() * choices.length)];
-  previousSceneId = next.id;
-  return next;
+let sky,clouds,terrain,effects,weatherSystem;
+const audio=new JourneyAudio();
+let seed=testSettings.seed,activeScene=sceneTypes[0],weather=testSettings.weather,timeOfDay=testSettings.time;
+let phaseIndex=0,phaseElapsed=0,journeyElapsed=0,phaseTimeLeft=12,phaseName="FREEFALL";
+let speed=0,altitude=5000,pitchDegrees=-60,windSpeed=0,fps=0,fpsFrames=0,fpsElapsed=0;
+let running=false,paused=false,frame=0,verticalVelocity=0,worldDistance=0,terrainHeightUnder=0,cameraClearance=0,groundWarning="";
+let previousBiome="",previousWeather="",transitionTriggered=false,phaseForced=testMode?testSettings.phase:null;
+let debugVisible=false,devPanel=null,sceneClock=new THREE.Clock(),lightningWasActive=false;
+const sceneRandom=(s)=>{let v=s>>>0;return()=>((v=Math.imul(v,1664525)+1013904223>>>0)/4294967296);};
+function chooseDifferent(list,previous){const choices=list.filter(x=>x!==previous);return choices[Math.floor(Math.random()*choices.length)];}
+function randomScene(){const id=chooseDifferent(sceneTypes.map(x=>x.id),previousBiome);return sceneTypes.find(x=>x.id===id);}
+function randomWeather(){return chooseDifferent(weatherTypes,previousWeather);}
+function randomTime(){return ["dawn","noon","sunset","night"][Math.floor(Math.random()*4)];}
+function normalizeWeather(w){return w==="scattered clouds"?"light clouds":w==="overcast"?"heavy clouds":w==="heavy rain"?"storm":w==="dust haze"?"mist":w==="golden dusk"?"clear":w;}
+function disposeScene(){
+ try{effects?.dispose();}catch(e){console.warn("effects dispose",e);}effects=undefined;
+ try{sky?.dispose();}catch(e){}sky=undefined;
+ try{clouds?.dispose();}catch(e){}clouds=undefined;
+ try{weatherSystem?.dispose();}catch(e){}weatherSystem=undefined;
+ try{terrain?.dispose();}catch(e){}terrain=undefined;
+ scene.clear();
 }
-function disposeScene() {
-  try { effects?.dispose(); } catch (error) { console.warn("Effects cleanup", error); }
-  effects = undefined;
-  try { sky?.dispose(); } catch (error) { console.warn("Sky cleanup", error); }
-  sky = undefined;
-  try { clouds?.dispose(); } catch (error) { console.warn("Cloud cleanup", error); }
-  clouds = undefined;
-  try { terrain?.dispose(); } catch (error) { console.warn("Terrain cleanup", error); }
-  terrain = undefined;
-  scene.clear();
+function createScene(nextScene,nextSeed,nextWeather,nextTime){
+ activeScene=nextScene;seed=nextSeed;weather=nextWeather;timeOfDay=nextTime;
+ previousBiome=activeScene.id;previousWeather=weather;
+ sky=createSky(scene,renderer,seed,activeScene.id,normalizeWeather(weather),timeOfDay);
+ scene.background=sky.horizonColor.clone();
+ const fogDensity=weather==="mist"?.000052:weather==="storm"||weather==="heavy rain"?.000044:.000027;
+ scene.fog=new THREE.FogExp2(sky.horizonColor,fogDensity);
+ terrain=new Terrain(scene,seed,activeScene.id);
+ const ground=Math.max(terrain.getHeightAt(camera.position.x,camera.position.z),terrain.getWaterLevel());
+ camera.position.y=ground+500;
+ clouds=new CloudField(scene,seed,normalizeWeather(weather));
+ weatherSystem=new WeatherSystem(scene,seed,weather,quality);
+ try{effects=new CinematicEffects(renderer,scene,camera,quality,"clear");}catch(e){console.warn("Post effects unavailable",e);effects=undefined;}
+ label.textContent=activeScene.name;label.classList.add("visible");
 }
-function createScene(nextScene, nextSeed, forcedWeather = null) {
-  activeScene = nextScene;
-  seed = nextSeed;
-  elapsed = 0;
-  sceneDuration = 22 + (seed % 5000) / 625; // 22–30 seconds
-  weather = forcedWeather || weatherTypes[(seed >>> 5) % weatherTypes.length];
-  altitude = 4000;
-  verticalVelocity = 0;
-  sky = createSky(scene, renderer, seed, activeScene.id, weather, testMode ? testSettings.time : "noon");
-  scene.background = sky.horizonColor.clone();
-  scene.fog = activeScene.id === "himalayas" ? new THREE.FogExp2(sky.horizonColor, weather === "mist" ? 0.000052 : 0.000027) : new THREE.Fog(sky.horizonColor, 900, weather === "mist" || weather === "storm" ? 8500 : 18500);
-  terrain = new Terrain(scene, seed, activeScene.id);
-  const initialGround = Math.max(terrain.getHeightAt(camera.position.x, camera.position.z), terrain.getWaterLevel());
-  camera.position.y = initialGround + (testMode && testSettings.freeze ? 80 : 400);
-  clouds = new CloudField(scene, seed, weather);
-  try {
-    effects = new CinematicEffects(renderer, scene, camera, quality, weather);
-  } catch (error) {
-    console.error("Effects unavailable; using direct renderer.", error);
-    effects = undefined;
-  }
-  label.textContent = activeScene.name;
-  label.classList.add("visible");
-  if (testMode && testSettings.freeze) {
-    camera.lookAt(camera.position.x + 1350, camera.position.y - Math.tan(THREE.MathUtils.degToRad(25)) * 1350, camera.position.z - 1350);
-    camera.rotation.z = 0;
-  }
+function phaseFor(index){return phases[index]||phases[0];}
+function setPhase(index){phaseIndex=(index+phases.length)%phases.length;phaseElapsed=0;phaseName=phaseFor(phaseIndex).id;phaseTimeLeft=phaseFor(phaseIndex).duration;}
+function getPhaseMotion(dt){
+ const p=phaseName,t=phaseElapsed,d=phaseFor(phaseIndex).duration;
+ const f=THREE.MathUtils.clamp(t/d,0,1);
+ if(p==="FREEFALL")return{speed:THREE.MathUtils.lerp(200,155,f),clearance:THREE.MathUtils.lerp(500,220,f),pitch:THREE.MathUtils.lerp(-60,-55,f),fov:THREE.MathUtils.lerp(82,85,f)};
+ if(p==="STORM LAYER")return{speed:THREE.MathUtils.lerp(155,125,f),clearance:THREE.MathUtils.lerp(220,115,f),pitch:-60,fov:84};
+ if(p==="BREAKTHROUGH")return{speed:THREE.MathUtils.lerp(125,90,f),clearance:THREE.MathUtils.lerp(115,55,f),pitch:THREE.MathUtils.lerp(-60,-20,f),fov:THREE.MathUtils.lerp(82,72,f)};
+ if(p==="TRAVELLER FLIGHT")return{speed:72+Math.sin(t*.19)*14+Math.sin(t*.47)*7,clearance:42+Math.sin(t*.13)*18,pitch:-20+Math.sin(t*.21)*2.5,fov:68+Math.sin(t*.25)*2};
+ return{speed:THREE.MathUtils.lerp(85,145,f),clearance:THREE.MathUtils.lerp(55,260,f),pitch:THREE.MathUtils.lerp(-20,-52,f),fov:THREE.MathUtils.lerp(70,82,f)};
 }
-function beginTransition() {
-  if (transitioning) return;
-  transitioning = true;
-  transitionTimer = 0;
-  fade.classList.add("dissolve");
+function setPhaseWeather(){
+ if(!weatherSystem)return;
+ weatherSystem.setState(phaseName==="STORM LAYER"?"storm":weather);
 }
-function altitudeAt(t) {
-  const fallEnd = 7.2;
-  const lowEnd = sceneDuration - 5.5;
-  if (t < fallEnd) return THREE.MathUtils.lerp(4000, 600, THREE.MathUtils.smoothstep(t, 0, fallEnd));
-  if (t < lowEnd) return 600 + Math.sin(t * 0.8) * 35;
-  return THREE.MathUtils.lerp(600, 3200, THREE.MathUtils.smoothstep(t, lowEnd, sceneDuration));
+function beginNextJourney(){
+ disposeScene();
+ const next=randomScene();
+ const nextSeed=Math.floor(Math.random()*0x7fffffff);
+ const nextWeather=randomWeather();
+ const nextTime=randomTime();
+ createScene(next,nextSeed,nextWeather,nextTime);
+ worldDistance=0;journeyElapsed=0;verticalVelocity=0;transitionTriggered=false;
+ setPhase(0);
+ if(testMode&&testSettings.freeze){camera.position.y=Math.max(terrain.getHeightAt(camera.position.x,camera.position.z)+80,terrain.getWaterLevel()+40);}
 }
-function speedAt(t) {
-  if (t < 7.2) return THREE.MathUtils.lerp(195, 135, THREE.MathUtils.smoothstep(t, 0, 7.2));
-  if (t < sceneDuration - 5.5) return 78 + Math.sin(t * 1.7) * 12;
-  return THREE.MathUtils.lerp(82, 155, THREE.MathUtils.smoothstep(t, sceneDuration - 5.5, sceneDuration));
+function advancePhase(){
+ if(phaseIndex===phases.length-1){beginNextJourney();return;}
+ setPhase(phaseIndex+1);setPhaseWeather();
+ if(phaseName==="STORM LAYER")weatherSystem?.setState("storm");
 }
-function animate() {
-  if (!running || paused || document.hidden) return;
-  frame = requestAnimationFrame(animate);
-  const dt = Math.min(sceneClock.getDelta(), 0.033);
-  elapsed += dt;
-  speed = testMode && testSettings.speed !== null ? testSettings.speed : speedAt(elapsed);
-
-  worldDistance += speed * dt;
-
-  const fall = THREE.MathUtils.smoothstep(elapsed, 0, 7.2);
-  const climb = THREE.MathUtils.smoothstep(elapsed, sceneDuration - 5.5, sceneDuration);
-  const turn = Math.sin(elapsed * 0.22) * 0.62 + Math.sin(elapsed * 0.51) * 0.12;
-  const lateral = Math.sin(elapsed * 0.31) * 210 + Math.sin(elapsed * 0.83) * 42;
-  if (!(testMode && testSettings.freeze)) {
-    camera.position.x = lateral;
-    camera.position.z -= speed * 0.1 * dt;
-  }
-  // A small banking turn and a stronger downward attitude during the initial dive.
-  // Aim below and ahead so every biome occupies the view, not just the horizon.
-  const verticalDrop = THREE.MathUtils.lerp(420, 65, fall) + climb * 45;
-  const lookAhead = 1500;
-  const bank = Math.sin(elapsed * 0.27) * 0.13;
-  camera.rotation.order = "YXZ";
-  if (testMode && testSettings.freeze) {
-    camera.lookAt(camera.position.x + 1350, camera.position.y - Math.tan(THREE.MathUtils.degToRad(25)) * 1350, camera.position.z - 1350);
-  } else {
-    camera.lookAt(camera.position.x + Math.sin(turn * 0.28) * lookAhead, camera.position.y - verticalDrop, camera.position.z - lookAhead);
-    camera.rotateZ(-bank);
-  }
-  pitchDegrees = -THREE.MathUtils.radToDeg(Math.atan2(verticalDrop, lookAhead));
-
-  const forward = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation);
-  const h0 = terrain.getHeightAt(camera.position.x, camera.position.z);
-  const h50 = terrain.getHeightAt(camera.position.x + forward.x * 5, camera.position.z + forward.z * 5);
-  const h150 = terrain.getHeightAt(camera.position.x + forward.x * 15, camera.position.z + forward.z * 15);
-  const h400 = terrain.getHeightAt(camera.position.x + forward.x * 40, camera.position.z + forward.z * 40);
-  terrainHeightUnder = h0;
-  const ridgeHeight = Math.max(h0, h50, h150, h400);
-  const ridgeClearance = ridgeHeight > 180 || ridgeHeight - h0 > 35 ? 15 : 6;
-  const waterFloor = terrain.getWaterLevel() + 4;
-  const collisionFloor = Math.max(ridgeHeight + ridgeClearance, waterFloor);
-  const lowTargetX = camera.position.x + forward.x * 120;
-  const lowTargetZ = camera.position.z + forward.z * 120;
-  const targetGround = Math.max(terrain.getHeightAt(lowTargetX, lowTargetZ), terrain.getWaterLevel());
-  const fallPhase = THREE.MathUtils.smoothstep(elapsed, 0, 7.2);
-  const climbPhase = THREE.MathUtils.smoothstep(elapsed, sceneDuration - 5.5, sceneDuration);
-  const plannedClearance = targetGround > 180 ? 15 : 8;
-  const plannedY = targetGround + THREE.MathUtils.lerp(400, plannedClearance, fallPhase) + climbPhase * 210;
-  const desiredY = testMode && testSettings.freeze ? camera.position.y : Math.max(plannedY, collisionFloor);
-  const spring = 13;
-  const damping = 2 * Math.sqrt(spring) * 0.92;
-  const acceleration = (desiredY - camera.position.y) * spring - verticalVelocity * damping;
-  verticalVelocity += acceleration * dt;
-  camera.position.y += verticalVelocity * dt;
-  cameraClearance = camera.position.y - terrainHeightUnder;
-  groundWarning = "";
-  if (camera.position.y < terrainHeightUnder + 1) {
-    camera.position.y = terrainHeightUnder + Math.max(ridgeClearance, 6);
-    verticalVelocity = Math.max(0, verticalVelocity);
-    groundWarning = "SAFETY TELEPORT: camera was below terrain";
-    console.warn(groundWarning, { cameraY: camera.position.y, terrainHeightUnder });
-  } else if (camera.position.y < collisionFloor) {
-    groundWarning = "WARNING: below sampled ground clearance";
-    console.warn(groundWarning, { cameraY: camera.position.y, collisionFloor });
-  }
-  altitude = camera.position.y * 10;
-
-  const targetFov = THREE.MathUtils.mapLinear(speed, 60, 200, 60, 85);
-  camera.fov = THREE.MathUtils.damp(camera.fov, THREE.MathUtils.clamp(targetFov, 60, 85), 4.5, dt);
-  camera.updateProjectionMatrix();
-
-  try { sky?.update(camera); terrain?.update(dt, speed, altitude, camera); } catch (error) { console.error("Terrain update failed", error); }
-  try { clouds?.update(dt, speed, camera, altitude); } catch (error) { console.error("Cloud update failed", error); }
-  if (scene.fog) {
-    scene.fog.color.copy(sky.horizonColor);
-    if (scene.fog.isFogExp2) {
-      const targetDensity = weather === "mist" ? 0.000052 : weather === "storm" ? 0.000044 : 0.000027;
-      scene.fog.density = THREE.MathUtils.damp(scene.fog.density, targetDensity, 0.8, dt);
-    } else {
-      const targetFar = weather === "mist" || weather === "storm" ? 8500 : weather === "heavy clouds" ? 12500 : 18500;
-      scene.fog.far = THREE.MathUtils.damp(scene.fog.far, targetFar, 0.8, dt);
-    }
-  }
-  try {
-    effects?.update(dt, speed, elapsed, camera, weather);
-    if (effects) effects.render(dt);
-    else renderer.render(scene, camera);
-  } catch (error) {
-    console.error("Render pipeline fallback.", error);
-    try { effects?.dispose(); } catch {}
-    effects = undefined;
-    renderer.render(scene, camera);
-  }
-
-  fpsFrames++;
-  fpsElapsed += dt;
-  if (fpsElapsed >= 0.5) { fps = fpsFrames / fpsElapsed; fpsFrames = 0; fpsElapsed = 0; }
-  const stats = terrain?.getDebugInfo?.() || {};
-  if (vegetationStatsEl) {
-    const v = stats.vegetation || {};
-    vegetationStatsEl.textContent = "Vegetation instances — Total: " + (v.total || 0) +
-      " | Pine: " + (v.pine || 0) + " | Broadleaf: " + (v.broadleaf || 0) + " | Bush: " + (v.bush || 0);
-  }
-  if (debugVisible) {
-    debug.textContent =
-      "THE FALL — FLIGHT DEBUG (D to hide) | " + (testMode ? "DEV TEST" : "NORMAL") + "\n" +
-      "Scene: " + activeScene.name + "\nWeather: " + weather + "\nSeed: " + seed + "\n" +
-      "Speed: " + Math.round(speed) + " m/s\nCamera Y: " + camera.position.y.toFixed(1) + " | Terrain: " + terrainHeightUnder.toFixed(1) + " | Clearance: " + cameraClearance.toFixed(1) + "\n" +
-      "Altitude: " + Math.round(altitude) + " m | LOD: " + (terrain?.lodAt(camera.position.x, camera.position.z) ?? "n/a") + "\n" +
-      (groundWarning ? groundWarning + "\n" : "") +
-      "Time left: " + Math.max(0, sceneDuration - elapsed).toFixed(1) + " s\n" +
-      "Pitch: " + pitchDegrees.toFixed(1) + "° | FOV: " + camera.fov.toFixed(1) + "°\n" +
-      "Chunks: " + (stats.chunkCount ?? 0) + " | View: " + ((stats.viewDistance ?? 0) / 1000).toFixed(1) + " km\n" +
-      "Vegetation: " + (stats.vegetation?.total ?? 0) + " | Pine " + (stats.vegetation?.pine ?? 0) + " | Broadleaf " + (stats.vegetation?.broadleaf ?? 0) + " | Bush " + (stats.vegetation?.bush ?? 0) + "\n" +
-      "FPS: " + fps.toFixed(1);
-  }
-  label.style.opacity = String(THREE.MathUtils.smoothstep(elapsed, 0.2, 1.8) * (1 - THREE.MathUtils.smoothstep(elapsed, sceneDuration - 1.2, sceneDuration)));
-  if (!testMode && elapsed >= sceneDuration - 1.0) beginTransition();
-  if (transitioning) {
-    transitionTimer += dt;
-    if (transitionTimer >= 1.15) {
-      disposeScene();
-      createScene(chooseScene(), randomSeed());
-      transitioning = false;
-      fade.classList.remove("dissolve");
-      // Keep the existing world-space path; only the landscape seed and biome change.
-    }
-  }
+function setForcedPhase(name){
+ const index=phases.findIndex(p=>p.id===name);
+ if(index>=0){setPhase(index);phaseForced=name;setPhaseWeather();}
 }
-
-
-if (testMode) {
- const panel=document.createElement("section"); panel.id="dev-test-panel";
- panel.innerHTML='<strong>DEV TEST MODE</strong><label>Scene<select id="dt-scene"><option value="himalaya">Himalaya</option><option value="hills">Hills</option><option value="river">River</option><option value="lake">Lake</option><option value="coast">Coast</option><option value="desert">Desert</option><option value="forest">Forest</option><option value="rainforest">Rainforest</option></select></label><label>Seed<input id="dt-seed" type="number"></label><label>Time<select id="dt-time"><option>dawn</option><option>noon</option><option>sunset</option><option>night</option></select></label><label>Weather<select id="dt-weather"><option>clear</option><option>clouds</option><option>mist</option><option>rain</option><option>storm</option></select></label><label>Speed<input id="dt-speed" type="number" min="0" max="250"></label><label class="dt-check"><input id="dt-freeze" type="checkbox"> Freeze viewpoint</label><hr><strong>TERRAIN DEBUG</strong><label class="dt-check"><input id="dt-wireframe" type="checkbox"> Wireframe</label><label class="dt-check"><input id="dt-lod" type="checkbox"> LOD colors</label><label class="dt-check"><input id="dt-borders" type="checkbox"> Chunk borders</label><label class="dt-check"><input id="dt-trees" type="checkbox" checked> Trees</label><small id="dt-octaves">Height noise octaves: 2 (band-limited)</small><small id="dt-vegstats">Vegetation: waiting for chunks…</small><button id="dt-apply">Apply live</button><button id="dt-copy">Copy settings</button>';
- document.body.appendChild(panel);
- const el=id=>panel.querySelector("#dt-"+id);
- vegetationStatsEl=el("vegstats");
- el("scene").value=testSettings.scene; el("seed").value=testSettings.seed; el("time").value=testSettings.time; el("weather").value=testSettings.weather; el("speed").value=testSettings.speed??""; el("freeze").checked=testSettings.freeze;
- const applyTerrainDebug=()=>{terrainDebugOptions={wireframe:el("wireframe").checked,lodColors:el("lod").checked,chunkBorders:el("borders").checked,trees:el("trees").checked};terrain?.setDebugOptions(terrainDebugOptions);};
- ["wireframe","lod","borders","trees"].forEach(id=>el(id).addEventListener("change",applyTerrainDebug));
- let open=false;
- document.addEventListener("keydown",event=>{if(event.key.toLowerCase()==="t"&&!event.repeat){open=!open;panel.classList.toggle("open",open);}});
+function updateCamera(dt){
+ const motion=getPhaseMotion(dt);
+ speed=testMode&&testSettings.speed!==null?testSettings.speed:motion.speed;
+ if(testMode&&testSettings.freeze){speed=0;}
+ const phaseProgress=phaseElapsed/phaseFor(phaseIndex).duration;
+ const forwardSpeed=speed*.1;
+ const curve=Math.sin(worldDistance*.00042)*420+Math.sin(worldDistance*.00017)*260;
+ const curveNext=Math.sin((worldDistance+forwardSpeed*dt)*.00042)*420+Math.sin((worldDistance+forwardSpeed*dt)*.00017)*260;
+ const x=curve;
+ if(!(testMode&&testSettings.freeze)){
+   camera.position.x=THREE.MathUtils.damp(camera.position.x,x,phaseName==="TRAVELLER FLIGHT"?1.1:1.8,dt);
+   camera.position.z-=forwardSpeed*dt;
+ }
+ const lookDistance=phaseName==="TRAVELLER FLIGHT"?1450:1100;
+ const yaw=Math.atan2(curveNext-curve,Math.max(1,forwardSpeed*dt));
+ const pitch=THREE.MathUtils.degToRad(motion.pitch);
+ camera.rotation.order="YXZ";
+ if(!(testMode&&testSettings.freeze)){
+   camera.lookAt(camera.position.x+Math.sin(yaw)*lookDistance,camera.position.y-Math.tan(-pitch)*lookDistance,camera.position.z-lookDistance);
+   const bank=THREE.MathUtils.clamp(-yaw*1.8+Math.sin(journeyElapsed*.7)*.035,-.22,.22);
+   camera.rotateZ(bank);
+ }else{
+   camera.lookAt(camera.position.x,camera.position.y-Math.tan(THREE.MathUtils.degToRad(20))*1200,camera.position.z-1200);
+ }
+ pitchDegrees=motion.pitch;
+ const forward=new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
+ const samples=[0,50,150,400].map(distance=>terrain.getHeightAt(camera.position.x+forward.x*distance,camera.position.z+forward.z*distance));
+ terrainHeightUnder=samples[0];
+ const ridge=Math.max(...samples,terrain.getWaterLevel());
+ const clearance=terrain.getWaterLevel()>=ridge?40:(ridge>180?60:phaseName==="TRAVELLER FLIGHT"?42:80);
+ const floor=ridge+clearance;
+ let desiredY;
+ if(phaseName==="FREEFALL")desiredY=Math.max(floor,terrainHeightUnder+motion.clearance);
+ else if(phaseName==="STORM LAYER")desiredY=Math.max(floor,terrainHeightUnder+motion.clearance);
+ else if(phaseName==="BREAKTHROUGH")desiredY=Math.max(floor,terrainHeightUnder+motion.clearance);
+ else if(phaseName==="TRAVELLER FLIGHT")desiredY=Math.max(floor,terrainHeightUnder+motion.clearance);
+ else desiredY=Math.max(floor,terrainHeightUnder+motion.clearance);
+ if(testMode&&testSettings.freeze)desiredY=camera.position.y;
+ const spring=9.5,damping=2*Math.sqrt(spring)*.94;
+ verticalVelocity+=(desiredY-camera.position.y)*spring*dt-verticalVelocity*damping*dt;
+ camera.position.y+=verticalVelocity*dt;
+ if(camera.position.y<floor-2){camera.position.y=floor;verticalVelocity=Math.max(0,verticalVelocity);groundWarning="CLEARANCE RECOVERY";}
+ else groundWarning="";
+ cameraClearance=camera.position.y-terrainHeightUnder;
+ altitude=Math.round(camera.position.y*10);
+ camera.fov=THREE.MathUtils.damp(camera.fov,motion.fov,3.5,dt);camera.updateProjectionMatrix();
+ worldDistance+=forwardSpeed*dt;
+ return motion;
+}
+function animate(){
+ if(!running||paused||document.hidden)return;
+ frame=requestAnimationFrame(animate);
+ const dt=Math.min(sceneClock.getDelta(),.04);
+ phaseElapsed+=dt;journeyElapsed+=dt;phaseTimeLeft=Math.max(0,phaseFor(phaseIndex).duration-phaseElapsed);
+ if(phaseElapsed>=phaseFor(phaseIndex).duration){advancePhase();}
+ const motion=updateCamera(dt);
+ setPhaseWeather();
+ const forcedRain=phaseName==="STORM LAYER";
+ if(weatherSystem){
+   if(forcedRain)weatherSystem.setState("storm");
+   const lightning=weatherSystem.update(dt,camera,speed);
+   if(lightning&&audio.started)audio.thunder(900+Math.random()*1700);
+   windSpeed=weatherSystem.wind.length();
+   whiteout.style.opacity=String(weatherSystem.whiteout*.72);
+   audio.update(speed,weatherSystem.intensity);
+ }
+ sky?.update(camera);
+ terrain?.update(dt,speed,altitude,camera);
+ clouds?.update(dt,speed,camera,altitude);
+ if(scene.fog){
+   scene.fog.color.copy(sky.horizonColor);
+   const target=weather==="mist"?.000052:phaseName==="STORM LAYER"?.000047:weather==="storm"?.00004:.000027;
+   scene.fog.density=THREE.MathUtils.damp(scene.fog.density,target,.55,dt);
+ }
+ try{effects?.update(dt,speed,journeyElapsed,camera,"clear");if(effects)effects.render(dt);else renderer.render(scene,camera);}
+ catch(e){console.warn("Render fallback",e);try{effects?.dispose();}catch{}effects=undefined;renderer.render(scene,camera);}
+ fpsFrames++;fpsElapsed+=dt;if(fpsElapsed>=.5){fps=fpsFrames/fpsElapsed;fpsFrames=0;fpsElapsed=0;}
+ if(debugVisible){
+  const stats=terrain?.getDebugInfo?.()||{};
+  debug.textContent="THE FALL — JOURNEY DEBUG\nPhase: "+phaseName+" | left "+phaseTimeLeft.toFixed(1)+" s\nBiome: "+activeScene.param+" | Seed: "+seed+"\nWeather: "+(phaseName==="STORM LAYER"?"storm":weather)+" | Wind: "+windSpeed.toFixed(1)+" m/s\nAltitude: "+altitude+" m | Speed: "+speed.toFixed(0)+" m/s\nCamera Y: "+camera.position.y.toFixed(1)+" | Ground: "+terrainHeightUnder.toFixed(1)+" | Clearance: "+cameraClearance.toFixed(1)+"\nChunks: "+(stats.chunkCount||0)+" | FPS: "+fps.toFixed(1)+"\nCycle: "+journeyElapsed.toFixed(1)+" / "+phaseDuration+" s";
+ }
+ label.style.opacity=String(THREE.MathUtils.smoothstep(phaseElapsed,.2,1.8)*(1-THREE.MathUtils.smoothstep(phaseElapsed,phaseFor(phaseIndex).duration-1.2,phaseFor(phaseIndex).duration)));
+ if(phaseName==="TRANSITION"&&phaseTimeLeft<1.8&&!transitionTriggered){transitionTriggered=true;fade.classList.add("dissolve");}
+ if(phaseName==="TRANSITION"&&phaseTimeLeft<.15&&!testMode)beginNextJourney();
+}
+document.addEventListener("keydown",e=>{if(e.key.toLowerCase()==="d"&&!e.repeat){debugVisible=!debugVisible;debug.style.display=debugVisible?"block":"none";}});
+muteButton.addEventListener("click",async()=>{await audio.start();const muted=audio.toggleMute();muteButton.textContent=muted?"SOUND: MUTED":"SOUND: ON";});
+window.addEventListener("pointerdown",()=>{if(!audio.started)audio.start().catch(()=>{});},{once:true});
+if(testMode){
+ devPanel=document.createElement("section");devPanel.id="dev-test-panel";
+ devPanel.innerHTML='<strong>DEV JOURNEY TEST</strong><label>Biome<select id="dt-biome">'+sceneTypes.map(s=>'<option value="'+s.param+'">'+s.name+'</option>').join("")+'</select></label><label>Phase<select id="dt-phase">'+phases.map(p=>'<option value="'+p.id+'">'+p.id+'</option>').join("")+'</select></label><label>Weather<select id="dt-weather">'+weatherTypes.map(w=>'<option value="'+w+'">'+w+'</option>').join("")+'</select></label><label>Seed<input id="dt-seed" type="number"></label><label>Time<select id="dt-time"><option>dawn</option><option>noon</option><option>sunset</option><option>night</option></select></label><label>Speed override<input id="dt-speed" type="number" min="0" max="250" placeholder="automatic"></label><label class="dt-check"><input id="dt-freeze" type="checkbox"> Freeze camera</label><button id="dt-apply">Apply test settings</button><button id="dt-copy">Copy settings URL</button>';
+ document.body.appendChild(devPanel);
+ const el=id=>devPanel.querySelector("#dt-"+id);
+ el("biome").value=testSettings.scene;el("phase").value=testSettings.phase;el("weather").value=testSettings.weather;el("seed").value=seed;el("time").value=timeOfDay;el("speed").value=testSettings.speed??"";el("freeze").checked=testSettings.freeze;
+ let open=false;document.addEventListener("keydown",e=>{if(e.key.toLowerCase()==="t"&&!e.repeat){open=!open;devPanel.classList.toggle("open",open);}});
  el("apply").addEventListener("click",()=>{
-  testSettings.scene=el("scene").value; testSettings.seed=Number(el("seed").value)||1; testSettings.time=el("time").value; testSettings.weather=el("weather").value; testSettings.speed=el("speed").value===""?null:Math.max(0,Number(el("speed").value)); testSettings.freeze=el("freeze").checked;
-  const selected=sceneTypes.find(item=>item.id===sceneAliases[testSettings.scene])||sceneTypes[1]; const x=camera.position.x,z=camera.position.z;
-  disposeScene(); camera.position.set(x,0,z); camera.rotation.set(0,0,0); createScene(selected,testSettings.seed,weatherParam(testSettings.weather)); terrain?.setDebugOptions(terrainDebugOptions);
-  if(testSettings.freeze){camera.position.y=Math.max(terrain.getHeightAt(x,z)+80,terrain.getWaterLevel()+40);camera.lookAt(x+1350,camera.position.y-Math.tan(THREE.MathUtils.degToRad(25))*1350,z-1350);speed=testSettings.speed??0;}
+   testSettings.scene=el("biome").value;testSettings.seed=Number(el("seed").value)||1;testSettings.time=el("time").value;testSettings.weather=el("weather").value;testSettings.speed=el("speed").value===""?null:Number(el("speed").value);testSettings.freeze=el("freeze").checked;
+   const chosen=sceneTypes.find(s=>s.param===testSettings.scene)||sceneTypes[0];disposeScene();createScene(chosen,testSettings.seed,testSettings.weather,testSettings.time);phaseElapsed=0;setForcedPhase(el("phase").value);if(testSettings.freeze){camera.position.y=Math.max(terrain.getHeightAt(camera.position.x,camera.position.z)+80,terrain.getWaterLevel()+40);}
+   fade.classList.remove("dissolve");
  });
  el("copy").addEventListener("click",async()=>{
-  const q=new URLSearchParams({scene:testSettings.scene,seed:String(testSettings.seed),time:testSettings.time,weather:testSettings.weather,freeze:testSettings.freeze?"1":"0"});
-  if(testSettings.speed!==null)q.set("speed",String(testSettings.speed));
-  const url=location.origin+location.pathname+"?"+q.toString();
-  try{await navigator.clipboard.writeText(url);el("copy").textContent="Copied!";}catch{window.prompt("Copy test URL:",url);}
+   const q=new URLSearchParams({biome:testSettings.scene,seed:String(testSettings.seed),time:testSettings.time,weather:testSettings.weather,phase:phaseName,freeze:testSettings.freeze?"1":"0"});
+   if(testSettings.speed!==null)q.set("speed",String(testSettings.speed));
+   const url=location.origin+location.pathname+"?"+q.toString();
+   try{await navigator.clipboard.writeText(url);el("copy").textContent="Copied!";}catch{window.prompt("Copy test URL",url);}
  });
 }
-
-const clock = sceneClock;
-document.addEventListener("visibilitychange", () => {
-  if (document.hidden) {
-    paused = true;
-    cancelAnimationFrame(frame);
-  } else {
-    paused = false;
-    sceneClock.start();
-    if (running) animate();
-  }
-});
-function resize() {
-  quality = Math.min(devicePixelRatio, 2);
-  renderer.setPixelRatio(quality);
-  renderer.setSize(innerWidth, innerHeight, false);
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
-  effects?.resize();
-}
-window.addEventListener("resize", resize);
-window.addEventListener("orientationchange", () => window.setTimeout(resize, 180));
-window.addEventListener("error", event => console.error("THE FALL error", event.error || event.message));
-
-if (testMode) {
-  const selected = sceneTypes.find(item => item.id === sceneAliases[testSettings.scene]) || sceneTypes[1];
-  previousSceneId = selected.id;
-  createScene(selected, testSettings.seed, weatherParam(testSettings.weather));
-  terrain?.setDebugOptions(terrainDebugOptions);
-} else {
-  createScene(chooseScene(), randomSeed());
-}
-running = true;
-sceneClock.start();
-animate();
+function resize(){quality=Math.min(devicePixelRatio,2);renderer.setPixelRatio(quality);renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();effects?.resize();}
+window.addEventListener("resize",resize);
+document.addEventListener("visibilitychange",()=>{if(document.hidden){paused=true;cancelAnimationFrame(frame);}else{paused=false;sceneClock.start();if(running)animate();}});
+window.addEventListener("error",e=>console.error("THE FALL runtime error",e.error||e.message));
+const initial=sceneTypes.find(s=>s.id===(sceneAliases[testSettings.scene]||testSettings.scene))||sceneTypes[0];
+createScene(initial,seed,testSettings.weather,testSettings.time);
+if(testMode)setForcedPhase(testSettings.phase);
+if(testMode&&testSettings.freeze){camera.position.y=Math.max(terrain.getHeightAt(camera.position.x,camera.position.z)+80,terrain.getWaterLevel()+40);}
+running=true;sceneClock.start();animate();
