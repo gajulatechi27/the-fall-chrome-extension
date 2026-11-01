@@ -101,7 +101,7 @@ function makeChunk(noise, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, segment
       const coast = THREE.MathUtils.smoothstep(shoreZ - worldZ, -720, 260);
       const headland = Math.pow(Math.max(0, Math.sin(x * 0.00016 + 0.8)), 5) * 95;
       const dune = Math.max(0, noise(x * 0.0013, worldZ * 0.0011)) * 18;
-      h = THREE.MathUtils.lerp(-72 + h * 0.12, h * 0.48 + 24 + headland + dune, coast) - 92;
+      h = THREE.MathUtils.lerp(-100 + h * 0.12, 80 + h * 0.48 + headland + dune, coast);
     }
     if (biome === "desert") h = h * 0.76 + Math.sin(warpX * 0.0022 + noise(0, warpZ * 0.001) * 2.0) * 13;
     if (biome === "mountains" || biome === "snow") {
@@ -424,7 +424,7 @@ export class Terrain {
       const coast = THREE.MathUtils.smoothstep(shoreZ - z, -720, 260);
       const headland = Math.pow(Math.max(0, Math.sin(x * 0.00016 + 0.8)), 5) * 95;
       const dune = Math.max(0, this.noise(x * 0.0013, z * 0.0011)) * 18;
-      h = THREE.MathUtils.lerp(-72 + h * 0.12, h * 0.48 + 24 + headland + dune, coast) - 92;
+      h = THREE.MathUtils.lerp(-100 + h * 0.12, 80 + h * 0.48 + headland + dune, coast);
     }
     return h;
   }
