@@ -84,13 +84,13 @@ diffuseColor.rgb = mix(diffuseColor.rgb, fallGround, 0.98);`
   material.customProgramCacheKey = () => "the-fall-terrain-shore-v1-" + biome;
 }
 
-function makeChunk(noise, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, segments = SEGMENTS) {
+function makeChunk(noise, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, segments = SEGMENTS, environment = null) {
   const positions = [];
   const indices = [];
   const heights = new Float32Array((segments + 1) * (segments + 1));
   let minHeight = Infinity, maxHeight = -Infinity;
   const step = chunkSize / segments;
-  const amplitude = BIOME_HEIGHT[biome] || 145;
+  const amplitude = environment?.terrain?.baseHeight ?? BIOME_HEIGHT[biome] ?? 145;
 
   const heightAt = (x, worldZ) => {
     const warpX = x + noise(x * 0.0007, worldZ * 0.0007) * 115;
@@ -109,7 +109,7 @@ function makeChunk(noise, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, segment
     if (biome === "desert") h = h * 0.76 + Math.sin(warpX * 0.0022 + noise(0, warpZ * 0.001) * 2.0) * 13;
     if (biome === "mountains" || biome === "snow") {
       const ridge = 1.0 - Math.abs(noise(warpX * 0.0012, warpZ * 0.0012));
-      h += Math.pow(Math.max(0, ridge), 2.2) * (biome === "snow" ? 95 : 62);
+      h += Math.pow(Math.max(0, ridge), 2.2) * (biome === "snow" ? 95 : 62) * (environment?.terrain?.ridgeWeight == null ? 1 : environment.terrain.ridgeWeight);
     }
     return h;
   };
@@ -334,7 +334,9 @@ export class Terrain {
   constructor(scene, seed, biome, routeTheme = "") {
     this.scene = scene;
     this.seed = seed;
-    this.biome = biome;
+    this.environment = routeTheme && typeof routeTheme === "object" ? routeTheme : null;
+    this.biome = this.environment?.biome || biome;
+    this.seaLevel = this.environment?.water?.level ?? WATER_LEVEL;
     this.noise = createNoise2D(makeRandom(seed));
     this.group = new THREE.Group();
     scene.add(this.group);
@@ -350,7 +352,8 @@ export class Terrain {
     this.water = null;
     if (biome === "islands") {
       const segments = 192;
-      const geometry = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, segments, segments);
+      const waterSize = this.environment?.water?.width || WATER_SIZE;
+      const geometry = new THREE.PlaneGeometry(waterSize, waterSize, segments, segments);
       const heights = new Float32Array((segments + 1) * (segments + 1));
       geometry.setAttribute("terrainHeight", new THREE.BufferAttribute(heights, 1));
       this.waterHeights = heights;
@@ -360,7 +363,7 @@ export class Terrain {
       this.waterMaterial = createWaterMaterial(seed);
       this.water = new THREE.Mesh(geometry, this.waterMaterial);
       this.water.rotation.x = -Math.PI / 2;
-      this.water.position.y = WATER_LEVEL;
+      this.water.position.y = this.seaLevel;
       this.water.renderOrder = 1;
       this.scene.add(this.water);
       this.updateWaterClip(0, 0);
@@ -400,7 +403,7 @@ export class Terrain {
             chunk.geometry.dispose(); chunk.material.dispose();
             this.group.remove(chunk); keep.delete(key);
           }
-          chunk = makeChunk(this.noise, z, this.biome, x, this.chunkSize, lod.segments);
+          chunk = makeChunk(this.noise, z, this.biome, x, this.chunkSize, lod.segments, this.environment);
           chunk.userData.worldX = x;
           chunk.userData.gridKey = key;
         }
@@ -518,7 +521,7 @@ export class Terrain {
     return {
       chunkCount: this.chunks.length, chunksUnderCamera,
       ringCounts: { ...this.ringCounts }, coverage20km: this.hasCoverage(20000),
-      seaLevel: WATER_LEVEL, waterEnabled: Boolean(this.water), waterTerrainClipping: Boolean(this.water?.geometry?.attributes?.terrainHeight),
+      seaLevel: this.seaLevel, waterEnabled: Boolean(this.water), waterTerrainClipping: Boolean(this.water?.geometry?.attributes?.terrainHeight),
       minHeight: Math.min(...this.chunks.map(c => c.userData.minHeight ?? Infinity)),
       maxHeight: Math.max(...this.chunks.map(c => c.userData.maxHeight ?? -Infinity))
     };
