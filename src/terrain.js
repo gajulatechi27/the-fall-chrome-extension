@@ -180,7 +180,13 @@ function makeChunk(noise, seed, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, s
       const shoulder = noise(warpX * 0.00082 - 9.0, warpZ * 0.00082 + 23.0);
       h += rolling * 15 + shoulder * 3.5;
     }
-    if (biome === "desert") h = h * 0.76 + Math.sin(warpX * 0.0018 + noise(0, warpZ * 0.0008) * 1.6) * 10;
+    if (biome === "desert") {
+      const duneField = warpZ * 0.00034 + noise(warpX * 0.00028, warpZ * 0.00016) * 1.25 +
+        Math.sin(warpX * 0.00022) * 0.38;
+      const broadDune = Math.sin(duneField) * 62 + Math.sin(duneField * 0.52 + 1.3) * 34;
+      const ripple = Math.sin(duneField * 3.7 + warpX * 0.00055) * 5;
+      h = h * 0.48 + broadDune + ripple;
+    }
     if (biome === "mountains" || biome === "snow") {
       const ridge = 1.0 - Math.abs(noise(warpX * 0.00105, warpZ * 0.00105));
       const secondary = 1.0 - Math.abs(noise(warpX * 0.00215 + 13.0, warpZ * 0.00215 - 7.0));
@@ -372,12 +378,13 @@ function createWaterMaterial(seed) {
 
 function createFarRanges(scene, noise, environment = null) {
   const alpine = environment?.water?.type === "lake";
+  const himalayan = environment?.id === "himalayan-range";
   const layers = [];
-  const colors = alpine ? [0x66869a, 0x87a7bd, 0xb4cbd8] : [0x718b91, 0x91a9ad, 0xb4c7c9];
+  const colors = (alpine || himalayan) ? [0x66869a, 0x87a7bd, 0xb4cbd8] : [0x718b91, 0x91a9ad, 0xb4c7c9];
   const distances = [10500, 14500, 18500];
   for (let layer = 0; layer < 3; layer++) {
     const positions = [], indices = [];
-    const nx = alpine ? 520 : 320, nz = alpine ? 42 : 28, width = 76000, depth = 7200;
+    const nx = (alpine || himalayan) ? 520 : 320, nz = (alpine || himalayan) ? 42 : 28, width = 76000, depth = 7200;
     for (let iz = 0; iz <= nz; iz++) {
       for (let ix = 0; ix <= nx; ix++) {
         const x = -width * .5 + width * ix / nx;
@@ -386,8 +393,9 @@ function createFarRanges(scene, noise, environment = null) {
         const r1 = 1.0 - Math.abs(noise(x * (.00027 + layer * .00003), z * .00024 + layer * 2.1));
         const r2 = 1.0 - Math.abs(noise(x * (.00071 + layer * .000035) + 17.0, z * .00061 - layer * 4.7));
         const r3 = 1.0 - Math.abs(noise(x * (.00155 + layer * .00005) - 9.0, z * .0012 + layer));
-        const ridge = Math.pow(r1, alpine ? 1.55 : 2.0) * (alpine ? 920 : 410) + Math.pow(r2, 2.15) * (alpine ? 310 : 165) + Math.pow(r3, 2.7) * (alpine ? 90 : 52);
-        const base = (alpine ? 118 : 72) + Math.sin(x * .00014 + layer) * (alpine ? 34 : 26) + Math.sin(z * .00045 + layer) * 9;
+        const mountainScale = alpine ? 1 : (himalayan ? 1.28 : 0);
+        const ridge = Math.pow(r1, alpine || himalayan ? 1.55 : 2.0) * (alpine || himalayan ? 920 * mountainScale : 410) + Math.pow(r2, 2.15) * (alpine || himalayan ? 310 * mountainScale : 165) + Math.pow(r3, 2.7) * (alpine || himalayan ? 90 * mountainScale : 52);
+        const base = (alpine || himalayan ? 118 : 72) + Math.sin(x * .00014 + layer) * (alpine || himalayan ? 34 : 26) + Math.sin(z * .00045 + layer) * 9;
         const y = Math.max(12, (base + ridge) * envelope);
         positions.push(x, y, z);
       }
@@ -401,10 +409,10 @@ function createFarRanges(scene, noise, environment = null) {
       const height = positions[i + 1];
       const slopeHint = Math.abs(Math.sin(positions[i] * .0013 + layer) * Math.cos(positions[i + 2] * .0008));
       const rock = THREE.MathUtils.smoothstep(slopeHint, .42, .88);
-      const high = THREE.MathUtils.smoothstep(height, alpine ? 390 : 420, alpine ? 760 : 820);
+      const high = THREE.MathUtils.smoothstep(height, alpine || himalayan ? 390 : 420, alpine || himalayan ? 760 : 820);
       const tint = new THREE.Color([0x849889, 0x91a5a8, 0xa9b9bd][layer]);
       tint.lerp(new THREE.Color([0x65756f, 0x78888b, 0x929fa3][layer]), rock);
-      tint.lerp(new THREE.Color(alpine ? 0xeaf4fa : 0xc5d0d0), high);
+      tint.lerp(new THREE.Color(alpine || himalayan ? 0xeaf4fa : 0xc5d0d0), high);
       tint.lerp(new THREE.Color(0xd0dadd), [0.12, 0.25, 0.42][layer]);
       colorValues.push(tint.r, tint.g, tint.b);
     }
@@ -572,7 +580,11 @@ export class Terrain {
       h += rolling * 24 + shoulder * 7;
     }
     if (this.biome === "desert") {
-      h = h * 0.76 + Math.sin(warpX * 0.0018 + this.noise(0, warpZ * 0.0008) * 1.6) * 10;
+      const duneField = warpZ * 0.00034 + this.noise(warpX * 0.00028, warpZ * 0.00016) * 1.25 +
+        Math.sin(warpX * 0.00022) * 0.38;
+      const broadDune = Math.sin(duneField) * 62 + Math.sin(duneField * 0.52 + 1.3) * 34;
+      const ripple = Math.sin(duneField * 3.7 + warpX * 0.00055) * 5;
+      h = h * 0.48 + broadDune + ripple;
     }
     if (this.biome === "mountains" || this.biome === "snow") {
       const ridge = 1.0 - Math.abs(this.noise(warpX * 0.00105, warpZ * 0.00105));
