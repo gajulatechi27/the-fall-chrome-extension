@@ -30,7 +30,7 @@ const cameraTarget = new THREE.Vector3();
 const cameraDesired = new THREE.Vector3();
 const params = new URLSearchParams(location.search);
 const requestedEnv = params.get("env");
-const playlistEnabled = params.get("playlist") === "1" || (!requestedEnv && params.get("playlist") !== "0");
+let playlistEnabled = params.get("playlist") === "1" || (!requestedEnv && params.get("playlist") !== "0");
 const skipOnLoad = params.get("skip") === "1";
 const seedParam = new URLSearchParams(location.search).get("seed");
 const requestedSeed = seedParam === null ? Number.NaN : Number(seedParam);
@@ -67,8 +67,9 @@ document.addEventListener("keydown", event => {
     debugVisible = !debugVisible;
     debug.style.display = debugVisible ? "block" : "none";
   }
-  if (event.key.toLowerCase() === "n" && !event.repeat && playlistEnabled) {
+  if (event.key.toLowerCase() === "n" && !event.repeat) {
     event.preventDefault();
+    playlistEnabled = true;
     advanceLandscape();
   }
 });
