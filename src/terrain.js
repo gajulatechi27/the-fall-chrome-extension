@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { createNoise2D } from "simplex-noise";
+import { createVegetation } from "./vegetation.js";
 
 const CHUNK_SIZE = 3000;
 const SEGMENTS = 128;
@@ -217,6 +218,18 @@ function makeChunk(noise, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, segment
   const material = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.94, metalness: 0.0, side: THREE.DoubleSide });
   makeTerrainShader(material, biome, environment);
   const mesh = new THREE.Mesh(geometry, material);
+  const vegetation = createVegetation({
+    seed: noise.seed ?? 0,
+    biome,
+    environment,
+    xOffset,
+    chunkZ: z,
+    chunkSize,
+    segments,
+    heightAt,
+    seaLevel: environment?.water?.level ?? WATER_LEVEL
+  });
+  if (vegetation) mesh.add(vegetation);
   mesh.position.x = 0;
   mesh.position.z = z;
   mesh.receiveShadow = true;
