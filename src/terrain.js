@@ -129,9 +129,13 @@ function makeChunk(noise, seed, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, s
     if (environment?.terrain?.valleyCarving) h -= Math.abs(noise(warpX * 0.00048, warpZ * 0.00048)) * environment.terrain.valleyCarving * amplitude * 0.34;
     h = applyRiverChannel(h, x, worldZ, noise, environment);
     if (environment?.water?.type === "lake") {
+      // The previous shallow depression left much of the alpine terrain above
+      // the water plane, so the shader exposed hundreds of tiny land patches.
+      // Form one continuous submerged basin, then blend naturally into shore.
       const lakeRadius = Math.hypot(x, worldZ + 2500);
-      const basin = 1.0 - THREE.MathUtils.smoothstep(lakeRadius, 1100, 4300);
-      h -= basin * 145;
+      const basin = 1.0 - THREE.MathUtils.smoothstep(lakeRadius, 3300, 4700);
+      const lakeBed = -112 + noise(warpX * 0.00042, warpZ * 0.00042) * 9;
+      h = THREE.MathUtils.lerp(h, lakeBed, basin);
     }
     if (biome === "islands") {
       const ridgeA = 1.0 - Math.abs(noise(warpX * 0.00145, warpZ * 0.00145));
@@ -521,8 +525,9 @@ export class Terrain {
     h = applyRiverChannel(h, x, z, this.noise, this.environment);
     if (this.environment?.water?.type === "lake") {
       const lakeRadius = Math.hypot(x, z + 2500);
-      const basin = 1.0 - THREE.MathUtils.smoothstep(lakeRadius, 1100, 4300);
-      h -= basin * 145;
+      const basin = 1.0 - THREE.MathUtils.smoothstep(lakeRadius, 3300, 4700);
+      const lakeBed = -112 + this.noise(warpX * 0.00042, warpZ * 0.00042) * 9;
+      h = THREE.MathUtils.lerp(h, lakeBed, basin);
     }
     if (this.biome === "islands") {
       const ridgeA = 1.0 - Math.abs(this.noise(warpX * 0.00145, warpZ * 0.00145));
@@ -584,7 +589,7 @@ export class Terrain {
         // Suppress water outside the basin so distant depressions cannot turn
         // into disconnected pools or floating-looking water patches.
         const lakeRadius = Math.hypot(wx, wz + 2500);
-        const lakeMask = 1.0 - THREE.MathUtils.smoothstep(lakeRadius, 3850, 4350);
+        const lakeMask = 1.0 - THREE.MathUtils.smoothstep(lakeRadius, 4300, 4850);
         out[i] = THREE.MathUtils.lerp(this.seaLevel + 1.0, terrainHeight, lakeMask);
       } else {
         out[i] = terrainHeight;
