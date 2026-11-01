@@ -3,9 +3,9 @@ import * as THREE from "three";
 export function createSky(scene, renderer, seed, biome = "green", weather = "clear", timeOfDay = "noon") {
   const skyGeo = new THREE.SphereGeometry(1800, 48, 32);
   const palettes = {
-    himalayas:[0xb9d5e4,0x263f60,0xffedcf],green:[0xd8e8c0,0x477b91,0xffe0a3],
+    himalayas:[0xc9e2ed,0x47738e,0xfff0d8],green:[0xd8e8c0,0x477b91,0xffe0a3],
     delta:[0xb7d5dc,0x3c6480,0xffe0b5],lake:[0xe9b7a4,0x4b5278,0xffc5a0],
-    coast:[0x9dd7e7,0x28628b,0xffe0a8],desert:[0xe9a16f,0x633d54,0xffc07a],
+    coast:[0x9dd7e7,0x28628b,0xffe0a8],desert:[0xf2c4a0,0x82b6cb,0xffd18b],
     forest:[0x9ebfae,0x254c4b,0xffd3a1],rainforest:[0x9eb8ad,0x294c52,0xffc89d]
   };
   const palette=palettes[biome]||palettes.green;
@@ -20,7 +20,7 @@ export function createSky(scene, renderer, seed, biome = "green", weather = "cle
   }
   if(weather==="mist") horizonColor.lerp(new THREE.Color(0xd3d9d4),.48);
   const angle = (seed % 6283) / 1000;
-  const elevation = timeOfDay === "night" ? -0.12 : timeOfDay === "dawn" ? 0.18 : timeOfDay === "sunset" ? 0.12 : 0.72;
+  const elevation = timeOfDay === "night" ? -0.12 : timeOfDay === "dawn" ? 0.18 : timeOfDay === "sunset" ? 0.12 : biome === "desert" ? 0.58 : 0.72;
   const sunDirection = new THREE.Vector3(Math.cos(angle) * 0.45, elevation, Math.sin(angle) * 0.45).normalize();
   const skyMat = new THREE.ShaderMaterial({
     side: THREE.BackSide,
