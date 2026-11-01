@@ -60,7 +60,7 @@ export function createSky(scene, renderer, seed, biome = "green", weather = "cle
   scene.add(sun);
   return {
     horizonColor,
-    update() {},
+    update(camera) { if (camera) sky.position.copy(camera.position); },
     dispose() {
       scene.remove(sky, hemi, sun);
       skyGeo.dispose();
