@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-export function createSky(scene, renderer, seed, biome = "green", weather = "clear") {
+export function createSky(scene, renderer, seed, biome = "green", weather = "clear", timeOfDay = "noon") {
   const skyGeo = new THREE.SphereGeometry(1800, 48, 32);
   const palettes = {
     himalayas:[0xa8c8df,0x315274,0xffe3c5],green:[0xf0c28a,0x315779,0xffd49b],
@@ -9,16 +9,19 @@ export function createSky(scene, renderer, seed, biome = "green", weather = "cle
     forest:[0x9ebfae,0x254c4b,0xffd3a1],rainforest:[0x9eb8ad,0x294c52,0xffc89d]
   };
   const palette=palettes[biome]||palettes.green;
-  const horizonColor=new THREE.Color(palette[0]);
-  const zenithColor=new THREE.Color(palette[1]);
-  const sunColor=new THREE.Color(palette[2]);
+  const times = { dawn:[0xe9a78d,0x57486e,0xffb17b], noon:palette, sunset:[0xe58d83,0x493c68,0xffa06a], night:[0x26384f,0x080f27,0x879bc8] };
+  const active = times[timeOfDay] || palette;
+  const horizonColor=new THREE.Color(active[0]);
+  const zenithColor=new THREE.Color(active[1]);
+  const sunColor=new THREE.Color(active[2]);
   if(weather==="heavy clouds"||weather==="rain"||weather==="storm"){
     horizonColor.lerp(new THREE.Color(0x718493),weather==="storm"?.72:.42);
     zenithColor.lerp(new THREE.Color(0x273747),.58);
   }
   if(weather==="mist") horizonColor.lerp(new THREE.Color(0xd3d9d4),.48);
   const angle = (seed % 6283) / 1000;
-  const sunDirection = new THREE.Vector3(Math.cos(angle) * 0.45, 0.62, Math.sin(angle) * 0.45).normalize();
+  const elevation = timeOfDay === "night" ? -0.12 : timeOfDay === "dawn" ? 0.18 : timeOfDay === "sunset" ? 0.12 : 0.72;
+  const sunDirection = new THREE.Vector3(Math.cos(angle) * 0.45, elevation, Math.sin(angle) * 0.45).normalize();
   const skyMat = new THREE.ShaderMaterial({
     side: THREE.BackSide,
     depthTest: false,
@@ -50,9 +53,9 @@ export function createSky(scene, renderer, seed, biome = "green", weather = "cle
   sky.renderOrder = -1000;
   sky.frustumCulled = false;
   scene.add(sky);
-  const hemi = new THREE.HemisphereLight(0xe7f3ff, biome === "desert" ? 0x82604c : 0x536d55, weather === "storm" ? .8 : 1.65);
+  const hemi = new THREE.HemisphereLight(0xe7f3ff, biome === "desert" ? 0x82604c : 0x536d55, weather === "storm" ? .8 : timeOfDay === "night" ? .38 : 1.65);
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(sunColor, weather === "storm" || weather === "heavy clouds" ? 1.05 : 2.8);
+  const sun = new THREE.DirectionalLight(sunColor, weather === "storm" || weather === "heavy clouds" ? 1.05 : timeOfDay === "night" ? .18 : 2.8);
   sun.position.copy(sunDirection).multiplyScalar(420);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
