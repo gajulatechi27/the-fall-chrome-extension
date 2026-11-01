@@ -1,12 +1,81 @@
 import * as THREE from "three";
-import {RGBELoader} from "three/addons/loaders/RGBELoader.js";
-export function createSky(scene,renderer,seed){
- const skyGeo=new THREE.SphereGeometry(1800,48,32);
- const skyMat=new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,uniforms:{sunDirection:{value:new THREE.Vector3(-.5,.55,-.7)},horizon:{value:new THREE.Color(0xd4c5ae)},zenith:{value:new THREE.Color(0x244766)},sunColor:{value:new THREE.Color(0xffd5a1)}},vertexShader:`varying vec3 vDirection;void main(){vDirection=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,fragmentShader:`varying vec3 vDirection;uniform vec3 sunDirection,horizon,zenith,sunColor;void main(){float h=clamp(vDirection.y*.5+.5,0.,1.);vec3 c=mix(horizon,zenith,smoothstep(.2,.88,h));float g=pow(max(dot(normalize(vDirection),normalize(sunDirection)),0.),18.);float disk=pow(max(dot(normalize(vDirection),normalize(sunDirection)),0.),380.);c+=sunColor*(g*.38+disk*2.);gl_FragColor=vec4(c,1.);}`});
- const sky=new THREE.Mesh(skyGeo,skyMat);scene.add(sky);
- scene.add(new THREE.HemisphereLight(0xdcecff,0x52604c,1.6));
- const angle=(seed%6283)/1000;const sun=new THREE.DirectionalLight(0xffdfbd,2.8);sun.position.set(Math.cos(angle)*260,180+(seed%80),Math.sin(angle)*260);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);scene.add(sun);
- let environment;
- const loader=new RGBELoader();loader.load("/assets/toposcope_sunset_1k.hdr",hdr=>{hdr.mapping=THREE.EquirectangularReflectionMapping;const pmrem=new THREE.PMREMGenerator(renderer);environment=pmrem.fromEquirectangular(hdr).texture;scene.environment=environment;hdr.dispose();pmrem.dispose();},undefined,()=>console.info("Optional local HDRI not found; gradient sky remains active."));
- return{update(){},dispose(){scene.remove(sky,sun);skyGeo.dispose();skyMat.dispose();environment?.dispose();}};
+import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
+
+export function createSky(scene, renderer, seed) {
+  const skyGeo = new THREE.SphereGeometry(1800, 48, 32);
+  const horizonColor = new THREE.Color(0x9fc8d9);
+  const zenithColor = new THREE.Color(0x244766);
+  const sunColor = new THREE.Color(0xffdfb4);
+  const skyMat = new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    depthWrite: false,
+    uniforms: {
+      sunDirection: { value: new THREE.Vector3(-0.5, 0.55, -0.7) },
+      horizon: { value: horizonColor },
+      zenith: { value: zenithColor },
+      sunColor: { value: sunColor }
+    },
+    vertexShader: `
+      varying vec3 vDirection;
+      void main() {
+        vDirection = normalize(position);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: `
+      varying vec3 vDirection;
+      uniform vec3 sunDirection, horizon, zenith, sunColor;
+      void main() {
+        float h = clamp(vDirection.y * 0.5 + 0.5, 0.0, 1.0);
+        vec3 c = mix(horizon, zenith, smoothstep(0.18, 0.9, h));
+        float sunDot = max(dot(normalize(vDirection), normalize(sunDirection)), 0.0);
+        float glow = pow(sunDot, 18.0);
+        float disk = pow(sunDot, 420.0);
+        c += sunColor * (glow * 0.32 + disk * 2.1);
+        gl_FragColor = vec4(c, 1.0);
+      }`
+  });
+  const sky = new THREE.Mesh(skyGeo, skyMat);
+  scene.add(sky);
+
+  const hemi = new THREE.HemisphereLight(0xdcefff, 0x536d69, 1.55);
+  scene.add(hemi);
+
+  const angle = (seed % 6283) / 1000;
+  const sun = new THREE.DirectionalLight(0xffe3c2, 2.5);
+  sun.position.set(Math.cos(angle) * 260, 180 + (seed % 80), Math.sin(angle) * 260);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.camera.left = -500;
+  sun.shadow.camera.right = 500;
+  sun.shadow.camera.top = 500;
+  sun.shadow.camera.bottom = -500;
+  scene.add(sun);
+
+  let environment;
+  const loader = new RGBELoader();
+  loader.load(
+    "/assets/toposcope_sunset_1k.hdr",
+    hdr => {
+      hdr.mapping = THREE.EquirectangularReflectionMapping;
+      const pmrem = new THREE.PMREMGenerator(renderer);
+      environment = pmrem.fromEquirectangular(hdr).texture;
+      scene.environment = environment;
+      hdr.dispose();
+      pmrem.dispose();
+    },
+    undefined,
+    () => console.info("Optional local HDRI not found; blue atmospheric gradient remains active.")
+  );
+
+  return {
+    horizonColor,
+    update() {},
+    dispose() {
+      scene.remove(sky, hemi, sun);
+      skyGeo.dispose();
+      skyMat.dispose();
+      environment?.dispose();
+      if (scene.environment === environment) scene.environment = null;
+    }
+  };
 }
