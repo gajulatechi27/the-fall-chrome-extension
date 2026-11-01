@@ -18,9 +18,9 @@ function makeRandom(seed) {
   };
 }
 
-function fbm(noise, x, z) {
+function fbm(noise, x, z, octaves = 6) {
   let sum = 0, amp = 0.55, freq = 0.0018, norm = 0;
-  for (let octave = 0; octave < 6; octave++) {
+  for (let octave = 0; octave < octaves; octave++) {
     sum += noise(x * freq, z * freq) * amp;
     norm += amp;
     amp *= 0.5;
@@ -95,7 +95,8 @@ function makeChunk(noise, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, segment
   const heightAt = (x, worldZ) => {
     const warpX = x + noise(x * 0.0007, worldZ * 0.0007) * 115;
     const warpZ = worldZ + noise((x + 900) * 0.0007, (worldZ - 400) * 0.0007) * 115;
-    let h = fbm(noise, warpX, warpZ) * amplitude;
+    let h = fbm(noise, warpX, warpZ, environment?.terrain?.noiseOctaves ?? 6) * amplitude;
+    if (environment?.terrain?.valleyCarving) h -= Math.abs(noise(warpX * 0.00048, warpZ * 0.00048)) * environment.terrain.valleyCarving * amplitude * 0.34;
     if (biome === "islands") {
       const ridgeA = 1.0 - Math.abs(noise(warpX * 0.00145, warpZ * 0.00145));
       const ridgeB = 1.0 - Math.abs(noise(warpX * 0.0031 + 17.0, warpZ * 0.0031 - 9.0));
