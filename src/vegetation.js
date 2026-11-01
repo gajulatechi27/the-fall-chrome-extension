@@ -2,31 +2,42 @@ import * as THREE from "three";
 
 // Shared low-poly tree geometry keeps vegetation to one draw call per terrain chunk.
 const treeGeometry = (() => {
-  // A trunk plus three overlapping canopy tiers reads as a tree silhouette
-  // from the low flight camera, unlike the previous single dark cone.
-  const trunk = new THREE.CylinderGeometry(0.13, 0.22, 2.15, 6, 1);
-  trunk.translate(0, 1.075, 0);
-  const lower = new THREE.ConeGeometry(1.28, 2.55, 8, 2);
-  lower.translate(0, 2.45, 0);
-  const middle = new THREE.ConeGeometry(1.02, 2.25, 8, 2);
-  middle.translate(0, 3.55, 0);
-  const crown = new THREE.ConeGeometry(0.72, 1.95, 8, 2);
-  crown.translate(0, 4.55, 0);
+  // Organic, overlapping foliage masses replace the stacked cone silhouette.
+  // The deliberately uneven crown reads as a broadleaf tree from flight height.
+  const trunk = new THREE.CylinderGeometry(0.13, 0.24, 2.35, 7, 1);
+  trunk.translate(0, 1.175, 0);
 
-  const geometries = [trunk, lower, middle, crown];
+  const crownParts = [
+    { x: 0, y: 3.15, z: 0, sx: 1.12, sy: 1.28, sz: 1.02 },
+    { x: -0.58, y: 3.05, z: 0.12, sx: 0.78, sy: 0.88, sz: 0.82 },
+    { x: 0.58, y: 3.28, z: -0.08, sx: 0.82, sy: 0.96, sz: 0.78 },
+    { x: 0.12, y: 3.82, z: 0.52, sx: 0.72, sy: 0.82, sz: 0.72 },
+    { x: -0.18, y: 3.88, z: -0.48, sx: 0.76, sy: 0.84, sz: 0.78 },
+    { x: 0.04, y: 4.48, z: 0.02, sx: 0.62, sy: 0.78, sz: 0.62 }
+  ];
+  const foliage = crownParts.map((part, index) => {
+    const geometry = new THREE.IcosahedronGeometry(1, 1);
+    geometry.scale(part.sx, part.sy, part.sz);
+    geometry.rotateY(index * 0.73);
+    geometry.translate(part.x, part.y, part.z);
+    return geometry;
+  });
+
+  const geometries = [trunk, ...foliage];
   const merged = new THREE.BufferGeometry();
-  const positions = [], normals = [], indices = [], colors = [];
+  const positions = [], indices = [], colors = [];
   let offset = 0;
   for (const geometry of geometries) {
     const p = geometry.attributes.position;
-    const n = geometry.attributes.normal;
     for (let i = 0; i < p.count; i++) {
-      positions.push(p.getX(i), p.getY(i), p.getZ(i));
-      normals.push(n.getX(i), n.getY(i), n.getZ(i));
-      const y = p.getY(i);
-      const color = y < 2.0
+      const px = p.getX(i), py = p.getY(i), pz = p.getZ(i);
+      positions.push(px, py, pz);
+      const color = py < 2.15
         ? new THREE.Color(0x594331)
-        : new THREE.Color(0x3f7048).lerp(new THREE.Color(0x79a85c), Math.max(0, 1 - Math.abs(y - 3.5) / 3.5) * 0.48);
+        : new THREE.Color(0x315f3b).lerp(
+            new THREE.Color(0x83ad62),
+            THREE.MathUtils.clamp((py - 2.2) / 4.0, 0, 1) * 0.42
+          );
       colors.push(color.r, color.g, color.b);
     }
     const index = geometry.index;
@@ -36,9 +47,9 @@ const treeGeometry = (() => {
     geometry.dispose();
   }
   merged.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  merged.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
   merged.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
   merged.setIndex(indices);
+  merged.computeVertexNormals();
   merged.computeBoundingSphere();
   return merged;
 })();
