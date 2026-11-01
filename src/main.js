@@ -161,6 +161,7 @@ async function advanceLandscape() {
   fade.classList.add("white"); fade.style.opacity = "1";
   const requestedNext = preloadedTerrain && preloadedIndex >= 0 ? preloadedIndex : nextIndex(sequenceIndex);
   const staged = preloadedTerrain && preloadedIndex === requestedNext ? preloadedTerrain : null;
+  if (preloadedTerrain && !staged) { try { preloadedTerrain.dispose(); } catch {} }
   preloadedTerrain = null; preloadedIndex = -1;
   await new Promise(resolve => setTimeout(resolve, 4000));
   try {
@@ -345,7 +346,9 @@ function animate() {
   }
 
   updateDebug(dt);
-  if (playlistEnabled && time >= duration - 10 && !preloadedTerrain) preloadNextLandscape();
+  if (playlistEnabled && time >= duration - 10 && !preloadedTerrain) {
+    preloadNextLandscape().catch(error => console.error("[THE FALL] Next landscape preload failed:", error));
+  }
   if (playlistEnabled && time >= duration && !transitionStarted) { transitionStarted = true; advanceLandscape(); }
 }
 
