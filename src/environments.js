@@ -11,12 +11,12 @@ export const ENVIRONMENTS = [
   },
   {
     id: "river-valley", name: "River valley with farmland", timeOfDay: "morning",
-    biome: "forest", paletteTint: "vec3(1.02,1.06,0.82)", terrain: { biome: "forest", baseHeight: 112, noiseOctaves: 6, ridgeWeight: 0.06, valleyCarving: 0.62, seaLevel: -28 },
-    materialMix: { rock: [190, 320], grass: [-12, 55], dryGrass: [45, 105], sand: [-28, -10], snow: [600, 950] },
-    water: { type: "river", level: -28, width: 180, color: "#4caaa5" },
-    vegetation: { types: ["farmland", "hedgerows", "deciduous-trees"], density: 0.42, clumpSize: 68 },
-    sun: { position: [-90, 210, -340], intensity: 2.25 }, sky: { horizon: "#b9d0d5", zenith: "#426985", sun: "#fff0cf" },
-    fog: { color: "#b7cbd0", density: 0.000078 }, clouds: { cover: 0.22, speed: 0.9 }, weather: "clear", particles: "none",
+    biome: "forest", paletteTint: "vec3(1.02,1.06,0.82)", terrain: { biome: "forest", baseHeight: 112, noiseOctaves: 6, ridgeWeight: 0.04, valleyCarving: 0.42, seaLevel: -28 },
+    materialMix: { rock: [230, 370], grass: [-12, 62], dryGrass: [38, 112], sand: [-28, -10], snow: [600, 950] },
+    water: { type: "river", level: -28, width: 270, color: "#398f98" },
+    vegetation: { types: ["farmland", "hedgerows", "deciduous-trees"], density: 0.56, clumpSize: 68 },
+    sun: { position: [-90, 260, -340], intensity: 2.38 }, sky: { horizon: "#c7dce0", zenith: "#4b7896", sun: "#fff1d9" },
+    fog: { color: "#c2d5d0", density: 0.000064 }, clouds: { cover: 0.22, speed: 0.9 }, weather: "clear", particles: "none",
     camera: { altitude: 390, speed: 44 }, duration: 25
   },
   {
