@@ -19,14 +19,29 @@ function makeRandom(seed) {
 }
 
 function fbm(noise, x, z, octaves = 6) {
-  let sum = 0, amp = 0.55, freq = 0.0018, norm = 0;
+  let sum = 0, amp = 0.55, freq = 0.00135, norm = 0;
   for (let octave = 0; octave < octaves; octave++) {
     sum += noise(x * freq, z * freq) * amp;
     norm += amp;
-    amp *= 0.5;
-    freq *= 2.05;
+    amp *= 0.48;
+    freq *= 1.9;
   }
   return sum / norm;
+}
+
+function riverCenterX(noise, worldZ) {
+  return Math.sin(worldZ * 0.00019 + 0.7) * 185 +
+    Math.sin(worldZ * 0.000071 - 1.2) * 95 +
+    noise(0.0, worldZ * 0.00016) * 70;
+}
+
+function applyRiverChannel(height, x, worldZ, noise, environment) {
+  if (environment?.water?.type !== "river") return height;
+  const width = Math.max(24, environment.water.width || 120);
+  const distance = Math.abs(x - riverCenterX(noise, worldZ));
+  const channel = 1.0 - THREE.MathUtils.smoothstep(distance, width * 0.48, width * 1.65);
+  // Keep the bed below the configured water plane, with a broad sloped bank.
+  return height - channel * 112;
 }
 
 function makeTerrainShader(material, biome, environment = null) {
@@ -100,6 +115,7 @@ function makeChunk(noise, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, segment
     const warpZ = worldZ + noise((x + 900) * 0.0007, (worldZ - 400) * 0.0007) * 115;
     let h = fbm(noise, warpX, warpZ, environment?.terrain?.noiseOctaves ?? 6) * amplitude;
     if (environment?.terrain?.valleyCarving) h -= Math.abs(noise(warpX * 0.00048, warpZ * 0.00048)) * environment.terrain.valleyCarving * amplitude * 0.34;
+    h = applyRiverChannel(h, x, worldZ, noise, environment);
     if (environment?.water?.type === "lake") {
       const lakeRadius = Math.hypot(x, worldZ + 2500);
       const basin = 1.0 - THREE.MathUtils.smoothstep(lakeRadius, 1100, 4300);
@@ -171,7 +187,9 @@ function makeChunk(noise, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, segment
   // Compute normals from the same world-space height function on every chunk,
   // including neighbour samples beyond chunk borders.
   const normals = new Float32Array(positions.length);
-  const normalStep = 2.0;
+  // Match normal sampling to the actual vertex spacing; tiny analytic samples
+  // exaggerate frequencies that the mesh cannot represent.
+  const normalStep = Math.max(8, step * 0.55);
   for (let i = 0; i < skirtStart; i++) {
     const x = positions[i * 3], worldX = xOffset + x, localZ = positions[i * 3 + 2], worldZ = z + localZ;
     const dx = heightAt(worldX + normalStep, worldZ) - heightAt(worldX - normalStep, worldZ);
@@ -294,18 +312,18 @@ function createFarRanges(scene, noise) {
   const distances = [10500, 14500, 18500];
   for (let layer = 0; layer < 3; layer++) {
     const positions = [], indices = [];
-    const nx = 160, nz = 8, width = 80000, depth = 6500;
+    const nx = 240, nz = 12, width = 76000, depth = 7200;
     for (let iz = 0; iz <= nz; iz++) {
       for (let ix = 0; ix <= nx; ix++) {
         const x = -width * .5 + width * ix / nx;
         const z = depth * iz / nz;
-        const envelope = Math.sin(Math.PI * iz / nz) * .28 + .72;
-        const r1 = 1.0 - Math.abs(noise(x * (.00031 + layer * .000035), z * .00028 + layer * 2.1));
-        const r2 = 1.0 - Math.abs(noise(x * (.00083 + layer * .00004) + 17.0, z * .00072 - layer * 4.7));
-        const r3 = 1.0 - Math.abs(noise(x * (.0019 + layer * .00006) - 9.0, z * .0014 + layer));
-        const ridge = Math.pow(r1, 1.8) * 520 + Math.pow(r2, 2.4) * 205 + Math.pow(r3, 3.0) * 92;
-        const base = 150 + Math.sin(x * .00017 + layer) * 55 + Math.sin(z * .001 + layer) * 18;
-        const y = Math.max(24, (base + ridge) * envelope);
+        const envelope = 0.24 + Math.sin(Math.PI * iz / nz) * 0.76;
+        const r1 = 1.0 - Math.abs(noise(x * (.00027 + layer * .00003), z * .00024 + layer * 2.1));
+        const r2 = 1.0 - Math.abs(noise(x * (.00071 + layer * .000035) + 17.0, z * .00061 - layer * 4.7));
+        const r3 = 1.0 - Math.abs(noise(x * (.00155 + layer * .00005) - 9.0, z * .0012 + layer));
+        const ridge = Math.pow(r1, 1.9) * 360 + Math.pow(r2, 2.5) * 145 + Math.pow(r3, 3.0) * 48;
+        const base = 72 + Math.sin(x * .00014 + layer) * 32 + Math.sin(z * .0008 + layer) * 12;
+        const y = Math.max(12, (base + ridge) * envelope);
         positions.push(x, y, z);
       }
     }
@@ -319,10 +337,10 @@ function createFarRanges(scene, noise) {
       const slopeHint = Math.abs(Math.sin(positions[i] * .0013 + layer) * Math.cos(positions[i + 2] * .0008));
       const rock = THREE.MathUtils.smoothstep(slopeHint, .42, .88);
       const high = THREE.MathUtils.smoothstep(height, 420, 820);
-      const tint = new THREE.Color(layer === 0 ? 0x647b62 : 0x71818a);
-      tint.lerp(new THREE.Color(layer === 0 ? 0x59636a : 0x7d8990), rock);
-      tint.lerp(new THREE.Color(0xb5c0c3), high);
-      tint.lerp(new THREE.Color(0xb8c7cc), [0.18, 0.34, 0.52][layer]);
+      const tint = new THREE.Color([0x849889, 0x91a5a8, 0xa9b9bd][layer]);
+      tint.lerp(new THREE.Color([0x65756f, 0x78888b, 0x929fa3][layer]), rock);
+      tint.lerp(new THREE.Color(0xc5d0d0), high);
+      tint.lerp(new THREE.Color(0xd0dadd), [0.12, 0.25, 0.42][layer]);
       colorValues.push(tint.r, tint.g, tint.b);
     }
     const geometry = new THREE.BufferGeometry();
@@ -397,6 +415,7 @@ export class Terrain {
       this.waterSegments = { x: segmentsX, z: segmentsZ };
       this.waterCenterX = Number.NaN;
       this.waterCenterZ = Number.NaN;
+      this.waterBaseX = isRiver ? Float32Array.from(geometry.attributes.position.array.filter((_, i) => i % 3 === 0)) : null;
       this.waterMaterial = createWaterMaterial(seed);
       this.waterMaterial.uniforms.uWaterLevel.value = this.seaLevel;
       this.waterMaterial.uniforms.uSunDirection.value
@@ -465,6 +484,7 @@ export class Terrain {
     const warpZ = z + this.noise((x + 900) * 0.0007, (z - 400) * 0.0007) * 115;
     let h = fbm(this.noise, warpX, warpZ, this.environment?.terrain?.noiseOctaves ?? 6) * (this.environment?.terrain?.baseHeight ?? BIOME_HEIGHT[this.biome] ?? 145);
     if (this.environment?.terrain?.valleyCarving) h -= Math.abs(this.noise(warpX * 0.00048, warpZ * 0.00048)) * this.environment.terrain.valleyCarving * (this.environment.terrain.baseHeight || 145) * 0.34;
+    h = applyRiverChannel(h, x, z, this.noise, this.environment);
     if (this.environment?.water?.type === "lake") {
       const lakeRadius = Math.hypot(x, z + 2500);
       const basin = 1.0 - THREE.MathUtils.smoothstep(lakeRadius, 1100, 4300);
@@ -502,11 +522,19 @@ export class Terrain {
     this.waterCenterZ = centerZ;
     const pos = this.water.geometry.attributes.position;
     const out = this.waterHeights;
+    const isRiver = this.environment?.water?.type === "river";
+    const riverCenter = isRiver ? riverCenterX(this.noise, centerZ) : centerX;
     for (let i = 0; i < pos.count; i++) {
-      const wx = centerX + pos.getX(i);
       const wz = centerZ - pos.getY(i);
+      const baseX = isRiver ? this.waterBaseX[i] : pos.getX(i);
+      const localCurveOffset = isRiver
+        ? riverCenterX(this.noise, wz) - riverCenter
+        : 0;
+      if (isRiver) pos.setX(i, baseX + localCurveOffset);
+      const wx = isRiver ? riverCenterX(this.noise, wz) + baseX : centerX + baseX;
       out[i] = HEIGHT_BASE + this.heightAtWorld(wx, wz);
     }
+    if (isRiver) pos.needsUpdate = true;
     this.water.geometry.attributes.terrainHeight.needsUpdate = true;
   }
 
@@ -518,7 +546,9 @@ export class Terrain {
     if (this.water) {
       const wx = camera?.position.x || 0, wz = camera?.position.z || 0;
       this.updateWaterClip(wx, wz);
-      this.water.position.x = this.waterCenterX;
+      this.water.position.x = this.environment?.water?.type === "river"
+        ? riverCenterX(this.noise, this.waterCenterZ)
+        : this.waterCenterX;
       this.water.position.z = this.waterCenterZ;
       this.waterMaterial.uniforms.uTime.value += dt;
     }
