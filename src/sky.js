@@ -53,7 +53,7 @@ export function createSky(scene, renderer, seed, environment = null) {
 
   let environmentTexture;
   const loader = new RGBELoader();
-  loader.load(
+  if (environment?.id !== "alpine-lake") loader.load(
     "/assets/toposcope_sunset_1k.hdr",
     hdr => {
       hdr.mapping = THREE.EquirectangularReflectionMapping;
