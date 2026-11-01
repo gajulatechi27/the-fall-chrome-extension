@@ -49,6 +49,21 @@ let terrainHeightUnder = 0;
 let cameraClearance = 0;
 let groundWarning = "";
 
+const params = new URLSearchParams(location.search);
+const testMode = ["scene","seed","time","weather","freeze","speed"].some(k => params.has(k));
+const sceneAliases = { himalaya:"himalayas", hills:"green", river:"delta", lake:"lake", coast:"coast", desert:"desert", forest:"forest", rainforest:"rainforest" };
+const sceneParam = id => ({himalayas:"himalaya",green:"hills",delta:"river"}[id] || id);
+const weatherParam = value => value === "clouds" ? "light clouds" : value;
+const testSettings = {
+  scene: params.get("scene") || "hills",
+  seed: params.has("seed") && Number.isFinite(Number(params.get("seed"))) ? Number(params.get("seed")) : randomSeed(),
+  time: ["dawn","noon","sunset","night"].includes(params.get("time")) ? params.get("time") : "noon",
+  weather: ["clear","clouds","mist","rain","storm"].includes(params.get("weather")) ? params.get("weather") : "clear",
+  freeze: params.get("freeze") === "1",
+  speed: params.has("speed") && Number.isFinite(Number(params.get("speed"))) ? Math.max(0, Number(params.get("speed"))) : null
+};
+
+
 const debug = document.createElement("pre");
 debug.id = "fall-debug";
 debug.style.cssText = "display:none;position:fixed;z-index:30;left:12px;top:12px;margin:0;padding:12px 14px;max-width:min(520px,calc(100vw - 24px));background:rgba(3,12,20,.84);color:#d8f3ff;border:1px solid rgba(180,220,240,.35);border-radius:8px;font:12px/1.55 ui-monospace,monospace;white-space:pre-wrap;pointer-events:none";
@@ -79,20 +94,20 @@ function disposeScene() {
   terrain = undefined;
   scene.clear();
 }
-function createScene(nextScene, nextSeed) {
+function createScene(nextScene, nextSeed, forcedWeather = null) {
   activeScene = nextScene;
   seed = nextSeed;
   elapsed = 0;
   sceneDuration = 22 + (seed % 5000) / 625; // 22–30 seconds
-  weather = weatherTypes[(seed >>> 5) % weatherTypes.length];
+  weather = forcedWeather || weatherTypes[(seed >>> 5) % weatherTypes.length];
   altitude = 4000;
   verticalVelocity = 0;
-  sky = createSky(scene, renderer, seed, activeScene.id, weather);
+  sky = createSky(scene, renderer, seed, activeScene.id, weather, testMode ? testSettings.time : "noon");
   scene.background = sky.horizonColor.clone();
   scene.fog = new THREE.Fog(sky.horizonColor, 900, weather === "mist" || weather === "storm" ? 8500 : 18500);
   terrain = new Terrain(scene, seed, activeScene.id);
   const initialGround = Math.max(terrain.getHeightAt(camera.position.x, camera.position.z), terrain.getWaterLevel());
-  camera.position.y = initialGround + 400;
+  camera.position.y = initialGround + (testMode && testSettings.freeze ? 80 : 400);
   clouds = new CloudField(scene, seed, weather);
   try {
     effects = new CinematicEffects(renderer, scene, camera, quality, weather);
@@ -102,6 +117,10 @@ function createScene(nextScene, nextSeed) {
   }
   label.textContent = activeScene.name;
   label.classList.add("visible");
+  if (testMode && testSettings.freeze) {
+    camera.lookAt(camera.position.x + 1350, camera.position.y - Math.tan(THREE.MathUtils.degToRad(25)) * 1350, camera.position.z - 1350);
+    camera.rotation.z = 0;
+  }
 }
 function beginTransition() {
   if (transitioning) return;
@@ -126,7 +145,7 @@ function animate() {
   frame = requestAnimationFrame(animate);
   const dt = Math.min(sceneClock.getDelta(), 0.033);
   elapsed += dt;
-  speed = speedAt(elapsed);
+  speed = testMode && testSettings.speed !== null ? testSettings.speed : speedAt(elapsed);
 
   worldDistance += speed * dt;
 
@@ -134,16 +153,22 @@ function animate() {
   const climb = THREE.MathUtils.smoothstep(elapsed, sceneDuration - 5.5, sceneDuration);
   const turn = Math.sin(elapsed * 0.22) * 0.62 + Math.sin(elapsed * 0.51) * 0.12;
   const lateral = Math.sin(elapsed * 0.31) * 210 + Math.sin(elapsed * 0.83) * 42;
-  camera.position.x = lateral;
-  camera.position.z -= speed * 0.1 * dt;
+  if (!(testMode && testSettings.freeze)) {
+    camera.position.x = lateral;
+    camera.position.z -= speed * 0.1 * dt;
+  }
   // A small banking turn and a stronger downward attitude during the initial dive.
   // Aim below and ahead so every biome occupies the view, not just the horizon.
   const verticalDrop = THREE.MathUtils.lerp(420, 65, fall) + climb * 45;
   const lookAhead = 1500;
   const bank = Math.sin(elapsed * 0.27) * 0.13;
   camera.rotation.order = "YXZ";
-  camera.lookAt(camera.position.x + Math.sin(turn * 0.28) * lookAhead, camera.position.y - verticalDrop, camera.position.z - lookAhead);
-  camera.rotateZ(-bank);
+  if (testMode && testSettings.freeze) {
+    camera.lookAt(camera.position.x + 1350, camera.position.y - Math.tan(THREE.MathUtils.degToRad(25)) * 1350, camera.position.z - 1350);
+  } else {
+    camera.lookAt(camera.position.x + Math.sin(turn * 0.28) * lookAhead, camera.position.y - verticalDrop, camera.position.z - lookAhead);
+    camera.rotateZ(-bank);
+  }
   pitchDegrees = -THREE.MathUtils.radToDeg(Math.atan2(verticalDrop, lookAhead));
 
   const forward = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation);
@@ -163,7 +188,7 @@ function animate() {
   const climbPhase = THREE.MathUtils.smoothstep(elapsed, sceneDuration - 5.5, sceneDuration);
   const plannedClearance = targetGround > 180 ? 15 : 8;
   const plannedY = targetGround + THREE.MathUtils.lerp(400, plannedClearance, fallPhase) + climbPhase * 210;
-  const desiredY = Math.max(plannedY, collisionFloor);
+  const desiredY = testMode && testSettings.freeze ? Math.max(terrain.getHeightAt(camera.position.x, camera.position.z) + 80, terrain.getWaterLevel() + 40) : Math.max(plannedY, collisionFloor);
   const spring = 13;
   const damping = 2 * Math.sqrt(spring) * 0.92;
   const acceleration = (desiredY - camera.position.y) * spring - verticalVelocity * damping;
@@ -210,7 +235,7 @@ function animate() {
   const stats = terrain?.getDebugInfo?.() || {};
   if (debugVisible) {
     debug.textContent =
-      "THE FALL — FLIGHT DEBUG (D to hide)\n" +
+      "THE FALL — FLIGHT DEBUG (D to hide) | " + (testMode ? "DEV TEST" : "NORMAL") + "\n" +
       "Scene: " + activeScene.name + "\nWeather: " + weather + "\nSeed: " + seed + "\n" +
       "Speed: " + Math.round(speed) + " m/s\nCamera Y: " + camera.position.y.toFixed(1) + " | Terrain: " + terrainHeightUnder.toFixed(1) + " | Clearance: " + cameraClearance.toFixed(1) + "\n" +
       "Altitude: " + Math.round(altitude) + " m | LOD: " + (terrain?.lodAt(camera.position.x, camera.position.z) ?? "n/a") + "\n" +
@@ -221,7 +246,7 @@ function animate() {
       "FPS: " + fps.toFixed(1);
   }
   label.style.opacity = String(THREE.MathUtils.smoothstep(elapsed, 0.2, 1.8) * (1 - THREE.MathUtils.smoothstep(elapsed, sceneDuration - 1.2, sceneDuration)));
-  if (elapsed >= sceneDuration - 1.0) beginTransition();
+  if (!testMode && elapsed >= sceneDuration - 1.0) beginTransition();
   if (transitioning) {
     transitionTimer += dt;
     if (transitionTimer >= 1.15) {
@@ -257,7 +282,13 @@ window.addEventListener("resize", resize);
 window.addEventListener("orientationchange", () => window.setTimeout(resize, 180));
 window.addEventListener("error", event => console.error("THE FALL error", event.error || event.message));
 
-createScene(chooseScene(), randomSeed());
+if (testMode) {
+  const selected = sceneTypes.find(item => item.id === sceneAliases[testSettings.scene]) || sceneTypes[1];
+  previousSceneId = selected.id;
+  createScene(selected, testSettings.seed, weatherParam(testSettings.weather));
+} else {
+  createScene(chooseScene(), randomSeed());
+}
 running = true;
 sceneClock.start();
 animate();
