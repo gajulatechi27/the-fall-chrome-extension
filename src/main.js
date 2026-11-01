@@ -138,8 +138,8 @@ function animate() {
   camera.position.z -= speed * 0.1 * dt;
   // A small banking turn and a stronger downward attitude during the initial dive.
   // Aim below and ahead so every biome occupies the view, not just the horizon.
-  const verticalDrop = THREE.MathUtils.lerp(1180, 620, fall) + climb * 180;
-  const lookAhead = 1550;
+  const verticalDrop = THREE.MathUtils.lerp(420, 65, fall) + climb * 45;
+  const lookAhead = 1500;
   const bank = Math.sin(elapsed * 0.27) * 0.13;
   camera.rotation.order = "YXZ";
   camera.lookAt(camera.position.x + Math.sin(turn * 0.28) * lookAhead, camera.position.y - verticalDrop, camera.position.z - lookAhead);
