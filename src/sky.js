@@ -37,7 +37,7 @@ export function createSky(scene, renderer, seed, environment = null) {
   const sky = new THREE.Mesh(skyGeo, skyMat);
   scene.add(sky);
 
-  const hemi = new THREE.HemisphereLight(zenithColor, horizonColor, 1.25);
+  const hemi = new THREE.HemisphereLight(zenithColor, horizonColor, 1.65);
   scene.add(hemi);
 
   const angle = (seed % 6283) / 1000;
