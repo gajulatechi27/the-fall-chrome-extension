@@ -428,45 +428,31 @@ function createFarRanges(scene, noise, environment = null) {
   const himalayan = environment?.id === "himalayan-range";
   const layers = [];
   const colors = (alpine || himalayan) ? [0x66869a, 0x87a7bd, 0xb4cbd8] : [0x718b91, 0x91a9ad, 0xb4c7c9];
-  // Himalayan layers are spaced so their depth envelopes do not overlap
-  // into one continuous horizontal shelf.
-  const distances = himalayan ? [9200, 16400, 23600] : [10500, 14500, 18500];
+  const distances = [10500, 14500, 18500];
   for (let layer = 0; layer < 3; layer++) {
     const positions = [], indices = [];
-    const nx = himalayan ? 760 : (alpine ? 520 : 320);
-    const nz = himalayan ? 56 : (alpine ? 42 : 28);
-    const width = 76000, depth = himalayan ? 9000 : 7200;
+    const nx = (alpine || himalayan) ? 520 : 320, nz = (alpine || himalayan) ? 42 : 28, width = 76000, depth = 7200;
     for (let iz = 0; iz <= nz; iz++) {
       for (let ix = 0; ix <= nx; ix++) {
         const x = -width * .5 + width * ix / nx;
         const z = depth * iz / nz;
-        const depthT = iz / nz;
-        // An asymmetric depth profile keeps each range broad in depth while
-        // fading its back edge into haze; it avoids the repeated dome-shaped wall.
-        const envelope = himalayan
-          ? THREE.MathUtils.smoothstep(depthT, 0.015, 0.18) *
-            Math.pow(1 - THREE.MathUtils.smoothstep(depthT, 0.76, 1.0), 0.55)
-          : Math.pow(Math.max(0, Math.sin(Math.PI * depthT)), 0.72);
-        const layerScale = himalayan ? [1.0, 0.72, 0.48][layer] : [1.0, 0.78, 0.58][layer];
-        const sampleX = x + (himalayan ? noise(x * 0.00012 + layer * 19, z * 0.00013 - layer * 11) * 1650 : 0);
-        const sampleZ = z + (himalayan ? noise(x * 0.00011 - layer * 13, z * 0.00012 + layer * 23) * 1320 : 0);
+        // Fade each distant ridge mass into the atmospheric horizon instead
+        // of exposing a flat lower edge that reads as a detached mountain wall.
+        const envelope = Math.pow(Math.max(0, Math.sin(Math.PI * iz / nz)), 0.72);
+        const layerScale = [1.0, 0.78, 0.58][layer];
+        const sampleX = x + (himalayan ? noise(x * 0.00012 + layer * 13, z * 0.00013 - layer * 9) * 1250 : 0);
+        const sampleZ = z + (himalayan ? noise(x * 0.00011 - layer * 7, z * 0.00012 + layer * 17) * 980 : 0);
         const r1 = 1.0 - Math.abs(noise(sampleX * (.00023 + layer * .000025), sampleZ * .00022 + layer * 2.1));
         const r2 = 1.0 - Math.abs(noise(sampleX * (.00058 + layer * .00003) + 17.0, sampleZ * .00051 - layer * 4.7));
         const r3 = 1.0 - Math.abs(noise(sampleX * (.0012 + layer * .00004) - 9.0, sampleZ * .00095 + layer));
-        const summitField = 1.0 - Math.abs(noise(sampleX * 0.00091 + 37.0 + layer * 8.3, sampleZ * 0.00039 - 21.0 - layer * 5.1));
-        const flankNoise = noise(sampleX * 0.00034 + layer * 14.7, sampleZ * 0.00029 - layer * 9.2);
         const ridge = himalayan
-          ? (Math.pow(r1, 1.52) * 760 +
-             Math.pow(r2, 2.05) * 265 +
-             Math.pow(r3, 2.65) * 82 +
-             Math.pow(Math.max(0, summitField), 3.15) * 185 +
-             flankNoise * 62) * 1.16 * layerScale
+          ? (Math.pow(r1, 1.24) * 1030 + Math.pow(r2, 1.9) * 300 + Math.pow(r3, 2.5) * 68) * 1.18 * layerScale
           : alpine
             ? Math.pow(r1, 1.55) * 920 + Math.pow(r2, 2.15) * 310 + Math.pow(r3, 2.7) * 90
             : Math.pow(r1, 2.0) * 410 + Math.pow(r2, 2.15) * 165 + Math.pow(r3, 2.7) * 52;
-        const base = (alpine || himalayan ? 86 : 72) + Math.sin(x * .00014 + layer * 1.7) * (alpine || himalayan ? 19 : 26) + Math.sin(z * .00045 + layer) * 7;
+        const base = (alpine || himalayan ? 96 : 72) + Math.sin(x * .00014 + layer * 1.7) * (alpine || himalayan ? 25 : 26) + Math.sin(z * .00045 + layer) * 7;
         const foothill = himalayan
-          ? noise(sampleX * 0.00013 + layer * 8.1, sampleZ * 0.00015 - layer * 5.7) * 24
+          ? noise(sampleX * 0.00013 + layer * 8.1, sampleZ * 0.00015 - layer * 5.7) * 32
           : 0;
         const y = Math.max(0.5, (base + ridge + foothill) * envelope);
         positions.push(x, y, z);
@@ -487,9 +473,9 @@ function createFarRanges(scene, noise, environment = null) {
           ? [0xa8bfd1, 0xc0d2e0, 0xd5e2ec][layer]
           : [0x849889, 0x91a5a8, 0xa9b9bd][layer]
       );
-      tint.lerp(new THREE.Color(himalayan ? [0x879eaf, 0xa5bacb, 0xc0d0dd][layer] : 0x8fa5b6), rock * (himalayan ? 0.16 : 0.22));
+      tint.lerp(new THREE.Color(himalayan ? 0x8fa5b6 : 0x65756f), rock * (himalayan ? 0.22 : 1));
       tint.lerp(new THREE.Color(alpine || himalayan ? 0xf2f7fb : 0xc5d0d0), high);
-      tint.lerp(new THREE.Color(himalayan ? [0xc5d7e5, 0xd6e3ed, 0xe4edf4][layer] : 0xd0dadd), [0.26, 0.52, 0.78][layer]);
+      tint.lerp(new THREE.Color(himalayan ? [0xc9d9e6, 0xd9e5ee, 0xe7eff5][layer] : 0xd0dadd), [0.34, 0.56, 0.76][layer]);
       colorValues.push(tint.r, tint.g, tint.b);
     }
     const geometry = new THREE.BufferGeometry();
