@@ -95,6 +95,18 @@ function makeChunk(noise, z, biome) {
     let h = fbm(noise, warpX, warpZ) * amplitude;
     if (biome === "islands" || biome === "coast") h = h - 82 + Math.max(0, h) * 0.2;
     if (biome === "desert") { const dune = Math.sin(warpX * 0.0017 + noise(0, warpZ * 0.0008) * 2.4) * 22; const canyon = Math.pow(Math.max(0, 1 - Math.abs(noise(warpX * 0.00065, warpZ * 0.00065))), 3) * 42; h = h * 0.72 + dune + canyon; }
+    if (biome === "green" || biome === "forest" || biome === "delta") {
+      const riverCenter = Math.sin(warpZ * 0.00072 + noise(80, warpZ * 0.0004) * 1.7) * 245;
+      const riverDistance = Math.abs(warpX - riverCenter);
+      const riverCut = Math.exp(-Math.pow(riverDistance / (biome === "delta" ? 115 : 72), 2));
+      h -= riverCut * (biome === "delta" ? 88 : 58);
+      h += Math.exp(-Math.pow((riverDistance - 145) / 55, 2)) * 7;
+    }
+    if (biome === "lake") {
+      const lakeRadius = 310 + noise(1200, 300) * 55;
+      const lakeDistance = Math.hypot(warpX - 120, warpZ + 350);
+      h = THREE.MathUtils.lerp(h, -45, 1 - THREE.MathUtils.smoothstep(lakeDistance, lakeRadius - 35, lakeRadius + 35));
+    }
     if (biome === "himalayas" || biome === "mountains" || biome === "snow") {
       const ridge = 1.0 - Math.abs(noise(warpX * 0.0012, warpZ * 0.0012));
       h += Math.pow(Math.max(0, ridge), 2.2) * (biome === "snow" || biome === "himalayas" ? 115 : 62);
