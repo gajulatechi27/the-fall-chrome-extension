@@ -29,7 +29,10 @@ function fbm(noise, x, z, octaves = 6) {
   return sum / norm;
 }
 
-function makeTerrainShader(material, biome) {
+function makeTerrainShader(material, biome, environment = null) {
+  const paletteTint = environment?.paletteTint || (biome === "desert" ? "vec3(1.12,0.91,0.68)" : biome === "snow" || biome === "mountains" ? "vec3(0.91,0.97,1.04)" : "vec3(0.92,1.04,0.88)");
+  const snowLineLow = environment?.materialMix?.snow?.[0] ?? 145;
+  const snowLineHigh = environment?.materialMix?.snow?.[1] ?? 185;
   material.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader.replace(
       "#include <common>",
@@ -64,14 +67,14 @@ float fallWet = 1.0 - smoothstep(-34.0, -23.0, fallHeight + fallNoiseValue * 5.0
 float fallDry = smoothstep(-31.0, -8.0, fallHeight + fallNoiseValue * 5.0);
 float fallGrass = smoothstep(-12.0, 24.0, fallHeight);
 float fallRock = smoothstep(0.22, 0.62, fallSlope);
-float fallSnowLine = smoothstep(145.0 + fallNoiseValue * 28.0, 185.0 + fallNoiseValue * 28.0, fallHeight);
+float fallSnowLine = smoothstep(${snowLineLow.toFixed(1)} + fallNoiseValue * 18.0, ${snowLineHigh.toFixed(1)} + fallNoiseValue * 18.0, fallHeight);
 vec3 fallWetSand = vec3(0.34, 0.39, 0.34);
 vec3 fallDrySand = vec3(0.67, 0.53, 0.34);
 vec3 fallGrassColor = vec3(0.19, 0.32, 0.19);
 vec3 fallForestFloor = vec3(0.12, 0.22, 0.14);
 vec3 fallRockColor = vec3(0.31, 0.32, 0.31);
 vec3 fallSnowColor = vec3(0.78, 0.83, 0.86);
-vec3 fallBiomeTint = ${biome === "desert" ? "vec3(1.12,0.91,0.68)" : biome === "snow" || biome === "mountains" ? "vec3(0.91,0.97,1.04)" : "vec3(0.92,1.04,0.88)"};
+vec3 fallBiomeTint = ${paletteTint};
 vec3 fallGround = mix(fallWetSand, fallDrySand, fallDry);
 fallGround = mix(fallGround, fallGrassColor * fallBiomeTint, fallGrass);
 fallGround = mix(fallGround, fallForestFloor * fallBiomeTint, smoothstep(22.0, 58.0, fallHeight) * 0.35);
@@ -81,7 +84,7 @@ fallGround *= 0.91 + fallNoiseValue * 0.42;
 diffuseColor.rgb = mix(diffuseColor.rgb, fallGround, 0.98);`
     );
   };
-  material.customProgramCacheKey = () => "the-fall-terrain-shore-v1-" + biome;
+  material.customProgramCacheKey = () => "the-fall-terrain-shore-v2-" + biome + "-" + (environment?.paletteTint || "default") + "-" + (environment?.materialMix?.snow?.[0] || 145);
 }
 
 function makeChunk(noise, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, segments = SEGMENTS, environment = null) {
@@ -185,7 +188,7 @@ function makeChunk(noise, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, segment
   geometry.computeBoundingSphere();
 
   const material = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.94, metalness: 0.0, side: THREE.DoubleSide });
-  makeTerrainShader(material, biome);
+  makeTerrainShader(material, biome, environment);
   const mesh = new THREE.Mesh(geometry, material);
   mesh.position.x = 0;
   mesh.position.z = z;
@@ -522,6 +525,18 @@ export class Terrain {
     });
   }
 
+  hasChunkGaps() {
+    const keys = new Set(this.chunks.map(chunk => chunk.userData.gridKey));
+    for (let gz = -GRID_RADIUS; gz <= GRID_RADIUS; gz++) {
+      for (let gx = -GRID_RADIUS; gx <= GRID_RADIUS; gx++) {
+        const x = this.gridCenterX + gx * this.chunkSize;
+        const z = this.gridCenterZ + gz * this.chunkSize;
+        if (!keys.has(x + ":" + z)) return true;
+      }
+    }
+    return this.chunks.length !== GRID_DIAMETER * GRID_DIAMETER;
+  }
+
   hasCoverage(radius = 20000) {
     const step = 1500;
     for (let a = 0; a < 360; a += 15) {
@@ -555,6 +570,7 @@ export class Terrain {
     return {
       chunkCount: this.chunks.length, chunksUnderCamera,
       ringCounts: { ...this.ringCounts }, coverage20km: this.hasCoverage(20000),
+      chunkGapWarning: this.hasChunkGaps(),
       seaLevel: this.seaLevel, waterEnabled: Boolean(this.water), waterTerrainClipping: Boolean(this.water?.geometry?.attributes?.terrainHeight),
       minHeight: Math.min(...this.chunks.map(c => c.userData.minHeight ?? Infinity)),
       maxHeight: Math.max(...this.chunks.map(c => c.userData.maxHeight ?? -Infinity))
