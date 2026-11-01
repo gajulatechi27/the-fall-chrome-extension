@@ -414,14 +414,13 @@ function createFarRanges(scene, noise, environment = null) {
         const r1 = 1.0 - Math.abs(noise(x * (.00027 + layer * .00003), z * .00024 + layer * 2.1));
         const r2 = 1.0 - Math.abs(noise(x * (.00071 + layer * .000035) + 17.0, z * .00061 - layer * 4.7));
         const r3 = 1.0 - Math.abs(noise(x * (.00155 + layer * .00005) - 9.0, z * .0012 + layer));
-        const mountainScale = alpine ? 1 : (himalayan ? 1.34 : 0);
         const ridge = himalayan
-          ? Math.pow(r1, 1.08) * 1080 * mountainScale +
-            Math.pow(r2, 1.72) * 365 * mountainScale +
-            Math.pow(r3, 2.25) * 112 * mountainScale
-          : Math.pow(r1, alpine ? 1.55 : 2.0) * (alpine ? 920 : 410) * mountainScale +
-            Math.pow(r2, 2.15) * (alpine ? 310 : 165) * mountainScale +
-            Math.pow(r3, 2.7) * (alpine ? 90 : 52) * mountainScale;
+          ? Math.pow(r1, 1.08) * 1080 * 1.34 +
+            Math.pow(r2, 1.72) * 365 * 1.34 +
+            Math.pow(r3, 2.25) * 112 * 1.34
+          : alpine
+            ? Math.pow(r1, 1.55) * 920 + Math.pow(r2, 2.15) * 310 + Math.pow(r3, 2.7) * 90
+            : Math.pow(r1, 2.0) * 410 + Math.pow(r2, 2.15) * 165 + Math.pow(r3, 2.7) * 52;
         const base = (alpine || himalayan ? 118 : 72) + Math.sin(x * .00014 + layer) * (alpine || himalayan ? 34 : 26) + Math.sin(z * .00045 + layer) * 9;
         const y = Math.max(12, (base + ridge) * envelope);
         positions.push(x, y, z);
