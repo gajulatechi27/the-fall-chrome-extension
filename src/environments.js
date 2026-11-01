@@ -1,12 +1,12 @@
 export const ENVIRONMENTS = [
   {
     id: "green-hills", name: "Green hills and meadows", timeOfDay: "dawn",
-    biome: "forest", paletteTint: "vec3(0.82,1.08,0.82)", terrain: { biome: "forest", baseHeight: 145, noiseOctaves: 6, ridgeWeight: 0.12, valleyCarving: 0.18, seaLevel: -28 },
-    materialMix: { rock: [150, 230], grass: [-10, 85], dryGrass: [70, 125], sand: [-28, -8], snow: [520, 900] },
-    water: { type: "river", level: -28, width: 110, color: "#4c9d9a" },
-    vegetation: { types: ["meadow-grass", "deciduous-trees"], density: 0.55, clumpSize: 42 },
-    sun: { position: [-220, 95, -310], intensity: 2.455 }, sky: { horizon: "#a9c5d5", zenith: "#315675", sun: "#fff0d2" },
-    fog: { color: "#b5c9d0", density: 0.000075 }, clouds: { cover: 0.24, speed: 0.8 }, weather: "clear", particles: "pollen",
+    biome: "forest", paletteTint: "vec3(0.82,1.08,0.82)", terrain: { biome: "forest", baseHeight: 152, noiseOctaves: 7, ridgeWeight: 0.16, valleyCarving: 0.24, seaLevel: -28 },
+    materialMix: { rock: [175, 265], grass: [-18, 105], dryGrass: [82, 142], sand: [-28, -8], snow: [520, 900] },
+    water: { type: "river", level: -28, width: 124, color: "#438f91" },
+    vegetation: { types: ["meadow-grass", "deciduous-trees"], density: 0.62, clumpSize: 48, grassDensity: 1.0 },
+    sun: { position: [-220, 145, -310], intensity: 2.58 }, sky: { horizon: "#b9d5e0", zenith: "#39749a", sun: "#fff1d7" },
+    fog: { color: "#c0d5d8", density: 0.000068 }, clouds: { cover: 0.28, speed: 0.8 }, weather: "clear", particles: "pollen",
     camera: { altitude: 420, speed: 42 }, duration: 25
   },
   {
