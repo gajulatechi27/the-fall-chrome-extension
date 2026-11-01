@@ -93,12 +93,17 @@ export function createVegetation({ seed, biome, environment, xOffset, chunkZ, ch
     const rawHeight = heightAt(worldX, worldZ);
     const worldHeight = 20 + rawHeight;
     if (worldHeight < seaLevel + (desert ? 8 : 24)) continue;
+    // In the Himalayan scene, keep conifers in lower forest belts only.
+    // Above the configured tree line the ridges remain completely bare/snowy.
+    if (!desert && Number.isFinite(environment?.vegetation?.maxElevation) &&
+        rawHeight > environment.vegetation.maxElevation) continue;
 
     const sample = 34;
     const dx = heightAt(worldX + sample, worldZ) - heightAt(worldX - sample, worldZ);
     const dz = heightAt(worldX, worldZ + sample) - heightAt(worldX, worldZ - sample);
     const slope = Math.hypot(dx, dz) / (sample * 2);
-    if (slope > (desert ? 0.34 : biome === "snow" ? 0.58 : 0.48)) continue;
+    const maxTreeSlope = environment?.vegetation?.maxSlope ?? (biome === "snow" ? 0.58 : 0.48);
+    if (slope > (desert ? 0.34 : maxTreeSlope)) continue;
 
     // Keep trees away from the deepest river channel and leave irregular clearings.
     if (environment?.water?.type === "river" && worldHeight < seaLevel + 78) continue;
