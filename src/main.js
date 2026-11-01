@@ -58,7 +58,7 @@ const whiteout=document.createElement("div");whiteout.id="weather-whiteout";docu
 let sky,clouds,terrain,effects,weatherSystem;
 const audio=new JourneyAudio();
 let seed=testSettings.seed,activeScene=sceneTypes[0],weather=testSettings.weather,timeOfDay=testSettings.time;
-let phaseIndex=0,phaseElapsed=0,journeyElapsed=0,phaseTimeLeft=12,phaseName="FREEFALL";
+let phaseIndex=0,phaseElapsed=0,journeyElapsed=0,phaseTimeLeft=7,phaseName="FREEFALL";
 let speed=0,altitude=5000,pitchDegrees=-60,windSpeed=0,fps=0,fpsFrames=0,fpsElapsed=0;
 let running=false,paused=false,frame=0,verticalVelocity=0,worldDistance=0,terrainHeightUnder=0,cameraClearance=0,groundWarning="";
 let previousBiome="",previousWeather="",transitionTriggered=false,phaseForced=testMode?testSettings.phase:null;
@@ -227,7 +227,7 @@ function animate(){
   const stats=terrain?.getDebugInfo?.()||{};
   const slowFlight=phaseName==="TRAVELLER FLIGHT"&&speed<20;
   debug.style.color=slowFlight?"#ff5555":"#d8f3ff";
-  debug.textContent="THE FALL — JOURNEY DEBUG\\nPhase: "+phaseName+" | left "+phaseTimeLeft.toFixed(1)+" s\\nBiome: "+activeScene.param+" | Seed: "+seed+"\\nWeather: "+(phaseName==="STORM LAYER"?"storm":weather)+" | Wind: "+windSpeed.toFixed(1)+" m/s\\nSpeed: "+speed.toFixed(1)+" m/s"+(slowFlight?"  WARNING: FLIGHT SPEED BELOW 20 m/s":"")+"\\nAltitude: "+altitude+" m | Clearance: "+cameraClearance.toFixed(1)+" m\\nCamera: x "+camera.position.x.toFixed(1)+" / y "+camera.position.y.toFixed(1)+" / z "+camera.position.z.toFixed(1)+"\\nChunks: "+(stats.chunkCount||0)+" | FPS: "+fps.toFixed(1)+"\\nJourney: "+journeyElapsed.toFixed(1)+" / "+phaseDuration+" s";
+  debug.textContent="THE FALL — JOURNEY DEBUG\nPhase: "+phaseName+" | left "+phaseTimeLeft.toFixed(1)+" s\nBiome: "+activeScene.param+" | Seed: "+seed+"\nWeather: "+(phaseName==="STORM LAYER"?"storm":weather)+" | Wind: "+windSpeed.toFixed(1)+" m/s\nSpeed: "+speed.toFixed(1)+" m/s"+(slowFlight?"  WARNING: FLIGHT SPEED BELOW 20 m/s":"")+"\nAltitude: "+altitude+" m | Clearance: "+cameraClearance.toFixed(1)+" m\nCamera: x "+camera.position.x.toFixed(1)+" / y "+camera.position.y.toFixed(1)+" / z "+camera.position.z.toFixed(1)+"\nChunks: "+(stats.chunkCount||0)+" | FPS: "+fps.toFixed(1)+"\nJourney: "+journeyElapsed.toFixed(1)+" / "+phaseDuration+" s";
  }
  label.style.opacity=String(THREE.MathUtils.smoothstep(phaseElapsed,.2,1.8)*(1-THREE.MathUtils.smoothstep(phaseElapsed,phaseFor(phaseIndex).duration-1.2,phaseFor(phaseIndex).duration)));
  if(phaseName==="TRANSITION"&&phaseTimeLeft<1.8&&!transitionTriggered){transitionTriggered=true;fade.classList.add("dissolve");}
