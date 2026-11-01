@@ -7,6 +7,14 @@ function seeded(seed) {
   let s = seed >>> 0;
   return () => ((s = (Math.imul(s,1664525)+1013904223)>>>0) / 4294967296);
 }
+function makeSoftParticleTexture() {
+  const canvas=document.createElement("canvas");canvas.width=canvas.height=64;
+  const ctx=canvas.getContext("2d");
+  const g=ctx.createRadialGradient(32,32,2,32,32,31);
+  g.addColorStop(0,"rgba(255,255,255,1)");g.addColorStop(.42,"rgba(255,255,255,.72)");g.addColorStop(1,"rgba(255,255,255,0)");
+  ctx.fillStyle=g;ctx.fillRect(0,0,64,64);
+  const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;return texture;
+}
 function makeRainLayer(count, color, opacity, spread, depth, length) {
   const positions = new Float32Array(count * 6);
   const random = Math.random;
@@ -34,11 +42,12 @@ export class WeatherSystem {
       makeRainLayer(Math.round(220*rainScale),0xa9c7dc,.14,300,650,5.4)
     ];
     for(const layer of this.rainLayers){this.group.add(layer.lines);layer.lines.visible=false;}
+    this.particleTexture=makeSoftParticleTexture();
     this.mistGeometry=new THREE.BufferGeometry();
     const mistCount=90, mistPositions=new Float32Array(mistCount*3);
     for(let i=0;i<mistCount;i++){mistPositions[i*3]=(this.random()-.5)*1800;mistPositions[i*3+1]=(this.random()-.5)*90;mistPositions[i*3+2]=-this.random()*2600;}
     this.mistGeometry.setAttribute("position",new THREE.BufferAttribute(mistPositions,3));
-    this.mistMaterial=new THREE.PointsMaterial({color:0xdce8e8,size:5,transparent:true,opacity:0,depthWrite:false,sizeAttenuation:true});
+    this.mistMaterial=new THREE.PointsMaterial({color:0xeaf4f8,map:this.particleTexture,alphaTest:0.015,size:18,transparent:true,opacity:0,depthWrite:false,sizeAttenuation:true});
     this.mist=new THREE.Points(this.mistGeometry,this.mistMaterial);this.mist.frustumCulled=false;this.group.add(this.mist);
     const smokePositions=new Float32Array(96*3);
     for(let i=0;i<96;i++){
@@ -59,7 +68,7 @@ export class WeatherSystem {
       windPositions[i*3+2]=-this.random()*1900;
     }
     this.windGeometry.setAttribute("position",new THREE.BufferAttribute(windPositions,3));
-    this.windMaterial=new THREE.PointsMaterial({color:0xe5f1f6,size:0.9,transparent:true,opacity:0,depthWrite:false,sizeAttenuation:true});
+    this.windMaterial=new THREE.PointsMaterial({color:0xeaf4fa,map:this.particleTexture,alphaTest:0.015,size:5.5,transparent:true,opacity:0,depthWrite:false,sizeAttenuation:true});
     this.windParticles=new THREE.Points(this.windGeometry,this.windMaterial);
     this.windParticles.frustumCulled=false;this.group.add(this.windParticles);
     this.lightningGroup=new THREE.Group();scene.add(this.lightningGroup);
@@ -81,6 +90,7 @@ export class WeatherSystem {
     this.smokeMaterial.opacity=THREE.MathUtils.damp(this.smokeMaterial.opacity,smokeTarget,.45,dt);
     this.intensity=THREE.MathUtils.damp(this.intensity,rainTarget,1.8,dt);
     this.mistMaterial.opacity=THREE.MathUtils.damp(this.mistMaterial.opacity,mistTarget,.7,dt);
+    if(this.state==="overcast")this.windMaterial.opacity=Math.min(this.windMaterial.opacity,.055);
     const activeRain=this.intensity>.015;
     for(let l=0;l<this.rainLayers.length;l++){
       const layer=this.rainLayers[l];layer.lines.visible=activeRain;
@@ -158,7 +168,7 @@ export class WeatherSystem {
   dispose(){
     this.scene.remove(this.group,this.lightningGroup,this.flashLight);
     for(const l of this.rainLayers){l.geometry.dispose();l.material.dispose();}
-    this.mistGeometry.dispose();this.mistMaterial.dispose();this.windGeometry.dispose();this.windMaterial.dispose();
+    this.mistGeometry.dispose();this.mistMaterial.dispose();this.windGeometry.dispose();this.windMaterial.dispose();this.particleTexture.dispose();
     this.smokeGeometry.dispose();this.smokeMaterial.dispose();
     this.lightningGroup.traverse(o=>{o.geometry?.dispose?.();o.material?.dispose?.();});
   }
