@@ -28,8 +28,15 @@ camera.position.set(0, 3.4, 15.5);
 
 const cameraTarget = new THREE.Vector3();
 const cameraDesired = new THREE.Vector3();
+const envAliases = {
+  hills: "forest", valley: "forest", beach: "islands",
+  mounthills: "mountains", lake: "snow"
+};
+const requestedEnv = new URLSearchParams(location.search).get("env");
+const requestedSeed = Number(new URLSearchParams(location.search).get("seed"));
+const startBelow = new URLSearchParams(location.search).get("start") === "below";
 const biomes = ["mountains", "desert", "islands", "forest", "snow"];
-const randSeed = () => Math.floor(Math.random() * 0x7fffffff);
+const randSeed = () => Number.isFinite(requestedSeed) ? (requestedSeed >>> 0) : Math.floor(Math.random() * 0x7fffffff);
 let sky, clouds, terrain, landmarks, effects;
 let seed = 0, biome = "mountains", time = 0, altitude = 32000, speed = 90;
 let running = false, paused = false, transitioning = false, frame = 0, descentNumber = 0;
@@ -85,14 +92,15 @@ async function beginDescent() {
   cleanup();
 
   seed = randSeed();
-  biome = biomes[Math.floor(Math.random() * biomes.length)];
-  const route = themes[Math.floor(Math.random() * themes.length)];
+  const env = requestedEnv && envAliases[requestedEnv] ? envAliases[requestedEnv] : null;
+  biome = env || biomes[Math.floor(Math.random() * biomes.length)];
+  const route = biome === "islands" ? "sea" : biome === "mountains" ? "himalayas" : "river";
   descentNumber++;
   time = 0;
-  altitude = 32000;
+  altitude = startBelow ? 420 : 2350;
   speed = 90;
-  camera.position.set(0, 3.4, 15.5);
-  cameraTarget.set(0, -0.25, -15);
+  camera.position.set(0, altitude, 15.5);
+  cameraTarget.set(0, altitude - 14, -48);
 
   sky = createSky(scene, renderer, seed);
   scene.background = sky.horizonColor.clone();
@@ -100,6 +108,9 @@ async function beginDescent() {
   terrain = new Terrain(scene, seed, biome, route);
   landmarks = new Landmarks(scene, seed, route);
   clouds = new CloudField(scene, seed);
+  // The existing cloud artwork is preserved; position the bank across the
+  // descent path so the camera physically passes through it.
+  clouds.group.position.y = 1900;
 
   try {
     effects = new CinematicEffects(renderer, scene, camera, quality);
@@ -166,9 +177,16 @@ function animate() {
   time += dt;
 
   const progress = THREE.MathUtils.clamp(time / 75, 0, 1);
-  const targetSpeed = altitude < 450 ? 24 : altitude < 3500 ? 110 : altitude < 11000 ? 103 : 90;
+  // Stage 1 flight profile: enter the cloud bank, emerge above the terrain,
+  // then hold a low, safe glide for the remainder of the journey.
+  const targetAltitude = startBelow
+    ? THREE.MathUtils.lerp(420, 260, progress)
+    : time < 8
+      ? THREE.MathUtils.lerp(2350, 1450, THREE.MathUtils.clamp(time / 8, 0, 1))
+      : THREE.MathUtils.lerp(1450, 260, THREE.MathUtils.clamp((time - 8) / 67, 0, 1));
+  const targetSpeed = time < 8 ? 90 : 42;
   speed = THREE.MathUtils.damp(speed, targetSpeed, 1.15, dt);
-  altitude = Math.max(0, 32000 * (1 - progress));
+  altitude = targetAltitude;
 
   // A gentle forward drift and broad turn keep the view moving over new terrain.
   const turn = Math.sin(time * 0.105) * 0.62 + Math.sin(time * 0.037) * 0.22;
@@ -177,19 +195,28 @@ function animate() {
   const shake = Math.min(0.035, speed * 0.00024);
   cameraDesired.set(
     driftX + Math.sin(time * 1.1) * 0.12 + Math.sin(time * 13) * shake,
-    3.4 + Math.sin(time * 0.7) * 0.12 + Math.sin(time * 9) * shake,
+    altitude + Math.sin(time * 0.7) * 0.12 + Math.sin(time * 9) * shake,
     forwardZ + Math.sin(time * 0.8) * 0.18
   );
   camera.position.lerp(cameraDesired, 1 - Math.exp(-2.8 * dt));
   cameraTarget.set(
-    camera.position.x + Math.sin(turn) * 58,
-    -0.25,
+    camera.position.x + Math.sin(turn) * 28,
+    camera.position.y - 12,
     camera.position.z - 48
   );
   camera.lookAt(cameraTarget);
 
   // Keep every subsystem isolated: one bad chunk must not stop the render loop.
   try { clouds?.update(dt, speed); } catch (error) { console.error("Cloud update failed", error); }
+  // Four-second soft white-out while crossing the cloud bank. The overlay
+  // is independent of the sky shader, so the sky's colours are untouched.
+  if (!startBelow) {
+    const whiteout = THREE.MathUtils.smoothstep(time, 3.0, 4.0) *
+      (1.0 - THREE.MathUtils.smoothstep(time, 7.0, 8.0));
+    fade.style.opacity = String(whiteout);
+  } else {
+    fade.style.opacity = "0";
+  }
   try {
     terrain?.update(dt, speed, altitude, camera);
     if (landmarks) landmarks.group.position.x = camera.position.x * 0.82;
