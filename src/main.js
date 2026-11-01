@@ -93,7 +93,7 @@ function createScene(nextScene,nextSeed,nextWeather,nextTime){
  scene.fog=new THREE.FogExp2(fogColor,fogDensity);
  terrain=new Terrain(scene,seed,activeScene.id);
  const ground=Math.max(terrain.getHeightAt(camera.position.x,camera.position.z),terrain.getWaterLevel());
- camera.position.y=ground+(activeScene.id==="himalayas"?145:110);
+ camera.position.y=ground+(testMode&&(params.has("scene")||params.has("biome"))?(activeScene.id==="himalayas"?145:110):500);
  clouds=new CloudField(scene,seed,normalizeWeather(weather));
  weatherSystem=new WeatherSystem(scene,seed,weather,quality);
  try{effects=new CinematicEffects(renderer,scene,camera,quality,"clear");}catch(e){console.warn("Post effects unavailable",e);effects=undefined;}
@@ -217,7 +217,7 @@ function animate(){
  if(clouds)clouds.weather=phaseName==="STORM LAYER"?"storm":normalizeWeather(weather);
  clouds?.update(dt,speed,camera,altitude);
  if(scene.fog){
-   scene.fog.color.copy(sky.horizonColor);
+   scene.fog.color.set(activeScene.id==="himalayas"?0xc8dce7:activeScene.id==="desert"?0xf2c9a5:sky.horizonColor);
    const target=activeScene.id==="himalayas"?.000075:activeScene.id==="desert"?.000045:weather==="mist"?.000052:phaseName==="STORM LAYER"?.000047:weather==="storm"?.00004:.000027;
    scene.fog.density=THREE.MathUtils.damp(scene.fog.density,target,.55,dt);
  }
