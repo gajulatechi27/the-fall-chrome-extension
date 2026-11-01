@@ -30,10 +30,10 @@ const sceneTypes=[
 ];
 const weatherTypes=["clear","scattered clouds","overcast","mist","light rain","heavy rain","storm","dust haze","golden dusk"];
 const phases=[
- {id:"FREEFALL",duration:12},
- {id:"STORM LAYER",duration:10},
- {id:"BREAKTHROUGH",duration:5},
- {id:"TRAVELLER FLIGHT",duration:45},
+ {id:"FREEFALL",duration:7},
+ {id:"STORM LAYER",duration:7},
+ {id:"BREAKTHROUGH",duration:4},
+ {id:"TRAVELLER FLIGHT",duration:32},
  {id:"TRANSITION",duration:5}
 ];
 const phaseDuration=phases.reduce((n,p)=>n+p.duration,0);
@@ -62,7 +62,7 @@ let phaseIndex=0,phaseElapsed=0,journeyElapsed=0,phaseTimeLeft=12,phaseName="FRE
 let speed=0,altitude=5000,pitchDegrees=-60,windSpeed=0,fps=0,fpsFrames=0,fpsElapsed=0;
 let running=false,paused=false,frame=0,verticalVelocity=0,worldDistance=0,terrainHeightUnder=0,cameraClearance=0,groundWarning="";
 let previousBiome="",previousWeather="",transitionTriggered=false,phaseForced=testMode?testSettings.phase:null;
-let debugVisible=false,devPanel=null,sceneClock=new THREE.Clock(),lightningWasActive=false;
+let debugVisible=false,devPanel=null,lastFrameTime=performance.now(),lightningWasActive=false;
 const sceneRandom=(s)=>{let v=s>>>0;return()=>((v=Math.imul(v,1664525)+1013904223>>>0)/4294967296);};
 function chooseDifferent(list,previous){const choices=list.filter(x=>x!==previous);return choices[Math.floor(Math.random()*choices.length)];}
 function randomScene(){const id=chooseDifferent(sceneTypes.map(x=>x.id),previousBiome);return sceneTypes.find(x=>x.id===id);}
@@ -106,7 +106,7 @@ function getPhaseMotion(dt){
  if(p==="FREEFALL")return{speed:THREE.MathUtils.lerp(200,155,f),clearance:THREE.MathUtils.lerp(500,220,f),pitch:THREE.MathUtils.lerp(-60,-55,f),fov:THREE.MathUtils.lerp(82,85,f)};
  if(p==="STORM LAYER")return{speed:THREE.MathUtils.lerp(155,125,f),clearance:THREE.MathUtils.lerp(220,115,f),pitch:-60,fov:84};
  if(p==="BREAKTHROUGH")return{speed:THREE.MathUtils.lerp(125,90,f),clearance:THREE.MathUtils.lerp(115,55,f),pitch:THREE.MathUtils.lerp(-60,-20,f),fov:THREE.MathUtils.lerp(82,72,f)};
- if(p==="TRAVELLER FLIGHT")return{speed:72+Math.sin(t*.19)*14+Math.sin(t*.47)*7,clearance:42+Math.sin(t*.13)*18,pitch:-20+Math.sin(t*.21)*2.5,fov:68+Math.sin(t*.25)*2};
+ if(p==="TRAVELLER FLIGHT")return{speed:78+Math.sin(t*.19)*12+Math.sin(t*.47)*6,clearance:55,pitch:-29+Math.sin(t*.21)*3,fov:74+Math.sin(t*.25)*2};
  return{speed:THREE.MathUtils.lerp(85,145,f),clearance:THREE.MathUtils.lerp(55,260,f),pitch:THREE.MathUtils.lerp(-20,-52,f),fov:THREE.MathUtils.lerp(70,82,f)};
 }
 function setPhaseWeather(){
@@ -144,7 +144,7 @@ function updateCamera(dt){
  speed=testMode&&testSettings.speed!==null?testSettings.speed:motion.speed;
  if(testMode&&testSettings.freeze){speed=0;}
  const phaseProgress=phaseElapsed/phaseFor(phaseIndex).duration;
- const forwardSpeed=speed;
+ const forwardSpeed=speed; // metres/second; displacement below is forwardSpeed * dt (metres)
  const curve=Math.sin(worldDistance*.00042)*420+Math.sin(worldDistance*.00017)*260;
  const curveNext=Math.sin((worldDistance+forwardSpeed*dt+400)*.00042)*420+Math.sin((worldDistance+forwardSpeed*dt+400)*.00017)*260;
  const x=curve;
@@ -167,23 +167,22 @@ function updateCamera(dt){
  }
  pitchDegrees=motion.pitch;
  const forward=new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
- const samples=[0,50,150,400].map(distance=>terrain.getHeightAt(camera.position.x+forward.x*distance,camera.position.z+forward.z*distance));
+ const samples=[0,100,250,500,850].map(distance=>terrain.getHeightAt(camera.position.x,camera.position.z-distance));
  terrainHeightUnder=samples[0];
  const ridge=Math.max(...samples,terrain.getWaterLevel());
- const clearance=terrain.getWaterLevel()>=ridge?40:(ridge>180?60:phaseName==="TRAVELLER FLIGHT"?42:80);
- const floor=ridge+clearance;
- let desiredY;
- if(phaseName==="FREEFALL")desiredY=Math.max(floor,terrainHeightUnder+motion.clearance);
- else if(phaseName==="STORM LAYER")desiredY=Math.max(floor,terrainHeightUnder+motion.clearance);
- else if(phaseName==="BREAKTHROUGH")desiredY=Math.max(floor,terrainHeightUnder+motion.clearance);
- else if(phaseName==="TRAVELLER FLIGHT")desiredY=Math.max(floor,terrainHeightUnder+motion.clearance);
- else desiredY=Math.max(floor,terrainHeightUnder+motion.clearance);
- if(testMode&&testSettings.freeze)desiredY=camera.position.y;
- const spring=9.5,damping=2*Math.sqrt(spring)*.94;
- verticalVelocity+=(desiredY-camera.position.y)*spring*dt-verticalVelocity*damping*dt;
+ const requiredClearance=phaseName==="TRAVELLER FLIGHT"?55:phaseName==="BREAKTHROUGH"?70:95;
+ const targetY=ridge+requiredClearance;
+ // Clearance is a one-way, damped safety correction: it never snaps the camera
+ // down to the terrain or overwrites forward movement.
+ if(camera.position.y<targetY){
+   const gap=targetY-camera.position.y;
+   verticalVelocity=Math.max(verticalVelocity,0);
+   verticalVelocity+=Math.min(gap*2.2,42)*dt;
+ }else{
+   verticalVelocity=Math.max(0,verticalVelocity*Math.exp(-2.4*dt));
+ }
  camera.position.y+=verticalVelocity*dt;
- if(camera.position.y<floor-2){camera.position.y=floor;verticalVelocity=Math.max(0,verticalVelocity);groundWarning="CLEARANCE RECOVERY";}
- else groundWarning="";
+ groundWarning=camera.position.y<targetY-8?"CLEARANCE RECOVERY":"";
  cameraClearance=camera.position.y-terrainHeightUnder;
  altitude=Math.round(camera.position.y*10);
  camera.fov=THREE.MathUtils.damp(camera.fov,motion.fov,3.5,dt);camera.updateProjectionMatrix();
@@ -193,7 +192,9 @@ function updateCamera(dt){
 function animate(){
  if(!running||paused||document.hidden)return;
  frame=requestAnimationFrame(animate);
- const dt=Math.min(sceneClock.getDelta(),.04);
+ const now=performance.now();
+ const dt=Math.min(Math.max((now-lastFrameTime)/1000,0),.05);
+ lastFrameTime=now;
  phaseElapsed+=dt;journeyElapsed+=dt;phaseTimeLeft=Math.max(0,phaseFor(phaseIndex).duration-phaseElapsed);
  if(phaseElapsed>=phaseFor(phaseIndex).duration){advancePhase();}
  const motion=updateCamera(dt);
@@ -224,7 +225,9 @@ function animate(){
  fpsFrames++;fpsElapsed+=dt;if(fpsElapsed>=.5){fps=fpsFrames/fpsElapsed;fpsFrames=0;fpsElapsed=0;}
  if(debugVisible){
   const stats=terrain?.getDebugInfo?.()||{};
-  debug.textContent="THE FALL — JOURNEY DEBUG\nPhase: "+phaseName+" | left "+phaseTimeLeft.toFixed(1)+" s\nBiome: "+activeScene.param+" | Seed: "+seed+"\nWeather: "+(phaseName==="STORM LAYER"?"storm":weather)+" | Wind: "+windSpeed.toFixed(1)+" m/s\nAltitude: "+altitude+" m | Speed: "+speed.toFixed(0)+" m/s\nCamera Y: "+camera.position.y.toFixed(1)+" | Ground: "+terrainHeightUnder.toFixed(1)+" | Clearance: "+cameraClearance.toFixed(1)+"\nChunks: "+(stats.chunkCount||0)+" | FPS: "+fps.toFixed(1)+"\nCycle: "+journeyElapsed.toFixed(1)+" / "+phaseDuration+" s";
+  const slowFlight=phaseName==="TRAVELLER FLIGHT"&&speed<20;
+  debug.style.color=slowFlight?"#ff5555":"#d8f3ff";
+  debug.textContent="THE FALL — JOURNEY DEBUG\\nPhase: "+phaseName+" | left "+phaseTimeLeft.toFixed(1)+" s\\nBiome: "+activeScene.param+" | Seed: "+seed+"\\nWeather: "+(phaseName==="STORM LAYER"?"storm":weather)+" | Wind: "+windSpeed.toFixed(1)+" m/s\\nSpeed: "+speed.toFixed(1)+" m/s"+(slowFlight?"  WARNING: FLIGHT SPEED BELOW 20 m/s":"")+"\\nAltitude: "+altitude+" m | Clearance: "+cameraClearance.toFixed(1)+" m\\nCamera: x "+camera.position.x.toFixed(1)+" / y "+camera.position.y.toFixed(1)+" / z "+camera.position.z.toFixed(1)+"\\nChunks: "+(stats.chunkCount||0)+" | FPS: "+fps.toFixed(1)+"\\nJourney: "+journeyElapsed.toFixed(1)+" / "+phaseDuration+" s";
  }
  label.style.opacity=String(THREE.MathUtils.smoothstep(phaseElapsed,.2,1.8)*(1-THREE.MathUtils.smoothstep(phaseElapsed,phaseFor(phaseIndex).duration-1.2,phaseFor(phaseIndex).duration)));
  if(phaseName==="TRANSITION"&&phaseTimeLeft<1.8&&!transitionTriggered){transitionTriggered=true;fade.classList.add("dissolve");}
@@ -257,10 +260,10 @@ if(testMode){
 }
 function resize(){quality=Math.min(devicePixelRatio,2);renderer.setPixelRatio(quality);renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();effects?.resize();}
 window.addEventListener("resize",resize);
-document.addEventListener("visibilitychange",()=>{if(document.hidden){paused=true;cancelAnimationFrame(frame);}else{paused=false;sceneClock.start();if(running)animate();}});
+document.addEventListener("visibilitychange",()=>{if(document.hidden){paused=true;cancelAnimationFrame(frame);}else{paused=false;lastFrameTime=performance.now();if(running)animate();}});
 window.addEventListener("error",e=>console.error("THE FALL runtime error",e.error||e.message));
 const initial=sceneTypes.find(s=>s.id===(sceneAliases[testSettings.scene]||testSettings.scene))||sceneTypes[0];
 createScene(initial,seed,testSettings.weather,testSettings.time);
 if(testMode)setForcedPhase(testSettings.phase);
 if(testMode&&testSettings.freeze){camera.position.y=Math.max(terrain.getHeightAt(camera.position.x,camera.position.z)+80,terrain.getWaterLevel()+40);}
-running=true;sceneClock.start();animate();
+running=true;lastFrameTime=performance.now();animate();
