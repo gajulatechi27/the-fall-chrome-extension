@@ -61,6 +61,17 @@ orderControl.style.cssText = "position:fixed;z-index:16;right:14px;bottom:18px;p
 orderControl.innerHTML = '<option>In order</option><option>Shuffle</option>';
 document.body.appendChild(orderControl);
 orderControl.addEventListener("change", () => { orderMode = orderControl.value; savePlaylistState(); });
+
+const nextViewButton = document.createElement("button");
+nextViewButton.type = "button";
+nextViewButton.textContent = "Next view →";
+nextViewButton.setAttribute("aria-label", "Go to next landscape");
+nextViewButton.style.cssText = "position:fixed;z-index:16;right:118px;bottom:18px;padding:8px 12px;border:1px solid #ffffff66;border-radius:8px;background:rgba(16,35,48,.72);color:white;font:600 12px system-ui;cursor:pointer;backdrop-filter:blur(8px)";
+document.body.appendChild(nextViewButton);
+nextViewButton.addEventListener("click", () => {
+  playlistEnabled = true;
+  if (!transitioning) advanceLandscape();
+});
 let debugVisible = false;
 document.addEventListener("keydown", event => {
   if (event.key.toLowerCase() === "d" && !event.repeat) {
@@ -312,9 +323,9 @@ function animate() {
     // Green Hills has a broad river corridor: gently pan across both
     // banks during the flight instead of keeping the view locked forward.
     // Other environments retain the existing subtle heading drift.
-    const viewYaw = activeEnvironment?.id === "green-hills"
-      ? Math.sin(time * 0.19) * 0.62 + Math.sin(time * 0.067) * 0.12
-      : Math.sin(turn) * 0.18;
+    // Sweep the camera across both sides of every landscape. One complete
+    // left-to-right-to-left viewing cycle fits the ten-second scene duration.
+    const viewYaw = THREE.MathUtils.degToRad(75) * Math.sin((time / duration) * Math.PI * 2);
     cameraTarget.set(
       camera.position.x + Math.sin(viewYaw) * lookDistance,
       camera.position.y + Math.sin(pitchRadians) * lookDistance,
