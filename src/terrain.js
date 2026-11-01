@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { createNoise2D } from "simplex-noise";
 
 const CHUNK_SIZE = 1500;
-const SEGMENTS = 112;
+const SEGMENTS = 128;
 const WATER_LEVEL = -28;
 const WATER_SIZE = 6200;
 const HEIGHT_BASE = 20;
@@ -40,6 +40,7 @@ function makeTerrainShader(material, biome) {
       "#include <common>",
       `#include <common>
 varying vec3 vFallWorldPosition;
+varying vec3 vFallWorldNormal;
 float fallHash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453123); }
 float fallNoise(vec2 p){
   vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
@@ -161,6 +162,8 @@ function makeChunk(noise, z, biome) {
     normals[i * 3] = 0; normals[i * 3 + 1] = 1; normals[i * 3 + 2] = 0;
   }
   geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
+  // Explicit bounds include every terrain vertex and the perimeter skirt.
+  geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
 
   const material = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.94, metalness: 0.0, side: THREE.DoubleSide });
@@ -170,6 +173,7 @@ function makeChunk(noise, z, biome) {
   mesh.receiveShadow = true;
   mesh.castShadow = false;
   mesh.userData.biome = biome;
+  mesh.userData.baseZ = z;
   mesh.userData.minHeight = minHeight;
   mesh.userData.maxHeight = maxHeight;
   mesh.userData.heightAt = heightAt;
@@ -256,7 +260,8 @@ export class Terrain {
     this.group = new THREE.Group();
     scene.add(this.group);
     this.chunks = [];
-    for (let i = 0; i < 4; i++) {
+    // Build a 9 km runway synchronously before the first render frame.
+    for (let i = 0; i < 6; i++) {
       const chunkZ = -i * CHUNK_SIZE;
       const chunk = makeChunk(this.noise, chunkZ, biome);
       this.group.add(chunk);
@@ -281,7 +286,7 @@ export class Terrain {
     if (camera) this.group.position.x = camera.position.x * 0.82;
     for (const chunk of this.chunks) {
       if (chunk.position.z + this.group.position.z > 900) {
-        chunk.position.z -= CHUNK_SIZE * 4;
+        chunk.position.z -= CHUNK_SIZE * this.chunks.length;
         chunk.geometry.dispose();
         chunk.material.dispose();
         this.group.remove(chunk);
@@ -298,9 +303,54 @@ export class Terrain {
     }
   }
 
-  getDebugInfo() {
+  isReady() {
+    return this.chunks.length >= 6 &&
+      this.chunks.every(chunk => chunk.geometry?.attributes?.position?.count > 0 &&
+        chunk.geometry.boundingBox && chunk.geometry.boundingSphere);
+  }
+
+  hasChunkNear(x, z, radius = 500) {
+    return this.chunks.some(chunk => {
+      const box = chunk.geometry.boundingBox;
+      if (!box) return false;
+      const minX = box.min.x + this.group.position.x;
+      const maxX = box.max.x + this.group.position.x;
+      const minZ = box.min.z + chunk.position.z + this.group.position.z;
+      const maxZ = box.max.z + chunk.position.z + this.group.position.z;
+      const dx = Math.max(minX - x, 0, x - maxX);
+      const dz = Math.max(minZ - z, 0, z - maxZ);
+      return Math.hypot(dx, dz) <= radius;
+    });
+  }
+
+  sampleHeight(x, worldZ) {
+    for (const chunk of this.chunks) {
+      const box = chunk.geometry.boundingBox;
+      if (!box) continue;
+      const localX = x - this.group.position.x;
+      const localZ = worldZ - this.group.position.z - chunk.position.z;
+      if (localX < box.min.x || localX > box.max.x ||
+          localZ < box.min.z || localZ > box.max.z) continue;
+      const heightAt = chunk.userData.heightAt;
+      if (typeof heightAt !== "function") continue;
+      return HEIGHT_BASE + heightAt(localX, chunk.userData.baseZ + localZ);
+    }
+    return null;
+  }
+
+  getDebugInfo(camera) {
+    const chunksUnderCamera = camera
+      ? this.chunks.filter(chunk => {
+          const b = chunk.geometry.boundingBox;
+          if (!b) return false;
+          const x = camera.position.x - this.group.position.x;
+          const z = camera.position.z - this.group.position.z - chunk.position.z;
+          return x >= b.min.x && x <= b.max.x && z >= b.min.z && z <= b.max.z;
+        }).length
+      : 0;
     return {
       chunkCount: this.chunks.length,
+      chunksUnderCamera,
       seaLevel: WATER_LEVEL,
       waterEnabled: Boolean(this.water),
       minHeight: Math.min(...this.chunks.map(c => c.userData.minHeight ?? Infinity)),
