@@ -1,13 +1,1 @@
-*{box-sizing:border-box}
-html,body,#cesiumContainer{margin:0;width:100%;height:100%;overflow:hidden;background:#07111b}
-#cesiumContainer{position:fixed;inset:0}
-.cesium-viewer,.cesium-widget,.cesium-widget canvas{width:100%;height:100%}
-.cesium-viewer-bottom{bottom:8px!important;left:10px!important;right:10px!important}
-#place-caption{position:fixed;left:22px;bottom:20px;z-index:10;color:#fff;text-shadow:0 2px 12px #000d;pointer-events:none;opacity:1;transition:opacity .55s ease}
-#place-name{font:500 12px/1.3 system-ui,sans-serif;letter-spacing:.08em}
-#place-caption.changing{opacity:0}
-#status{position:fixed;left:50%;top:22px;z-index:30;transform:translateX(-50%);max-width:min(90vw,620px);padding:10px 15px;border:1px solid #ffffff30;border-radius:9px;background:#07111be8;color:#fff;font:600 11px/1.4 system-ui,sans-serif;letter-spacing:.08em;text-align:center;display:none}
-#status.visible{display:block}
-#settings-link{position:fixed;right:16px;top:14px;z-index:12;color:#fff;text-decoration:none;font:21px system-ui;background:#07111b88;border:1px solid #ffffff38;border-radius:50%;width:38px;height:38px;display:grid;place-items:center;backdrop-filter:blur(8px)}
-.cesium-viewer-toolbar,.cesium-viewer-animationContainer,.cesium-viewer-timelineContainer,.cesium-viewer-fullscreenContainer,.cesium-viewer-geocoderContainer{display:none!important}
-@media(max-width:700px){#place-caption{left:14px;bottom:16px}#settings-link{right:12px;top:12px}}
+*{box-sizing:border-box}html,body{margin:0;padding:0;width:100%;height:100%;min-width:0;min-height:0;overflow:hidden;background:#9ab8cd}#world{position:fixed;left:0;top:0;width:100vw;height:100vh;display:block;margin:0;padding:0}#fade{position:fixed;left:0;top:0;width:100vw;height:100vh;background:#f4f4ef;opacity:0;pointer-events:none;transition:opacity 1.3s ease;z-index:5}@media(prefers-reduced-motion:reduce){#fade{transition:none}}

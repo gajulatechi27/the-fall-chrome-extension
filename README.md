@@ -1,55 +1,39 @@
-# THE FALL — Endless Real World Flight
+# THE FALL — Chrome New Tab cinematic descent
 
-Manifest V3 Chrome New Tab extension using CesiumJS, Cesium World Terrain, Cesium World Imagery and Cesium ion OSM Buildings asset 96188. No generated buildings, fake houses, boxes, cones, character models or procedural terrain meshes are included in the flight scene.
+Manifest V3 Chrome extension built with Three.js and Vite. It creates a changing procedural aerial journey on each New Tab, with no 3D character.
 
-## Flight
-- One Cesium Viewer is created and reused for the tab lifetime.
-- Camera follows a geodesic route with Catmull-Rom altitude spline, eased movement, subtle drift and banking.
-- Each route descends to a location-specific 300–900 m above sampled terrain, glides, climbs and transfers to the next shuffled location.
-- No landing state, white fade, scene teardown or viewer recreation.
-- Upcoming terrain heights and a small set of satellite image tiles are warmed while approaching the current destination; normal Cesium camera-driven tile streaming refines the scene in flight.
-- Animation pauses while the tab is hidden and resumes at the same route progress.
-- Cesium's sun and lighting update from the user's local system date and time.
-- Globe and 3D Tiles caches are bounded by Low / Medium / High settings.
+## Current experience
+- Stylized procedural skydiver built entirely from Three.js geometry; no external character model required.
+- Belly-down freefall pose with subtle arm and leg movement, helmet, visor, flight suit and parachute pack.
+- Procedural scenic routes: Himalayan-style peaks, riverside settlements, sea coasts, villages, towns, city skylines, winding ghat roads, highways, toll plazas and temple complexes.\n- Seeded terrain biomes, gradient sky, randomized sun, atmospheric fog and procedural cloud layers.
+- Smooth cinematic aerial camera with restrained motion and altitude-aware field of view.
+- Cinematic post-processing with restrained bloom, depth of field, vignette, FXAA and subtle radial motion blur.
+- Wind streak particles with a reduced count on smaller displays.
+- Chrome local storage saves last seed, descent count and biome.
+- Rendering pauses when the tab is hidden. Responsive viewport and pixel-ratio cap.
 
-## Data sources
-- Cesium World Terrain and Cesium World Imagery from Cesium ion.
-- Cesium ion asset 96188 (OSM Buildings).
-- Destination anchors are stored in src/locations.json. Coordinates are approximate; OSM building detail varies by location and mapping coverage.
+## Build
 
-## Setup
-1. Create a Cesium ion token with access to World Terrain, World Imagery and asset 96188.
-2. Open THE FALL Settings, paste the token, choose quality and toggle OSM buildings.
-3. Save and open a new tab.
+Use Node.js 20.19+ or 22.12+.
 
-## Build in WSL Ubuntu
 ```bash
-cd /mnt/c/Users/LENOVO/Downloads/the-fall-chrome-extension-main/the-fall-chrome-extension-main
 git pull origin main
 npm install
 npm run build
 ```
 
-## Load in Chrome
-1. Open chrome://extensions and enable Developer mode.
-2. Choose Load unpacked and select the project's dist directory, or click Reload for an existing install.
-3. Open a new tab and configure the Cesium ion token in Settings.
+Load the generated `dist/` directory:
+1. Open `chrome://extensions`.
+2. Enable Developer mode.
+3. Click **Load unpacked**.
+4. Select the project's `dist` folder.
+5. Reload the extension after each build.
 
-## Five-minute visual checklist
-- Real terrain and satellite imagery are visible; no procedural geometry appears.
-- OSM buildings appear where OpenStreetMap has building coverage.
-- Observe at least five transitions: no teleport, white flash, black frame or viewer recreation.
-- Place caption cross-fades and changes to the next destination.
-- Fog remains light; terrain and imagery retain contrast and detail.
-- Test Low / Medium / High quality.
-- Hide the tab for 10 seconds, return, and verify flight resumes at the same point.
-- Leave running for five minutes and monitor browser memory. Caches are capped, but browser/GPU memory can vary by device.
-- Test offline / invalid-token behavior and automatic retry.
+For a phone preview on the same Wi-Fi, run `npm run dev` and open `http://YOUR_COMPUTER_LAN_IP:5173` on the phone.
 
-## CSP
-Manifest V3 uses locally bundled scripts, wasm-unsafe-eval and worker-src 'self'. It does not add unsafe-eval or blob: to worker-src. Vite copies Cesium Workers, ThirdParty, Assets and Widgets into dist/cesium.
+## Performance
+The renderer caps pixel ratio at 1.5 on desktop and 1 on narrow screens. Wind particle counts and post-processing are deliberately restrained. 60 FPS is a target, not a guarantee on all GPUs.
 
-## Limitations
-- 3D building coverage is only as complete as OpenStreetMap data.
-- Tile prefetch warms terrain samples and selected imagery tiles. Full visual tile refinement remains camera-driven.
-- Runtime/build verification must be completed locally in Chrome after pulling.
+## Roadmap
+- Next: improve landmark realism, terrain blending, cloud volume and scene transitions based on real device screenshots.
+- Dashboard and settings are intentionally not included in this build.
