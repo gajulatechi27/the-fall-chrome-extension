@@ -8,6 +8,8 @@ const WATER_SIZE = 52000;
 const HIGH_SEGMENTS = 48;
 const MID_SEGMENTS = 24;
 const LOW_SEGMENTS = 8;
+const SKIRT_DEPTH = 55;
+const NORMAL_SAMPLE = 5;
 
 function makeRandom(seed) {
   let s = seed >>> 0;
@@ -90,6 +92,7 @@ function makeTerrainMaterial(biome) {
 function makeChunk(noise, chunkX, chunkZ, biome, segments) {
   const positions = [];
   const colors = [];
+  const normals = [];
   const indices = [];
   const step = CHUNK_SIZE / segments;
   const min = new THREE.Color(biome === "rainforest" || biome === "forest" ? 0x315b42 : 0x58794a);
@@ -109,6 +112,10 @@ function makeChunk(noise, chunkX, chunkZ, biome, segments) {
       minHeight = Math.min(minHeight, h);
       maxHeight = Math.max(maxHeight, h);
       positions.push(lx, h, lz);
+      const nx = terrainHeight(noise, wx + NORMAL_SAMPLE, wz, biome) - terrainHeight(noise, wx - NORMAL_SAMPLE, wz, biome);
+      const nz = terrainHeight(noise, wx, wz + NORMAL_SAMPLE, biome) - terrainHeight(noise, wx, wz - NORMAL_SAMPLE, biome);
+      const normal = new THREE.Vector3(-nx / (2 * NORMAL_SAMPLE), 1, -nz / (2 * NORMAL_SAMPLE)).normalize();
+      normals.push(normal.x, normal.y, normal.z);
 
       const slopeX = terrainHeight(noise, wx + 8, wz, biome) - terrainHeight(noise, wx - 8, wz, biome);
       const slopeZ = terrainHeight(noise, wx, wz + 8, biome) - terrainHeight(noise, wx, wz - 8, biome);
@@ -135,12 +142,32 @@ function makeChunk(noise, chunkX, chunkZ, biome, segments) {
       indices.push(a, c, b, b, c, d);
     }
   }
+  const baseCount = positions.length / 3;
+  const edgePairs = [];
+  for (let i = 0; i < segments; i++) {
+    edgePairs.push([i, i + 1]);
+    edgePairs.push([segments * (segments + 1) + i, segments * (segments + 1) + i + 1]);
+    edgePairs.push([i * (segments + 1), (i + 1) * (segments + 1)]);
+    edgePairs.push([i * (segments + 1) + segments, (i + 1) * (segments + 1) + segments]);
+  }
+  for (const [a, b] of edgePairs) {
+    const sa = positions.length / 3;
+    positions.push(positions[a * 3], positions[a * 3 + 1] - SKIRT_DEPTH, positions[a * 3 + 2]);
+    colors.push(colors[a * 3] * .82, colors[a * 3 + 1] * .82, colors[a * 3 + 2] * .82);
+    normals.push(normals[a * 3], normals[a * 3 + 1], normals[a * 3 + 2]);
+    const sb = positions.length / 3;
+    positions.push(positions[b * 3], positions[b * 3 + 1] - SKIRT_DEPTH, positions[b * 3 + 2]);
+    colors.push(colors[b * 3] * .82, colors[b * 3 + 1] * .82, colors[b * 3 + 2] * .82);
+    normals.push(normals[b * 3], normals[b * 3 + 1], normals[b * 3 + 2]);
+    indices.push(a, sa, b, b, sa, sb);
+  }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
   geometry.setIndex(indices);
-  geometry.computeVertexNormals();
   const mesh = new THREE.Mesh(geometry, makeTerrainMaterial(biome));
+  mesh.material.side = THREE.FrontSide;
   mesh.position.set(chunkX, 0, chunkZ);
   mesh.receiveShadow = true;
   mesh.userData.gridKey = chunkX + ":" + chunkZ;
@@ -240,6 +267,20 @@ export class Terrain {
     this.lastCenterZ = NaN;
   }
 
+  getHeightAt(x, z) {
+    return terrainHeight(this.noise, x, z, this.biome);
+  }
+
+  getWaterLevel() {
+    return this.biome === "lake" ? -42 : this.waterEnabled ? -12 : -43;
+  }
+
+  lodAt(x, z) {
+    const cx = Math.round(x / CHUNK_SIZE) * CHUNK_SIZE;
+    const cz = Math.round(z / CHUNK_SIZE) * CHUNK_SIZE;
+    return this.chunks.get(cx + ":" + cz)?.userData.lod ?? HIGH_SEGMENTS;
+  }
+
   lodForDistance(distance) {
     if (distance < CHUNK_SIZE * 1.6) return HIGH_SEGMENTS;
     if (distance < CHUNK_SIZE * 3.4) return MID_SEGMENTS;
@@ -262,7 +303,7 @@ export class Terrain {
           wanted.add(key);
           if (!this.chunks.has(key)) {
             const distance = Math.hypot(gx, gz) * CHUNK_SIZE;
-            const segments = this.lodForDistance(distance);
+            const segments = distance < CHUNK_SIZE * 0.9 ? HIGH_SEGMENTS : this.lodForDistance(distance);
             const chunk = makeChunk(this.noise, x, z, this.biome, segments);
             this.group.add(chunk);
             this.chunks.set(key, chunk);
