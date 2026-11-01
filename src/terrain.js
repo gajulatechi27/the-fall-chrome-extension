@@ -108,6 +108,57 @@ function makeTerrainMaterial(biome) {
   return material;
 }
 
+function addHillVegetation(mesh, noise, chunkX, chunkZ) {
+  const random = makeRandom((Math.abs(Math.floor(chunkX * 17 + chunkZ * 31)) ^ 0x5f3759df) >>> 0);
+  const palettes = [0x315f3b, 0x477a45, 0x6b8b4b];
+  const geometries = [
+    new THREE.ConeGeometry(1, 4.8, 6),
+    new THREE.SphereGeometry(1.65, 7, 5),
+    new THREE.ConeGeometry(1.8, 3.4, 7)
+  ];
+  const materials = geometries.map(() => new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.94 }));
+  for (let shape = 0; shape < 3; shape++) {
+    const count = 18;
+    const trees = new THREE.InstancedMesh(geometries[shape], materials[shape], count);
+    trees.castShadow = false;
+    trees.receiveShadow = true;
+    const dummy = new THREE.Object3D();
+    let placed = 0, attempts = 0;
+    while (placed < count && attempts < count * 5) {
+      attempts++;
+      const x = (random() - 0.5) * CHUNK_SIZE;
+      const z = (random() - 0.5) * CHUNK_SIZE;
+      const wx = chunkX + x, wz = chunkZ + z;
+      const y = terrainHeight(noise, wx, wz, "green");
+      const sx = terrainHeight(noise, wx + 16, wz, "green") - terrainHeight(noise, wx - 16, wz, "green");
+      const sz = terrainHeight(noise, wx, wz + 16, "green") - terrainHeight(noise, wx, wz - 16, "green");
+      const slope = Math.hypot(sx, sz) / 32;
+      const moisture = noise(wx * 0.00031 + 27, wz * 0.00031 - 13);
+      if (slope > 0.42 || moisture < -0.42 || y < -8) continue;
+      const scale = 5 + random() * 7;
+      dummy.position.set(x, y + scale * 1.35, z);
+      dummy.rotation.set(0, random() * Math.PI * 2, 0);
+      dummy.scale.set(scale * (shape === 1 ? 1.1 : 0.72), scale, scale * (shape === 2 ? 1.18 : 0.72));
+      dummy.updateMatrix();
+      trees.setMatrixAt(placed, dummy.matrix);
+      trees.setColorAt(placed, new THREE.Color(palettes[Math.floor(random() * palettes.length)]));
+      placed++;
+    }
+    trees.count = placed;
+    mesh.add(trees);
+  }
+}
+
+function disposeChunk(chunk) {
+  chunk.traverse(object => {
+    if (object.geometry) object.geometry.dispose();
+    if (object.material) {
+      if (Array.isArray(object.material)) object.material.forEach(material => material.dispose());
+      else object.material.dispose();
+    }
+  });
+}
+
 function makeChunk(noise, chunkX, chunkZ, biome, segments) {
   const positions = [];
   const colors = [];
@@ -210,6 +261,7 @@ function makeChunk(noise, chunkX, chunkZ, biome, segments) {
   mesh.userData.minHeight = minHeight;
   mesh.userData.maxHeight = maxHeight;
   mesh.userData.lod = segments;
+  if (biome === "green" && segments >= MID_SEGMENTS) addHillVegetation(mesh, noise, chunkX, chunkZ);
   return mesh;
 }
 
@@ -349,8 +401,7 @@ export class Terrain {
       for (const [key, chunk] of this.chunks) {
         if (!wanted.has(key)) {
           this.group.remove(chunk);
-          chunk.geometry.dispose();
-          chunk.material.dispose();
+          disposeChunk(chunk);
           this.chunks.delete(key);
         }
       }
@@ -376,8 +427,7 @@ export class Terrain {
   dispose() {
     for (const chunk of this.chunks.values()) {
       this.group.remove(chunk);
-      chunk.geometry.dispose();
-      chunk.material.dispose();
+      disposeChunk(chunk);
     }
     this.chunks.clear();
     this.scene.remove(this.group);
