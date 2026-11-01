@@ -430,6 +430,8 @@ export class Terrain {
   }
 
   updateWaterClip(centerX, centerZ) {
+    centerX = Math.round(centerX / 64) * 64;
+    centerZ = Math.round(centerZ / 64) * 64;
     if (!this.water || (centerX === this.waterCenterX && centerZ === this.waterCenterZ)) return;
     this.waterCenterX = centerX;
     this.waterCenterZ = centerZ;
@@ -451,8 +453,8 @@ export class Terrain {
     if (this.water) {
       const wx = camera?.position.x || 0, wz = camera?.position.z || 0;
       this.updateWaterClip(wx, wz);
-      this.water.position.x = wx;
-      this.water.position.z = wz;
+      this.water.position.x = this.waterCenterX;
+      this.water.position.z = this.waterCenterZ;
       this.waterMaterial.uniforms.uTime.value += dt;
     }
   }
