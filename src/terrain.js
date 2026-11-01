@@ -279,10 +279,11 @@ export class Terrain {
     if (["green", "forest", "delta"].includes(biome)) {
       const riverPositions = [];
       const riverIndices = [];
-      const segments = 180;
+      const segments = 360;
       const width = biome === "delta" ? 125 : 78;
       for (let i = 0; i <= segments; i++) {
-        const z = -CHUNK_SIZE * 4 + (CHUNK_SIZE * 4 * i) / segments;
+        const riverLength = CHUNK_SIZE * 8;
+        const z = -riverLength + (riverLength * i) / segments;
         const center = Math.sin(z * 0.00072 + this.noise(80, z * 0.0004) * 1.7) * 245;
         riverPositions.push(center - width, WATER_LEVEL, z, center + width, WATER_LEVEL, z);
         if (i < segments) { const a = i * 2; riverIndices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
