@@ -26,7 +26,7 @@ const treeGeometry = (() => {
       const y = p.getY(i);
       const color = y < 2.0
         ? new THREE.Color(0x594331)
-        : new THREE.Color(0x244b35).lerp(new THREE.Color(0x527b4b), Math.max(0, 1 - Math.abs(y - 3.5) / 3.5) * 0.48);
+        : new THREE.Color(0x3f7048).lerp(new THREE.Color(0x79a85c), Math.max(0, 1 - Math.abs(y - 3.5) / 3.5) * 0.48);
       colors.push(color.r, color.g, color.b);
     }
     const index = geometry.index;
@@ -111,8 +111,8 @@ export function createVegetation({ seed, biome, environment, xOffset, chunkZ, ch
     const shade = 0.82 + random() * 0.3;
     tint.setHSL(
       biome === "snow" ? 0.31 + random() * 0.025 : 0.34 + random() * 0.035,
-      biome === "snow" ? 0.34 : 0.42,
-      (biome === "snow" ? 0.22 : 0.2) * shade
+      biome === "snow" ? 0.28 : 0.5,
+      (biome === "snow" ? 0.46 : 0.44) * shade
     );
     instances.setColorAt(placed, tint);
     placed++;
