@@ -347,7 +347,7 @@ export class Terrain {
     this.ringCounts = { near: 0, mid: 0, far: 0, horizon: 0 };
     this.ensureGrid(0, 0);
     this.farRanges = createFarRanges(scene);
-    this.farRanges.layers?.forEach(() => {});
+    this.farRanges.layers?.forEach(mesh => { mesh.userData.farRangeOwner = this; });
 
     this.water = null;
     if (biome === "islands") {
@@ -466,6 +466,12 @@ export class Terrain {
       this.water.position.z = this.waterCenterZ;
       this.waterMaterial.uniforms.uTime.value += dt;
     }
+  }
+
+  setVisible(visible) {
+    this.group.visible = visible;
+    for (const child of this.scene.children) if (child.userData?.farRangeOwner === this) child.visible = visible;
+    if (this.water) this.water.visible = visible;
   }
 
   isReady() {
