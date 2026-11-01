@@ -97,6 +97,9 @@ function makeChunk(noise, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, segment
     const warpZ = worldZ + noise((x + 900) * 0.0007, (worldZ - 400) * 0.0007) * 115;
     let h = fbm(noise, warpX, warpZ) * amplitude;
     if (biome === "islands") {
+      const ridgeA = 1.0 - Math.abs(noise(warpX * 0.00145, warpZ * 0.00145));
+      const ridgeB = 1.0 - Math.abs(noise(warpX * 0.0031 + 17.0, warpZ * 0.0031 - 9.0));
+      h += Math.pow(Math.max(0.0, ridgeA), 2.0) * 34 + Math.pow(Math.max(0.0, ridgeB), 2.4) * 13;
       const shoreZ = Math.sin(x * 0.00022) * 1150 + Math.sin(x * 0.00061 + 1.7) * 360 + noise(x * 0.00048, worldZ * 0.00031) * 260;
       const coast = THREE.MathUtils.smoothstep(shoreZ - worldZ, -720, 260);
       const headland = Math.pow(Math.max(0, Math.sin(x * 0.00016 + 0.8)), 5) * 95;
@@ -419,6 +422,9 @@ export class Terrain {
     const warpZ = z + this.noise((x + 900) * 0.0007, (z - 400) * 0.0007) * 115;
     let h = fbm(this.noise, warpX, warpZ) * (BIOME_HEIGHT[this.biome] || 145);
     if (this.biome === "islands") {
+      const ridgeA = 1.0 - Math.abs(this.noise(warpX * 0.00145, warpZ * 0.00145));
+      const ridgeB = 1.0 - Math.abs(this.noise(warpX * 0.0031 + 17.0, warpZ * 0.0031 - 9.0));
+      h += Math.pow(Math.max(0.0, ridgeA), 2.0) * 34 + Math.pow(Math.max(0.0, ridgeB), 2.4) * 13;
       const shoreZ = Math.sin(x * 0.00022) * 1150 + Math.sin(x * 0.00061 + 1.7) * 360 +
         this.noise(x * 0.00048, z * 0.00031) * 260;
       const coast = THREE.MathUtils.smoothstep(shoreZ - z, -720, 260);
