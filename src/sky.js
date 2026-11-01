@@ -21,6 +21,7 @@ export function createSky(scene, renderer, seed, biome = "green", weather = "cle
   const sunDirection = new THREE.Vector3(Math.cos(angle) * 0.45, 0.62, Math.sin(angle) * 0.45).normalize();
   const skyMat = new THREE.ShaderMaterial({
     side: THREE.BackSide,
+    depthTest: false,
     depthWrite: false,
     uniforms: {
       sunDirection: { value: sunDirection },
@@ -46,6 +47,8 @@ export function createSky(scene, renderer, seed, biome = "green", weather = "cle
       }`
   });
   const sky = new THREE.Mesh(skyGeo, skyMat);
+  sky.renderOrder = -1000;
+  sky.frustumCulled = false;
   scene.add(sky);
   const hemi = new THREE.HemisphereLight(0xe7f3ff, biome === "desert" ? 0x82604c : 0x536d55, weather === "storm" ? .8 : 1.65);
   scene.add(hemi);
