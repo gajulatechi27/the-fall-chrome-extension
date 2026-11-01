@@ -13,30 +13,37 @@ document.body.appendChild(label);
 
 const isSmall = matchMedia("(max-width:700px)").matches;
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: "high-performance", stencil: false, alpha: false });
-let quality = Math.min(devicePixelRatio, isSmall ? 1 : 1.5);
+let quality = Math.min(devicePixelRatio, 2);
 renderer.setPixelRatio(quality);
 renderer.setSize(innerWidth, innerHeight, false);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.08;
+renderer.toneMappingExposure = 1.12;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 0.1, 30000);
+const camera = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 0.1, 30000);
 const sceneTypes = [
-  { id: "himalayas", name: "Himalayan Peaks" },
-  { id: "green", name: "Green Hills & Valleys" },
-  { id: "delta", name: "River Delta" },
-  { id: "lake", name: "Lake & Mountains" },
-  { id: "coast", name: "Coast & Islands" },
-  { id: "desert", name: "Desert & Canyons" }
+  { id: "himalayas", name: "Himalayan Peaks & Glaciers" },
+  { id: "green", name: "Green Hills & Terraced Valleys" },
+  { id: "delta", name: "Winding River & Farmland" },
+  { id: "lake", name: "Alpine Lake & Mountains" },
+  { id: "coast", name: "Coast, Beaches & Islands" },
+  { id: "desert", name: "Desert Dunes & Red Canyons" },
+  { id: "forest", name: "Dense Forest & Waterfall" },
+  { id: "rainforest", name: "Misty Rainforest Valley" }
 ];
+const weatherTypes = ["clear", "light clouds", "heavy clouds", "mist", "rain", "storm"];
 let sky, clouds, terrain, effects;
-let seed = 0, activeScene = sceneTypes[0], elapsed = 0, altitude = 3500;
+let seed = 0, activeScene = sceneTypes[0], weather = "clear";
+let elapsed = 0, altitude = 4000, speed = 145, sceneDuration = 24;
 let running = false, paused = false, transitioning = false, frame = 0;
-let fps = 0, fpsFrames = 0, fpsElapsed = 0, pitchDegrees = -45;
+let fps = 0, fpsFrames = 0, fpsElapsed = 0, pitchDegrees = -48;
 let previousSceneId = "";
+let sceneClock = new THREE.Clock();
+let transitionTimer = 0;
+let worldDistance = 0;
 
 const debug = document.createElement("pre");
 debug.id = "fall-debug";
@@ -57,7 +64,6 @@ function chooseScene() {
   previousSceneId = next.id;
   return next;
 }
-
 function disposeScene() {
   try { effects?.dispose(); } catch (error) { console.warn("Effects cleanup", error); }
   effects = undefined;
@@ -69,134 +75,133 @@ function disposeScene() {
   terrain = undefined;
   scene.clear();
 }
-
 function createScene(nextScene, nextSeed) {
   activeScene = nextScene;
   seed = nextSeed;
   elapsed = 0;
-  altitude = 3500;
-  camera.position.set(0, 350, 20);
-  sky = createSky(scene, renderer, seed);
+  sceneDuration = 22 + (seed % 5000) / 625; // 22–30 seconds
+  weather = weatherTypes[(seed >>> 5) % weatherTypes.length];
+  altitude = 4000;
+  sky = createSky(scene, renderer, seed, activeScene.id, weather);
   scene.background = sky.horizonColor.clone();
-  scene.fog = new THREE.FogExp2(sky.horizonColor, 0.000075);
+  scene.fog = new THREE.Fog(sky.horizonColor, 900, weather === "mist" || weather === "storm" ? 8500 : 18500);
   terrain = new Terrain(scene, seed, activeScene.id);
-  clouds = new CloudField(scene, seed);
+  clouds = new CloudField(scene, seed, weather);
   try {
-    effects = new CinematicEffects(renderer, scene, camera, quality);
+    effects = new CinematicEffects(renderer, scene, camera, quality, weather);
   } catch (error) {
-    console.error("Post-processing unavailable; using direct renderer.", error);
+    console.error("Effects unavailable; using direct renderer.", error);
     effects = undefined;
   }
   label.textContent = activeScene.name;
   label.classList.add("visible");
 }
-
-async function transitionToNext() {
-  if (transitioning || !running) return;
+function beginTransition() {
+  if (transitioning) return;
   transitioning = true;
-  running = false;
-  cancelAnimationFrame(frame);
+  transitionTimer = 0;
   fade.classList.add("dissolve");
-  await new Promise(resolve => setTimeout(resolve, 1500));
-  disposeScene();
-  createScene(chooseScene(), randomSeed());
-  fade.classList.remove("dissolve");
-  await new Promise(resolve => setTimeout(resolve, 1500));
-  elapsed = 0;
-  running = true;
-  transitioning = false;
-  clock.start();
-  animate();
 }
-
 function altitudeAt(t) {
-  if (t < 12) return THREE.MathUtils.lerp(3500, 850, THREE.MathUtils.smoothstep(t, 0, 12));
-  if (t < 55) return 850;
-  return THREE.MathUtils.lerp(850, 3500, THREE.MathUtils.smoothstep(t, 55, 68));
+  const fallEnd = 7.2;
+  const lowEnd = sceneDuration - 5.5;
+  if (t < fallEnd) return THREE.MathUtils.lerp(4000, 600, THREE.MathUtils.smoothstep(t, 0, fallEnd));
+  if (t < lowEnd) return 600 + Math.sin(t * 0.8) * 35;
+  return THREE.MathUtils.lerp(600, 3200, THREE.MathUtils.smoothstep(t, lowEnd, sceneDuration));
 }
-
+function speedAt(t) {
+  if (t < 7.2) return THREE.MathUtils.lerp(195, 135, THREE.MathUtils.smoothstep(t, 0, 7.2));
+  if (t < sceneDuration - 5.5) return 78 + Math.sin(t * 1.7) * 12;
+  return THREE.MathUtils.lerp(82, 155, THREE.MathUtils.smoothstep(t, sceneDuration - 5.5, sceneDuration));
+}
 function animate() {
   if (!running || paused || document.hidden) return;
   frame = requestAnimationFrame(animate);
-  const dt = Math.min(clock.getDelta(), 0.04);
+  const dt = Math.min(sceneClock.getDelta(), 0.033);
   elapsed += dt;
+  speed = speedAt(elapsed);
   altitude = altitudeAt(elapsed);
+  worldDistance += speed * dt;
 
-  // Map flight altitude to scene units; the two cloud decks are fixed at y=325 and y=165.
-  const cameraY = altitude * 0.1;
-  const turn = Math.sin(elapsed * 0.075) * 0.48 + Math.sin(elapsed * 0.027) * 0.18;
-  const cameraX = Math.sin(elapsed * 0.075) * 115 + Math.sin(elapsed * 0.19) * 16;
-  const cameraZ = 20 - elapsed * 12;
-  camera.position.x = THREE.MathUtils.damp(camera.position.x, cameraX, 1.8, dt);
-  camera.position.y = THREE.MathUtils.damp(camera.position.y, cameraY, 2.0, dt);
-  camera.position.z = cameraZ;
+  const fall = THREE.MathUtils.smoothstep(elapsed, 0, 7.2);
+  const climb = THREE.MathUtils.smoothstep(elapsed, sceneDuration - 5.5, sceneDuration);
+  const turn = Math.sin(elapsed * 0.22) * 0.62 + Math.sin(elapsed * 0.51) * 0.12;
+  const lateral = Math.sin(elapsed * 0.31) * 210 + Math.sin(elapsed * 0.83) * 42;
+  camera.position.x = lateral;
+  camera.position.y = altitude * 0.1;
+  camera.position.z -= speed * 0.1 * dt;
+  // A small banking turn and a stronger downward attitude during the initial dive.
+  pitchDegrees = THREE.MathUtils.lerp(-58, -10, fall);
+  pitchDegrees = THREE.MathUtils.lerp(pitchDegrees, -24, climb);
+  const bank = Math.sin(elapsed * 0.27) * 0.13;
+  camera.rotation.order = "YXZ";
+  camera.rotation.y = turn * 0.28;
+  camera.rotation.x = THREE.MathUtils.degToRad(pitchDegrees);
+  camera.rotation.z = -bank;
+  const targetFov = THREE.MathUtils.mapLinear(speed, 60, 200, 60, 85);
+  camera.fov = THREE.MathUtils.damp(camera.fov, THREE.MathUtils.clamp(targetFov, 60, 85), 4.5, dt);
+  camera.updateProjectionMatrix();
 
-  const pitchT = THREE.MathUtils.smoothstep(altitude, 850, 3500);
-  pitchDegrees = THREE.MathUtils.lerp(-15, -45, pitchT);
-  const pitchDrop = Math.tan(THREE.MathUtils.degToRad(Math.abs(pitchDegrees))) * 95;
-  const lookX = camera.position.x + Math.sin(turn) * 58;
-  camera.lookAt(lookX, camera.position.y - pitchDrop, camera.position.z - 95);
-
-  // Terrain streams continuously; isolate failures so the render loop remains alive.
-  try { terrain?.update(dt, 90, altitude, camera); } catch (error) { console.error("Terrain update failed", error); }
-  try { clouds?.update(dt, 90, camera, altitude); } catch (error) { console.error("Cloud update failed", error); }
-  if (scene.fog instanceof THREE.FogExp2 && sky?.horizonColor) scene.fog.color.copy(sky.horizonColor);
-  if (scene.fog instanceof THREE.FogExp2) scene.fog.density = 0.000075;
-
-  fpsFrames++;
-  fpsElapsed += dt;
-  if (fpsElapsed >= 0.5) {
-    fps = fpsFrames / fpsElapsed;
-    fpsFrames = 0;
-    fpsElapsed = 0;
+  try { terrain?.update(dt, speed, altitude, camera); } catch (error) { console.error("Terrain update failed", error); }
+  try { clouds?.update(dt, speed, camera, altitude); } catch (error) { console.error("Cloud update failed", error); }
+  if (scene.fog) {
+    scene.fog.color.copy(sky.horizonColor);
+    const targetFar = weather === "mist" || weather === "storm" ? 8500 : weather === "heavy clouds" ? 12500 : 18500;
+    scene.fog.far = THREE.MathUtils.damp(scene.fog.far, targetFar, 0.8, dt);
   }
-
   try {
-    effects?.update(dt, 90, elapsed);
+    effects?.update(dt, speed, elapsed, camera, weather);
     if (effects) effects.render(dt);
     else renderer.render(scene, camera);
   } catch (error) {
-    console.error("Render pipeline failed; direct rendering fallback.", error);
+    console.error("Render pipeline fallback.", error);
     try { effects?.dispose(); } catch {}
     effects = undefined;
     renderer.render(scene, camera);
   }
 
+  fpsFrames++;
+  fpsElapsed += dt;
+  if (fpsElapsed >= 0.5) { fps = fpsFrames / fpsElapsed; fpsFrames = 0; fpsElapsed = 0; }
   const stats = terrain?.getDebugInfo?.() || {};
   if (debugVisible) {
     debug.textContent =
-      "THE FALL — DEBUG (D to hide)\n" +
-      "Scene: " + activeScene.name + "\n" +
-      "Seed: " + seed + "\n" +
-      "Altitude: " + Math.round(altitude) + " m\n" +
-      "Pitch: " + pitchDegrees.toFixed(1) + "°\n" +
-      "Cloud count: " + (clouds?.count ?? 0) + "\n" +
-      "Chunk count: " + (stats.chunkCount ?? 0) + "\n" +
-      "View distance: " + ((stats.viewDistance ?? 0) / 1000).toFixed(1) + " km\n" +
-      "Terrain min/max: " + Math.round(stats.minHeight ?? 0) + " / " + Math.round(stats.maxHeight ?? 0) + " m\n" +
+      "THE FALL — FLIGHT DEBUG (D to hide)\n" +
+      "Scene: " + activeScene.name + "\nWeather: " + weather + "\nSeed: " + seed + "\n" +
+      "Speed: " + Math.round(speed) + " m/s\nAltitude: " + Math.round(altitude) + " m\n" +
+      "Time left: " + Math.max(0, sceneDuration - elapsed).toFixed(1) + " s\n" +
+      "Pitch: " + pitchDegrees.toFixed(1) + "° | FOV: " + camera.fov.toFixed(1) + "°\n" +
+      "Chunks: " + (stats.chunkCount ?? 0) + " | View: " + ((stats.viewDistance ?? 0) / 1000).toFixed(1) + " km\n" +
       "FPS: " + fps.toFixed(1);
   }
-
-  const labelAlpha = THREE.MathUtils.smoothstep(elapsed, 0.3, 2.5) * (1 - THREE.MathUtils.smoothstep(elapsed, 62, 68));
-  label.style.opacity = String(labelAlpha);
-  if (elapsed >= 68) transitionToNext();
+  label.style.opacity = String(THREE.MathUtils.smoothstep(elapsed, 0.2, 1.8) * (1 - THREE.MathUtils.smoothstep(elapsed, sceneDuration - 1.2, sceneDuration)));
+  if (elapsed >= sceneDuration - 1.0) beginTransition();
+  if (transitioning) {
+    transitionTimer += dt;
+    if (transitionTimer >= 1.15) {
+      disposeScene();
+      camera.position.y = 400;
+      createScene(chooseScene(), randomSeed());
+      transitioning = false;
+      fade.classList.remove("dissolve");
+      // Keep the existing world-space path; only the landscape seed and biome change.
+    }
+  }
 }
 
-const clock = new THREE.Clock();
+const clock = sceneClock;
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     paused = true;
     cancelAnimationFrame(frame);
-  } else if (running) {
+  } else {
     paused = false;
-    clock.start();
-    animate();
+    sceneClock.start();
+    if (running) animate();
   }
 });
-
 function resize() {
-  const small = matchMedia("(max-width:700px)").matches;
-  quality = Math.min(devicePixelRatio, small ? 1 : 1.5);
+  quality = Math.min(devicePixelRatio, 2);
   renderer.setPixelRatio(quality);
   renderer.setSize(innerWidth, innerHeight, false);
   camera.aspect = innerWidth / innerHeight;
@@ -209,5 +214,5 @@ window.addEventListener("error", event => console.error("THE FALL error", event.
 
 createScene(chooseScene(), randomSeed());
 running = true;
-clock.start();
+sceneClock.start();
 animate();
