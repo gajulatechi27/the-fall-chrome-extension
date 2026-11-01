@@ -10,7 +10,7 @@ export class CinematicEffects{
   this.scene=scene;this.quality=quality;this.composer=new EffectComposer(renderer,{multisampling:0});this.composer.addPass(new RenderPass(scene,camera));
   this.bloom=new BloomEffect({intensity:.48,luminanceThreshold:.86,luminanceSmoothing:.2});
   this.dof=new DepthOfFieldEffect(camera,{focusDistance:.025,focusRange:.065,bokehScale:.55});
-  this.grade=new BrightnessContrastEffect({brightness:0,contrast:.045});
+  this.grade=new BrightnessContrastEffect({brightness:.035,contrast:.025});
   this.motion=new RadialMotionBlurEffect();this.vignette=new VignetteEffect({offset:.3,darkness:.22});this.fxaa=new FXAAEffect();
   this.composer.addPass(new EffectPass(camera,this.bloom,this.dof,this.grade,this.motion,this.vignette,this.fxaa));
   const count=quality<1.2?280:480;this.positions=new Float32Array(count*3);this.velocities=new Float32Array(count);
