@@ -60,6 +60,7 @@ orderControl.setAttribute("aria-label","Landscape order");
 orderControl.style.cssText = "position:fixed;z-index:16;right:14px;bottom:18px;padding:7px 10px;border:1px solid #ffffff55;border-radius:8px;background:#10233099;color:white;font:12px system-ui";
 orderControl.innerHTML = '<option>In order</option><option>Shuffle</option>';
 document.body.appendChild(orderControl);
+orderControl.addEventListener("change", () => { orderMode = orderControl.value; savePlaylistState(); });
 let debugVisible = false;
 document.addEventListener("keydown", event => {
   if (event.key.toLowerCase() === "d" && !event.repeat) {
@@ -128,7 +129,7 @@ async function activateLandscape(index, stagedTerrain = null) {
   await savePlaylistState();
   running = true; paused = false; transitioning = false; transitionStarted = false;
   fpsFrames = 0; fpsTime = 0; lastDebugLog = 0;
-  clock.start(); fade.style.opacity = "0"; fade.classList.remove("white");
+  clock.start();
   animate();
 }
 
@@ -152,7 +153,7 @@ async function advanceLandscape() {
   preloadedTerrain = null; preloadedIndex = -1;
   await activateLandscape(index, staged);
   await new Promise(resolve => setTimeout(resolve, 1200));
-  fade.style.opacity = "0"; landscapeLabel.style.opacity = "1";
+  fade.style.opacity = "0"; fade.classList.remove("white"); landscapeLabel.style.opacity = "1";
 }
 
 async function beginDescent() {
@@ -172,6 +173,7 @@ async function beginDescent() {
   fade.classList.add("white"); fade.style.opacity = "1";
   await new Promise(resolve => setTimeout(resolve, 450));
   await activateLandscape(index);
+  fade.style.opacity = "0"; fade.classList.remove("white");
   transitioning = false;
 }
 
