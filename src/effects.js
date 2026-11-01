@@ -62,26 +62,45 @@ export class CinematicEffects {
   }
   update(dt,speed,elapsed,camera,weather=this.weather){
     this.motion.setSpeed(speed);
-    this.wind.material.opacity=THREE.MathUtils.clamp(.12+speed*.0012,.18,.42);
-    this.rain.material.opacity=weather==="storm"?.62:weather==="rain"?.42:0;
-    this.moveStreaks(this.wind,dt,speed,0);
-    if(this.rain.count)this.moveStreaks(this.rain,dt,speed,weather==="storm"?1.8:1.15);
+    this.gustPhase = (this.gustPhase || 0) + dt * (weather === "storm" ? 2.8 : 1.35);
+    const gust = Math.sin(this.gustPhase) * 0.5 + Math.sin(this.gustPhase * 0.43) * 0.5;
+    const windy = weather === "storm" ? 1 : weather === "rain" ? .78 : weather === "mist" ? .18 : weather === "light clouds" || weather === "heavy clouds" ? .34 : .12;
+    this.wind.material.opacity = THREE.MathUtils.clamp((.035 + speed * .00135) * windy * (0.72 + Math.abs(gust) * .55), .015, .34);
+    this.rain.material.opacity = weather === "storm" ? .7 : weather === "rain" ? .48 : 0;
+    this.moveStreaks(this.wind,dt,speed,gust * (weather === "storm" ? 8 : 4),weather === "storm" ? 1.6 : .55);
+    if(this.rain.count) this.moveRain(dt,speed,weather === "storm" ? 1.9 : 1.15,gust);
   }
-  moveStreaks(system,dt,speed,wind){
+  moveStreaks(system,dt,speed,gust,fall){
     for(let i=0;i<system.count;i++){
       const k=i*6;
-      const dz=dt*(speed*.12+18)*(1.1+(i%7)*.08);
-      system.positions[k+2]+=dz;
-      system.positions[k+5]+=dz;
-      system.positions[k]+=dt*wind*3;
-      system.positions[k+3]+=dt*wind*3;
-      if(system.positions[k+2]>-1){
-        const x=(Math.random()-.5)*90,y=(Math.random()-.5)*62,z=-150-Math.random()*45;
+      const dz=dt*(speed*.075+10)*(1.0+(i%7)*.055);
+      const dx=dt*(gust*22+(i%5-2)*1.8);
+      system.positions[k+2]+=dz; system.positions[k+5]+=dz;
+      system.positions[k]+=dx; system.positions[k+3]+=dx;
+      system.positions[k+1]-=dt*fall*(4+(i%6)); system.positions[k+4]-=dt*fall*(4+(i%6));
+      if(system.positions[k+2]>-1 || system.positions[k+1]<-34){
+        const x=(Math.random()-.5)*90,y=18+Math.random()*32,z=-145-Math.random()*55;
         const len=system.width*(.5+Math.random()*1.8);
-        system.positions[k]=x;system.positions[k+1]=y;system.positions[k+2]=z;
-        system.positions[k+3]=x+(Math.random()-.5)*.22+wind*.1;
-        system.positions[k+4]=y-len;
-        system.positions[k+5]=z;
+        system.positions[k]=x; system.positions[k+1]=y; system.positions[k+2]=z;
+        system.positions[k+3]=x+(Math.random()-.5)*.22+gust*.025; system.positions[k+4]=y-len; system.positions[k+5]=z;
+      }
+    }
+    system.geometry.attributes.position.needsUpdate=true;
+  }
+  moveRain(dt,speed,intensity,gust){
+    const system=this.rain;
+    for(let i=0;i<system.count;i++){
+      const k=i*6;
+      const fallSpeed=(34+speed*.24)*(i%9===0?1.35:1)*intensity;
+      const dx=dt*(9+speed*.035)*gust, dy=dt*fallSpeed;
+      system.positions[k]+=dx; system.positions[k+3]+=dx;
+      system.positions[k+1]-=dy; system.positions[k+4]-=dy;
+      system.positions[k+2]+=dt*(speed*.025+3); system.positions[k+5]+=dt*(speed*.025+3);
+      if(system.positions[k+1]<-28 || system.positions[k+2]>-1){
+        const x=(Math.random()-.5)*92,y=24+Math.random()*36,z=-135-Math.random()*70;
+        const len=1.2+Math.random()*2.8, slant=.08+gust*.06;
+        system.positions[k]=x; system.positions[k+1]=y; system.positions[k+2]=z;
+        system.positions[k+3]=x+slant; system.positions[k+4]=y-len; system.positions[k+5]=z+.2;
       }
     }
     system.geometry.attributes.position.needsUpdate=true;
