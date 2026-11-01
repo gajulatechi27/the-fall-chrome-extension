@@ -261,7 +261,7 @@ function createWaterMaterial(seed) {
 function createFarRanges(scene) {
   const layers = [];
   const colors = [0x536f83, 0x7896a8, 0xa4bac5];
-  const distances = [23500, 28500, 34500];
+  const distances = [10500, 14500, 18500];
   for (let layer = 0; layer < 3; layer++) {
     const positions = [], indices = [];
     const nx = 160, nz = 8, width = 80000, depth = 6500;
@@ -355,7 +355,7 @@ export class Terrain {
     this.gridCenterZ = cz;
     const next = [];
     const counts = { near: 0, mid: 0, far: 0, horizon: 0 };
-    const keep = new Map(this.chunks.map(c => [c.userData.gridKey, c]));
+    const keep = new Map(this.chunks.map(c => [c.userData.worldX + ':' + c.userData.baseZ, c]));
     for (let gz = -GRID_RADIUS; gz <= GRID_RADIUS; gz++) {
       for (let gx = -GRID_RADIUS; gx <= GRID_RADIUS; gx++) {
         const x = cx + gx * this.chunkSize;
