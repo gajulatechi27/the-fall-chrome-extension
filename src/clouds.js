@@ -76,6 +76,7 @@ export class CloudField {
         sprite.userData.radius=280+random()*1250;
         sprite.userData.depth=band.depth[0]+random()*(band.depth[1]-band.depth[0]);
         sprite.userData.bandIndex=bandIndex;
+        sprite.userData.baseColor=material.color.getHex();
         this.group.add(sprite);this.clouds.push(sprite);
       }
     }
@@ -98,7 +99,7 @@ export class CloudField {
       const distance = camera.position.distanceTo(cloud.position);
       const fade = THREE.MathUtils.smoothstep(distance, 180, 420);
       cloud.material.opacity = (stormy ? 0.28 : 0.17) * fade;
-      if (band === 0 && stormy) cloud.material.color.set(0x84909a);
+      cloud.material.color.set(band === 0 && stormy ? 0x84909a : cloud.userData.baseColor);
       if (distance < 80) {
         cloud.position.x += 150;
         cloud.position.z -= 160;
