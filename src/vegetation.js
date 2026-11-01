@@ -70,7 +70,7 @@ export function createVegetation({ seed, biome, environment, xOffset, chunkZ, ch
 
   const density = THREE.MathUtils.clamp(environment?.vegetation?.density ?? 0.3, 0.08, 0.8);
   const lodFactor = segments >= 128 ? 1 : segments >= 64 ? 0.62 : 0.2;
-  const targetCount = Math.round((biome === "snow" ? 92 : 112) * density * lodFactor);
+  const targetCount = Math.round((biome === "snow" ? 150 : 112) * density * lodFactor);
   if (targetCount < 1) return null;
 
   const random = seededRandom(hashChunk(seed, xOffset, chunkZ));
