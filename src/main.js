@@ -67,7 +67,10 @@ document.addEventListener("keydown", event => {
     debugVisible = !debugVisible;
     debug.style.display = debugVisible ? "block" : "none";
   }
-  if (event.key.toLowerCase() === "n" && !event.repeat && playlistEnabled) advanceLandscape();
+  if (event.key.toLowerCase() === "n" && !event.repeat && playlistEnabled) {
+    event.preventDefault();
+    advanceLandscape();
+  }
 });
 
 async function savePlaylistState() {
@@ -151,15 +154,37 @@ async function preloadNextLandscape() {
 
 async function advanceLandscape() {
   if (!playlistEnabled || transitioning) return;
-  transitioning = true; running = false; cancelAnimationFrame(frame);
-  landscapeLabel.style.opacity = "0"; fade.classList.add("white"); fade.style.opacity = "1";
-  await new Promise(resolve => setTimeout(resolve, 2600));
-  const index = preloadedTerrain && preloadedIndex >= 0 ? preloadedIndex : nextIndex();
-  const staged = preloadedTerrain;
+  transitioning = true;
+  transitionState = "whiteout";
+  running = false; cancelAnimationFrame(frame);
+  landscapeLabel.style.opacity = "0";
+  fade.classList.add("white"); fade.style.opacity = "1";
+  const requestedNext = preloadedTerrain && preloadedIndex >= 0 ? preloadedIndex : nextIndex(sequenceIndex);
+  const staged = preloadedTerrain && preloadedIndex === requestedNext ? preloadedTerrain : null;
   preloadedTerrain = null; preloadedIndex = -1;
-  await activateLandscape(index, staged);
-  await new Promise(resolve => setTimeout(resolve, 1200));
-  fade.style.opacity = "0"; fade.classList.remove("white"); landscapeLabel.style.opacity = "1";
+  await new Promise(resolve => setTimeout(resolve, 4000));
+  try {
+    transitionState = "activating " + ENVIRONMENTS[requestedNext].id;
+    await withEightSecondTimeout(activateLandscape(requestedNext, staged), "Landscape activation");
+  } catch (error) {
+    console.error("[THE FALL] Landscape transition failed; rebuilding without preload.", error);
+    if (staged) { try { staged.dispose(); } catch {} }
+    cleanupActive();
+    try {
+      await withEightSecondTimeout(activateLandscape(requestedNext, null), "Landscape fallback activation");
+    } catch (fallbackError) {
+      console.error("[THE FALL] Landscape fallback failed.", fallbackError);
+      transitionState = "error";
+      transitioning = false;
+      return;
+    }
+  }
+  transitionState = "emerging";
+  await new Promise(resolve => setTimeout(resolve, 500));
+  fade.style.opacity = "0"; fade.classList.remove("white");
+  landscapeLabel.style.opacity = "1";
+  transitioning = false;
+  transitionState = "idle";
 }
 
 async function beginDescent() {
@@ -199,6 +224,9 @@ function updateDebug(dt) {
     console.info(
       "[THE FALL]",
       "landscape:", activeEnvironment?.name,
+      "index:", sequenceIndex + 1,
+      "time left:", Math.max(0, (activeEnvironment?.duration || 68) - time).toFixed(1),
+      "transition:", transitionState,
       "seed:", seed,
       "altitude:", Math.round(altitude),
       "camera x/z:", camera.position.x.toFixed(1), "/", camera.position.z.toFixed(1),
@@ -318,7 +346,7 @@ function animate() {
 
   updateDebug(dt);
   if (playlistEnabled && time >= duration - 10 && !preloadedTerrain) preloadNextLandscape();
-  if (playlistEnabled && time >= duration - 5 && !transitionStarted) { transitionStarted = true; advanceLandscape(); }
+  if (playlistEnabled && time >= duration && !transitionStarted) { transitionStarted = true; advanceLandscape(); }
 }
 
 document.addEventListener("visibilitychange", () => {
