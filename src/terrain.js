@@ -105,6 +105,11 @@ function makeChunk(noise, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, segment
       const basin = 1.0 - THREE.MathUtils.smoothstep(lakeRadius, 1100, 4300);
       h -= basin * 145;
     }
+    if (environment?.water?.type === "lake") {
+      const lakeRadius = Math.hypot(worldX, worldZ + 2500);
+      const basin = 1.0 - THREE.MathUtils.smoothstep(lakeRadius, 1100, 4300);
+      h -= basin * 145;
+    }
     if (biome === "islands") {
       const ridgeA = 1.0 - Math.abs(noise(warpX * 0.00145, warpZ * 0.00145));
       const ridgeB = 1.0 - Math.abs(noise(warpX * 0.0031 + 17.0, warpZ * 0.0031 - 9.0));
@@ -300,10 +305,12 @@ function createFarRanges(scene) {
         const x = -width * .5 + width * ix / nx;
         const z = depth * iz / nz;
         const envelope = Math.sin(Math.PI * iz / nz) * .28 + .72;
-        const ridge = Math.abs(Math.sin(x * (.00031 + layer * .000035) + layer * 2.1)) * 480 +
-          Math.sin(x * .00083 + layer * 4.7) * 170 +
-          Math.sin(x * .0019 + layer) * 75;
-        const y = Math.max(80, (360 + ridge) * envelope);
+        const r1 = Math.abs(Math.sin(x * (.00031 + layer * .000035) + layer * 2.1));
+        const r2 = Math.abs(Math.sin(x * (.00083 + layer * .00004) + layer * 4.7 + Math.sin(z * .0007)));
+        const r3 = Math.abs(Math.sin(x * (.0019 + layer * .00006) + layer + Math.sin(x * .00012 + z * .0004)));
+        const ridge = Math.pow(r1, 1.8) * 410 + Math.pow(r2, 2.4) * 180 + Math.pow(r3, 3.0) * 85;
+        const base = 150 + Math.sin(x * .00017 + layer) * 55 + Math.sin(z * .001 + layer) * 18;
+        const y = Math.max(24, (base + ridge) * envelope);
         positions.push(x, y, z);
       }
     }
