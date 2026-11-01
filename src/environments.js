@@ -3,10 +3,10 @@ export const ENVIRONMENTS = [
     id: "green-hills", name: "Green hills and meadows", timeOfDay: "dawn",
     biome: "forest", paletteTint: "vec3(0.82,1.08,0.82)", terrain: { biome: "forest", baseHeight: 152, noiseOctaves: 7, ridgeWeight: 0.16, valleyCarving: 0.24, seaLevel: -28 },
     materialMix: { rock: [175, 265], grass: [-18, 105], dryGrass: [82, 142], sand: [-28, -8], snow: [520, 900] },
-    water: { type: "river", level: -28, width: 124, color: "#438f91" },
-    vegetation: { types: ["meadow-grass", "deciduous-trees"], density: 0.62, clumpSize: 48, grassDensity: 1.0 },
+    water: { type: "river", level: -28, width: 158, color: "#438f91" },
+    vegetation: { types: ["meadow-grass", "deciduous-trees"], density: 0.72, clumpSize: 48, grassDensity: 1.0 },
     sun: { position: [-220, 145, -310], intensity: 2.58 }, sky: { horizon: "#b9d5e0", zenith: "#39749a", sun: "#fff1d7" },
-    fog: { color: "#c0d5d8", density: 0.000068 }, clouds: { cover: 0.28, speed: 0.8 }, weather: "clear", particles: "pollen",
+    fog: { color: "#c9d9c2", density: 0.000062 }, clouds: { cover: 0.28, speed: 0.8 }, weather: "clear", particles: "pollen",
     camera: { altitude: 420, speed: 42 }, duration: 25
   },
   {
