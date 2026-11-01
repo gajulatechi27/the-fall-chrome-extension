@@ -2,12 +2,12 @@ import * as THREE from "three";
 import { createNoise2D } from "simplex-noise";
 
 const CHUNK_SIZE = 2500;
-const GRID_RADIUS = 8; // 17 x 17 chunks = 42.5 km across
+const GRID_RADIUS = 4; // 9 x 9 chunks; smaller live set avoids frame stalls
 const WATER_LEVEL = -12;
 const WATER_SIZE = 52000;
-const HIGH_SEGMENTS = 128;
-const MID_SEGMENTS = 64;
-const LOW_SEGMENTS = 24;
+const HIGH_SEGMENTS = 48;
+const MID_SEGMENTS = 24;
+const LOW_SEGMENTS = 8;
 const SKIRT_DEPTH = 55;
 const NORMAL_SAMPLE = 8;
 
