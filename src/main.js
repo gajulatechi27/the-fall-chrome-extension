@@ -149,14 +149,14 @@ function updateCamera(dt){
  const forwardSpeed=speed;
  if(phaseName==="TRAVELLER FLIGHT"&&journeyPath){
    const route=journeyPath.getAt(worldDistance);
-   const ahead=journeyPath.getAt(worldDistance+150);
+   const ahead=journeyPath.getAt(worldDistance+125);
    const lowFlight=activeScene.id==="himalayas";
    eyeHeight=lowFlight?85:3;
    const ground=Math.max(terrain.getHeightAt(route.point.x,route.point.z),terrain.getWaterLevel());
    const targetY=ground+eyeHeight;
    const spring=lowFlight?2.2:4.5;
-   camera.position.x=THREE.MathUtils.damp(camera.position.x,route.point.x,3.2,dt);
-   camera.position.z=THREE.MathUtils.damp(camera.position.z,route.point.z,3.2,dt);
+   camera.position.x=route.point.x;
+   camera.position.z=route.point.z;
    camera.position.y=THREE.MathUtils.damp(camera.position.y,targetY,spring,dt);
    const lookPoint=ahead.point.clone();
    lookPoint.y=Math.max(terrain.getHeightAt(lookPoint.x,lookPoint.z),terrain.getWaterLevel())+eyeHeight*.55;
@@ -171,7 +171,7 @@ function updateCamera(dt){
    cameraClearance=camera.position.y-ground;
    terrainHeightUnder=ground;
    altitude=Math.round(camera.position.y);
-   camera.fov=THREE.MathUtils.damp(camera.fov,motion.fov,2.8,dt);
+   camera.fov=THREE.MathUtils.damp(camera.fov,motion.fov,5.5,dt);
    camera.updateProjectionMatrix();
    worldDistance+=forwardSpeed*dt;
    const direction=new THREE.Vector3().subVectors(lookPoint,camera.position).normalize();
