@@ -350,9 +350,9 @@ export class Terrain {
     this.farRanges.layers?.forEach(mesh => { mesh.userData.farRangeOwner = this; });
 
     this.water = null;
-    if (biome === "islands") {
+    if (biome === "islands" || ["sea", "lake", "river"].includes(this.environment?.water?.type)) {
       const segments = 192;
-      const waterSize = this.environment?.water?.width || WATER_SIZE;
+      const waterSize = this.environment?.water?.type === "river" ? WATER_SIZE : (this.environment?.water?.width || WATER_SIZE);
       const geometry = new THREE.PlaneGeometry(waterSize, waterSize, segments, segments);
       const heights = new Float32Array((segments + 1) * (segments + 1));
       geometry.setAttribute("terrainHeight", new THREE.BufferAttribute(heights, 1));
