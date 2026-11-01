@@ -130,9 +130,9 @@ function makeTerrainMaterial(biome) {
   material.onBeforeCompile = shader => {
     shader.uniforms.uTerrainBiome = { value: biomeCode };
     shader.vertexShader = shader.vertexShader
-      .replace("#include <common>", "#include <common>\\nvarying vec3 vTerrainWorld;\\nvarying float vTerrainSlope;")
-      .replace("#include <begin_vertex>", "#include <begin_vertex>\\nvec4 terrainWorldPosition = modelMatrix * vec4(transformed, 1.0);\\nvTerrainWorld = terrainWorldPosition.xyz;")
-      .replace("#include <beginnormal_vertex>", "#include <beginnormal_vertex>\\nvTerrainSlope = 1.0 - abs(normalize(mat3(modelMatrix) * objectNormal).y);");
+      .replace("#include <common>", "#include <common>\nvarying vec3 vTerrainWorld;\nvarying float vTerrainSlope;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvec4 terrainWorldPosition = modelMatrix * vec4(transformed, 1.0);\nvTerrainWorld = terrainWorldPosition.xyz;")
+      .replace("#include <beginnormal_vertex>", "#include <beginnormal_vertex>\nvTerrainSlope = 1.0 - abs(normalize(mat3(modelMatrix) * objectNormal).y);");
     shader.fragmentShader = shader.fragmentShader
       .replace("#include <common>", `#include <common>
 varying vec3 vTerrainWorld;
