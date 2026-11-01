@@ -444,6 +444,14 @@ function createFarRanges(scene, noise, environment = null) {
       }
     },
     dispose() {
+    if (this.waterfallFeature) {
+      this.scene.remove(this.waterfallFeature.group);
+      this.waterfallFeature.group.traverse(object => {
+        if (object.geometry) object.geometry.dispose();
+        if (object.material) object.material.dispose();
+      });
+      this.waterfallFeature = null;
+    }
       for (const mesh of layers) {
         scene.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose();
       }
@@ -469,6 +477,11 @@ export class Terrain {
     this.ensureGrid(0, 0);
     this.farRanges = createFarRanges(scene, this.noise, this.environment);
     this.farRanges.layers?.forEach(mesh => { mesh.userData.farRangeOwner = this; });
+
+    this.waterfallFeature = null;
+    if (this.environment?.water?.type === "waterfall") {
+      this.waterfallFeature = this.createWaterfallFeature();
+    }
 
     this.water = null;
     if (biome === "islands" || ["sea", "lake", "river"].includes(this.environment?.water?.type)) {
@@ -501,6 +514,73 @@ export class Terrain {
       this.scene.add(this.water);
       this.updateWaterClip(0, 0);
     }
+  }
+
+  createWaterfallFeature() {
+    const group = new THREE.Group();
+    group.name = "waterfall-feature";
+    const rock = new THREE.Mesh(
+      new THREE.BoxGeometry(760, 360, 110),
+      new THREE.MeshStandardMaterial({ color: 0x46534c, roughness: 1 })
+    );
+    rock.position.set(0, 210, -2050);
+    group.add(rock);
+
+    const waterMaterial = new THREE.ShaderMaterial({
+      uniforms: { uTime: { value: 0 } },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }`,
+      fragmentShader: `
+        uniform float uTime;
+        varying vec2 vUv;
+        float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float noise(vec2 p) {
+          vec2 i = floor(p), f = fract(p);
+          f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(hash(i), hash(i + vec2(1.0,0.0)), f.x),
+                     mix(hash(i + vec2(0.0,1.0)), hash(i + vec2(1.0,1.0)), f.x), f.y);
+        }
+        void main() {
+          vec2 flowUv = vec2(vUv.x * 8.0 + sin(vUv.y * 13.0 + uTime) * 0.16,
+                             vUv.y * 3.0 - uTime * 1.8);
+          float streak = noise(flowUv) * 0.55 + noise(flowUv * 2.7) * 0.25;
+          float edge = smoothstep(0.0, 0.12, vUv.x) * (1.0 - smoothstep(0.88, 1.0, vUv.x));
+          float alpha = edge * (0.58 + streak * 0.38);
+          vec3 water = mix(vec3(0.20,0.62,0.72), vec3(0.88,0.97,0.98), streak);
+          gl_FragColor = vec4(water, alpha);
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
+        }`,
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide
+    });
+    const cascade = new THREE.Mesh(new THREE.PlaneGeometry(245, 315, 12, 32), waterMaterial);
+    cascade.position.set(0, 195, -1990);
+    group.add(cascade);
+
+    const pool = new THREE.Mesh(
+      new THREE.CircleGeometry(190, 48),
+      new THREE.MeshStandardMaterial({ color: 0x3c9fa9, roughness: 0.24, metalness: 0.05, transparent: true, opacity: 0.88 })
+    );
+    pool.rotation.x = -Math.PI / 2;
+    pool.position.set(0, 34, -1900);
+    group.add(pool);
+
+    const mist = new THREE.Mesh(
+      new THREE.SphereGeometry(115, 20, 12),
+      new THREE.MeshBasicMaterial({ color: 0xd9f4f4, transparent: true, opacity: 0.20, depthWrite: false })
+    );
+    mist.scale.set(1.8, 0.42, 0.7);
+    mist.position.set(0, 65, -1885);
+    group.add(mist);
+
+    this.scene.add(group);
+    return { group, material: waterMaterial };
   }
 
   lodForDistance(distance) {
@@ -646,6 +726,7 @@ export class Terrain {
       this.ensureGrid(camera.position.x, camera.position.z);
       this.farRanges?.update(camera);
     }
+    if (this.waterfallFeature) this.waterfallFeature.material.uniforms.uTime.value += dt;
     if (this.water) {
       const wx = camera?.position.x || 0, wz = camera?.position.z || 0;
       this.updateWaterClip(wx, wz);
@@ -661,6 +742,7 @@ export class Terrain {
     this.group.visible = visible;
     this.farRanges?.setVisible(visible);
     if (this.water) this.water.visible = visible;
+    if (this.waterfallFeature) this.waterfallFeature.group.visible = visible;
   }
 
   isReady() {
