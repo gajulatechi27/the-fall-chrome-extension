@@ -43,13 +43,13 @@ export class WeatherSystem {
     this.lightningGroup=new THREE.Group();scene.add(this.lightningGroup);
     this.flashLight=new THREE.PointLight(0xc9e4ff,0,1800,2);scene.add(this.flashLight);
     this.flash=0;this.lightningTimer=5+this.random()*8;this.elapsed=0;this.intensity=0;
-    this.whiteout=0;
+    this.whiteout=0;this.lightningEvent=false;this.stormPulse=0;
     this.setState(state);
   }
   setState(state){this.targetState=state;this.state=state;}
   setWhiteout(value){this.whiteout=clamp(value,0,1);}
   update(dt,camera,speed=80) {
-    this.elapsed+=dt;
+    this.elapsed+=dt;this.lightningEvent=false;
     const rainTarget=this.state==="storm"?1:this.state==="heavy rain"?.82:this.state==="light rain"?.38:0;
     const mistTarget=this.state==="mist"?.55:this.state==="overcast"?.18:0;
     this.intensity=THREE.MathUtils.damp(this.intensity,rainTarget,1.8,dt);
@@ -78,11 +78,21 @@ export class WeatherSystem {
       this.spawnLightning(camera);
       this.lightningTimer=4+this.random()*10;
       this.flash=0.9;
+      this.lightningEvent=true;
+      this.whiteout=Math.max(this.whiteout,.22+this.random()*.18);
+    }
+    if(this.lightningGroup.userData.life>0){
+      this.lightningGroup.userData.life-=dt;
+      if(this.lightningGroup.userData.life<=0){
+        this.lightningGroup.traverse(o=>{o.geometry?.dispose?.();o.material?.dispose?.();});
+        this.lightningGroup.clear();
+      }
     }
     this.flash=THREE.MathUtils.damp(this.flash,0,5,dt);
     this.flashLight.intensity=this.flash*5;
     if(camera)this.flashLight.position.copy(camera.position).add(new THREE.Vector3(0,120,-180));
     this.whiteout=THREE.MathUtils.damp(this.whiteout,0,2.4,dt);
+    return this.lightningEvent;
   }
   spawnLightning(camera){
     this.lightningGroup.clear();
@@ -91,8 +101,9 @@ export class WeatherSystem {
     const geometry=new THREE.BufferGeometry().setFromPoints(points);
     const bolt=new THREE.Line(geometry,new THREE.LineBasicMaterial({color:0xd8efff,transparent:true,opacity:.95}));
     this.lightningGroup.add(bolt);
+    this.lightningGroup.userData.life=.24;
     if(camera)this.lightningGroup.position.copy(camera.position);
-    this.lightningGroup.userData.life=.18;
+
   }
   dispose(){
     this.scene.remove(this.group,this.lightningGroup,this.flashLight);
