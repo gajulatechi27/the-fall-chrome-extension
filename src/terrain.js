@@ -6,7 +6,7 @@ const SEGMENTS = 128;
 const GRID_RADIUS = 7;
 const GRID_DIAMETER = GRID_RADIUS * 2 + 1;
 const WATER_LEVEL = -28;
-const WATER_SIZE = 6200;
+const WATER_SIZE = 30000;
 const HEIGHT_BASE = 20;
 const BIOME_HEIGHT = { mountains: 185, desert: 105, islands: 118, forest: 145, snow: 230 };
 
@@ -203,9 +203,12 @@ function createWaterMaterial(seed) {
     vertexShader: `
       varying vec3 vWorldPosition;
       varying vec3 vViewDirection;
+      attribute float terrainHeight;
+      varying float vTerrainHeight;
       void main(){
         vec4 world = modelMatrix * vec4(position,1.0);
         vWorldPosition = world.xyz;
+        vTerrainHeight = terrainHeight;
         vec4 mv = viewMatrix * world;
         vViewDirection = normalize(-mv.xyz);
         gl_Position = projectionMatrix * mv;
@@ -216,6 +219,7 @@ function createWaterMaterial(seed) {
       uniform vec3 uSunDirection;
       varying vec3 vWorldPosition;
       varying vec3 vViewDirection;
+      varying float vTerrainHeight;
       float hash21(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7))+uSeed)*43758.5453); }
       float noise2(vec2 p){
         vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
@@ -228,6 +232,7 @@ function createWaterMaterial(seed) {
         return n;
       }
       void main(){
+        if (vTerrainHeight >= -28.0) discard;
         vec2 p=vWorldPosition.xz;
         float t=uTime;
         float n1=fbm2(p*.012+vec2(t*.045,-t*.026));
@@ -237,21 +242,26 @@ function createWaterMaterial(seed) {
         float viewDot=max(dot(normalize(vViewDirection),normal),0.0);
         float fresnel=pow(1.0-viewDot,4.0);
         // Estimate shoreline from the same broad world-space noise field as terrain.
-        float landSignal=fbm2(p*.0018+vec2(.37,.19));
-        float shore=1.0-smoothstep(-.055,.045,landSignal);
-        float shallow=smoothstep(-.09,.13,landSignal);
+        float waterDepth=max(0.0,-28.0-vTerrainHeight);
+        float shore=1.0-smoothstep(0.0,1.8,waterDepth);
+        float shallow=smoothstep(0.0,20.0,waterDepth);
+        float lowNoise=fbm2(p*.00042+vec2(uTime*.002,.37));
         vec3 deep=vec3(.012,.105,.19);
         vec3 mid=vec3(.018,.29,.39);
         vec3 shallowColor=vec3(.12,.57,.57);
-        vec3 color=mix(deep,mid,shallow);
-        color=mix(color,shallowColor,shore*.72);
+        vec3 color=mix(shallowColor,mid,smoothstep(2.0,20.0,waterDepth));
+        color=mix(color,deep,smoothstep(20.0,42.0,waterDepth));
+        color=mix(color,vec3(.57,.66,.57),(1.0-smoothstep(0.0,2.0,waterDepth))*.68*(.9+lowNoise*.1));
         vec3 skyReflection=mix(vec3(.025,.11,.18),vec3(.40,.65,.72),.5+.5*normal.y);
         color=mix(color,skyReflection,fresnel*.72);
         float sun=pow(max(dot(reflect(-normalize(uSunDirection),normal),normalize(vViewDirection)),0.0),72.0);
         float glitter=pow(max(dot(normal,uSunDirection),0.0),24.0)*pow(noise2(p*.22+t*.12),7.0);
         color+=vec3(1.0,.82,.58)*(sun*.75+glitter*.24);
-        float foam=shore*smoothstep(.12,.34,noise2(p*.055+t*.025));
-        color=mix(color,vec3(.72,.86,.83),foam*.48);
+        float waveCycle=sin(waterDepth*2.4-t*1.8+lowNoise*5.0);
+        float foam=shore*smoothstep(.18,.72,noise2(p*.018+t*.018))*(.42+.58*smoothstep(-.25,.85,waveCycle));
+        color=mix(color,vec3(.78,.91,.88),foam*.62);
+        float waveLines=pow(max(0.0,sin(waterDepth*1.35-t*1.15+lowNoise*3.0)),18.0);
+        color=mix(color,vec3(.65,.85,.83),waveLines*shore*.24);
         float distanceFade=smoothstep(900.0,3100.0,length(vWorldPosition.xz));
         color=mix(color,vec3(.20,.39,.48),distanceFade*.22);
         gl_FragColor=vec4(color,1.0);
@@ -336,13 +346,21 @@ export class Terrain {
 
     this.water = null;
     if (biome === "islands") {
-      const geometry = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 1, 1);
+      const segments = 192;
+      const geometry = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, segments, segments);
+      const heights = new Float32Array((segments + 1) * (segments + 1));
+      geometry.setAttribute("terrainHeight", new THREE.BufferAttribute(heights, 1));
+      this.waterHeights = heights;
+      this.waterSegments = segments;
+      this.waterCenterX = Number.NaN;
+      this.waterCenterZ = Number.NaN;
       this.waterMaterial = createWaterMaterial(seed);
       this.water = new THREE.Mesh(geometry, this.waterMaterial);
       this.water.rotation.x = -Math.PI / 2;
       this.water.position.y = WATER_LEVEL;
       this.water.renderOrder = 1;
       this.scene.add(this.water);
+      this.updateWaterClip(0, 0);
     }
   }
 
