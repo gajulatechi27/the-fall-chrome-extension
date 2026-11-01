@@ -38,7 +38,7 @@ export class WeatherSystem {
     const mistCount=90, mistPositions=new Float32Array(mistCount*3);
     for(let i=0;i<mistCount;i++){mistPositions[i*3]=(this.random()-.5)*1800;mistPositions[i*3+1]=(this.random()-.5)*90;mistPositions[i*3+2]=-this.random()*2600;}
     this.mistGeometry.setAttribute("position",new THREE.BufferAttribute(mistPositions,3));
-    this.mistMaterial=new THREE.PointsMaterial({color:0xdce8e8,size:18,transparent:true,opacity:0,depthWrite:false,sizeAttenuation:true});
+    this.mistMaterial=new THREE.PointsMaterial({color:0xdce8e8,size:5,transparent:true,opacity:0,depthWrite:false,sizeAttenuation:true});
     this.mist=new THREE.Points(this.mistGeometry,this.mistMaterial);this.mist.frustumCulled=false;this.group.add(this.mist);
     const smokePositions=new Float32Array(96*3);
     for(let i=0;i<96;i++){
@@ -49,7 +49,7 @@ export class WeatherSystem {
     }
     this.smokeGeometry=new THREE.BufferGeometry();
     this.smokeGeometry.setAttribute("position",new THREE.BufferAttribute(smokePositions,3));
-    this.smokeMaterial=new THREE.PointsMaterial({color:0x9aa2a0,size:13,transparent:true,opacity:.055,depthWrite:false,sizeAttenuation:true});
+    this.smokeMaterial=new THREE.PointsMaterial({color:0x9aa2a0,size:3,transparent:true,opacity:.035,depthWrite:false,sizeAttenuation:true});
     this.smoke=new THREE.Points(this.smokeGeometry,this.smokeMaterial);this.smoke.frustumCulled=false;this.group.add(this.smoke);
     this.windGeometry=new THREE.BufferGeometry();
     const windCount=520, windPositions=new Float32Array(windCount*3);
@@ -59,7 +59,7 @@ export class WeatherSystem {
       windPositions[i*3+2]=-this.random()*1900;
     }
     this.windGeometry.setAttribute("position",new THREE.BufferAttribute(windPositions,3));
-    this.windMaterial=new THREE.PointsMaterial({color:0xe5f1f6,size:3.2,transparent:true,opacity:0,depthWrite:false,sizeAttenuation:true});
+    this.windMaterial=new THREE.PointsMaterial({color:0xe5f1f6,size:0.9,transparent:true,opacity:0,depthWrite:false,sizeAttenuation:true});
     this.windParticles=new THREE.Points(this.windGeometry,this.windMaterial);
     this.windParticles.frustumCulled=false;this.group.add(this.windParticles);
     this.lightningGroup=new THREE.Group();scene.add(this.lightningGroup);
@@ -76,7 +76,7 @@ export class WeatherSystem {
     const mistTarget=this.state==="mist" ? .55 : this.state==="overcast" ? .18 : 0;
     const smokeTarget=this.state==="dust haze" ? .34 : .055;
     const windTarget=this.state==="dust haze"?.72:this.state==="overcast"?.38:0;
-    this.windMaterial.opacity=THREE.MathUtils.damp(this.windMaterial.opacity,windTarget,.8,dt);
+    this.windMaterial.opacity=THREE.MathUtils.damp(this.windMaterial.opacity,windTarget*.22,.8,dt);
     this.windMaterial.color.set(this.state==="dust haze"?0xc99a63:0xe5f1f6);
     this.smokeMaterial.opacity=THREE.MathUtils.damp(this.smokeMaterial.opacity,smokeTarget,.45,dt);
     this.intensity=THREE.MathUtils.damp(this.intensity,rainTarget,1.8,dt);
