@@ -444,14 +444,6 @@ function createFarRanges(scene, noise, environment = null) {
       }
     },
     dispose() {
-    if (this.waterfallFeature) {
-      this.scene.remove(this.waterfallFeature.group);
-      this.waterfallFeature.group.traverse(object => {
-        if (object.geometry) object.geometry.dispose();
-        if (object.material) object.material.dispose();
-      });
-      this.waterfallFeature = null;
-    }
       for (const mesh of layers) {
         scene.remove(mesh); mesh.geometry.dispose(); mesh.material.dispose();
       }
@@ -818,6 +810,14 @@ export class Terrain {
   }
 
   dispose() {
+    if (this.waterfallFeature) {
+      this.scene.remove(this.waterfallFeature.group);
+      this.waterfallFeature.group.traverse(object => {
+        if (object.geometry) object.geometry.dispose();
+        if (object.material) object.material.dispose();
+      });
+      this.waterfallFeature = null;
+    }
     for (const chunk of this.chunks) {
       chunk.geometry.dispose(); chunk.material.dispose();
     }
