@@ -2,20 +2,45 @@ import * as THREE from "three";
 
 // Shared low-poly tree geometry keeps vegetation to one draw call per terrain chunk.
 const treeGeometry = (() => {
-  const geometry = new THREE.ConeGeometry(1.15, 5.2, 7, 3);
-  geometry.translate(0, 2.6, 0);
-  const positions = geometry.attributes.position;
-  const colors = [];
-  const trunk = new THREE.Color(0x594331);
-  const canopy = new THREE.Color(0x244b35);
-  const underside = new THREE.Color(0x426b43);
-  for (let i = 0; i < positions.count; i++) {
-    const y = positions.getY(i);
-    const color = y < 0.85 ? trunk : canopy.clone().lerp(underside, Math.max(0, 1 - y / 5.2) * 0.35);
-    colors.push(color.r, color.g, color.b);
+  // A trunk plus three overlapping canopy tiers reads as a tree silhouette
+  // from the low flight camera, unlike the previous single dark cone.
+  const trunk = new THREE.CylinderGeometry(0.13, 0.22, 2.15, 6, 1);
+  trunk.translate(0, 1.075, 0);
+  const lower = new THREE.ConeGeometry(1.28, 2.55, 8, 2);
+  lower.translate(0, 2.45, 0);
+  const middle = new THREE.ConeGeometry(1.02, 2.25, 8, 2);
+  middle.translate(0, 3.55, 0);
+  const crown = new THREE.ConeGeometry(0.72, 1.95, 8, 2);
+  crown.translate(0, 4.55, 0);
+
+  const geometries = [trunk, lower, middle, crown];
+  const merged = new THREE.BufferGeometry();
+  const positions = [], normals = [], indices = [], colors = [];
+  let offset = 0;
+  for (const geometry of geometries) {
+    const p = geometry.attributes.position;
+    const n = geometry.attributes.normal;
+    for (let i = 0; i < p.count; i++) {
+      positions.push(p.getX(i), p.getY(i), p.getZ(i));
+      normals.push(n.getX(i), n.getY(i), n.getZ(i));
+      const y = p.getY(i);
+      const color = y < 2.0
+        ? new THREE.Color(0x594331)
+        : new THREE.Color(0x244b35).lerp(new THREE.Color(0x527b4b), Math.max(0, 1 - Math.abs(y - 3.5) / 3.5) * 0.48);
+      colors.push(color.r, color.g, color.b);
+    }
+    const index = geometry.index;
+    if (index) for (let i = 0; i < index.count; i++) indices.push(index.getX(i) + offset);
+    else for (let i = 0; i < p.count; i++) indices.push(i + offset);
+    offset += p.count;
+    geometry.dispose();
   }
-  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-  return geometry;
+  merged.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  merged.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
+  merged.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  merged.setIndex(indices);
+  merged.computeBoundingSphere();
+  return merged;
 })();
 const treeMaterial = new THREE.MeshStandardMaterial({
   vertexColors: true,
@@ -45,7 +70,7 @@ export function createVegetation({ seed, biome, environment, xOffset, chunkZ, ch
 
   const density = THREE.MathUtils.clamp(environment?.vegetation?.density ?? 0.3, 0.08, 0.8);
   const lodFactor = segments >= 128 ? 1 : segments >= 64 ? 0.62 : 0.2;
-  const targetCount = Math.round((biome === "snow" ? 38 : 48) * density * lodFactor);
+  const targetCount = Math.round((biome === "snow" ? 92 : 112) * density * lodFactor);
   if (targetCount < 1) return null;
 
   const random = seededRandom(hashChunk(seed, xOffset, chunkZ));
@@ -74,9 +99,9 @@ export function createVegetation({ seed, biome, environment, xOffset, chunkZ, ch
 
     // Keep trees away from the deepest river channel and leave irregular clearings.
     if (environment?.water?.type === "river" && worldHeight < seaLevel + 78) continue;
-    if (random() < 0.13) continue;
+    if (random() < 0.09) continue;
 
-    const scale = (biome === "snow" ? 2.2 : 1.8) + random() * (biome === "snow" ? 2.5 : 2.8);
+    const scale = (biome === "snow" ? 3.0 : 3.1) + random() * (biome === "snow" ? 2.1 : 2.4);
     dummy.position.set(x, worldHeight, z);
     dummy.rotation.set(0, random() * Math.PI * 2, 0);
     dummy.scale.set(scale * (0.82 + random() * 0.34), scale, scale * (0.82 + random() * 0.34));
