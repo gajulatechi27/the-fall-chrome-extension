@@ -178,9 +178,9 @@ float fallValleySnow = ${environment?.id === "himalayan-range" ? "smoothstep(0.1
 fallSnowCoverage = max(fallSnowCoverage, fallValleySnow);
 vec3 fallWetSand = ${environment?.id === "himalayan-range" ? "vec3(0.24, 0.31, 0.37)" : biome === "desert" ? "vec3(0.48, 0.34, 0.20)" : "vec3(0.34, 0.42, 0.39)"};
 vec3 fallDrySand = ${environment?.id === "himalayan-range" ? "vec3(0.36, 0.42, 0.47)" : biome === "desert" ? "vec3(0.88, 0.62, 0.30)" : "vec3(0.72, 0.57, 0.37)"};
-vec3 fallGrassColor = ${environment?.id === "himalayan-range" ? "vec3(0.27, 0.33, 0.36)" : biome === "desert" ? "vec3(0.79, 0.52, 0.23)" : biome === "snow" ? "vec3(0.31, 0.37, 0.32)" : "vec3(0.23, 0.39, 0.23)"};
-vec3 fallForestFloor = ${environment?.id === "himalayan-range" ? "vec3(0.20, 0.26, 0.30)" : biome === "desert" ? "vec3(0.66, 0.43, 0.22)" : biome === "snow" ? "vec3(0.19, 0.23, 0.22)" : "vec3(0.14, 0.25, 0.17)"};
-vec3 fallRockColor = ${environment?.id === "himalayan-range" ? "vec3(0.29, 0.34, 0.39)" : biome === "desert" ? "vec3(0.55, 0.37, 0.25)" : "vec3(0.37, 0.39, 0.40)"};
+vec3 fallGrassColor = ${environment?.id === "himalayan-range" ? "vec3(0.27, 0.33, 0.36)" : environment?.id === "green-hills" ? "vec3(0.25, 0.46, 0.22)" : biome === "desert" ? "vec3(0.79, 0.52, 0.23)" : biome === "snow" ? "vec3(0.31, 0.37, 0.32)" : "vec3(0.23, 0.39, 0.23)"};
+vec3 fallForestFloor = ${environment?.id === "himalayan-range" ? "vec3(0.20, 0.26, 0.30)" : environment?.id === "green-hills" ? "vec3(0.16, 0.30, 0.17)" : biome === "desert" ? "vec3(0.66, 0.43, 0.22)" : biome === "snow" ? "vec3(0.19, 0.23, 0.22)" : "vec3(0.14, 0.25, 0.17)"};
+vec3 fallRockColor = ${environment?.id === "himalayan-range" ? "vec3(0.29, 0.34, 0.39)" : environment?.id === "green-hills" ? "vec3(0.31, 0.36, 0.29)" : biome === "desert" ? "vec3(0.55, 0.37, 0.25)" : "vec3(0.37, 0.39, 0.40)"};
 vec3 fallSnowColor = vec3(0.91, 0.94, 0.97);
 vec3 fallBiomeTint = ${paletteTint};
 vec3 fallGround = mix(fallWetSand, fallDrySand, fallDry);
@@ -225,7 +225,12 @@ function makeChunk(noise, seed, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, s
     if (biome === "forest") {
       const rolling = noise(warpX * 0.00034 + 31.0, warpZ * 0.00034 - 17.0);
       const shoulder = noise(warpX * 0.00082 - 9.0, warpZ * 0.00082 + 23.0);
-      h += rolling * 15 + shoulder * 3.5;
+      if (environment?.id === "green-hills") {
+        const broadMeadow = noise(warpX * 0.00019 + 47.0, warpZ * 0.00022 - 63.0);
+        const hillShoulder = noise(warpX * 0.00053 - 29.0, warpZ * 0.00061 + 11.0);
+        const softRidge = 1.0 - Math.abs(noise(warpX * 0.00072 + 83.0, warpZ * 0.00064 - 37.0));
+        h += broadMeadow * 34 + rolling * 21 + hillShoulder * 8 + Math.pow(Math.max(0, softRidge), 2.0) * 13 + shoulder * 3.5;
+      } else { h += rolling * 15 + shoulder * 3.5; }
     }
     if (biome === "desert") {
       const duneField = warpZ * 0.00034 + noise(warpX * 0.00028, warpZ * 0.00016) * 1.25 +
@@ -658,7 +663,12 @@ export class Terrain {
     if (this.biome === "forest") {
       const rolling = this.noise(warpX * 0.00034 + 31.0, warpZ * 0.00034 - 17.0);
       const shoulder = this.noise(warpX * 0.00082 - 9.0, warpZ * 0.00082 + 23.0);
-      h += rolling * 24 + shoulder * 7;
+      if (this.environment?.id === "green-hills") {
+        const broadMeadow = this.noise(warpX * 0.00019 + 47.0, warpZ * 0.00022 - 63.0);
+        const hillShoulder = this.noise(warpX * 0.00053 - 29.0, warpZ * 0.00061 + 11.0);
+        const softRidge = 1.0 - Math.abs(this.noise(warpX * 0.00072 + 83.0, warpZ * 0.00064 - 37.0));
+        h += broadMeadow * 34 + rolling * 21 + hillShoulder * 8 + Math.pow(Math.max(0, softRidge), 2.0) * 13 + shoulder * 3.5;
+      } else { h += rolling * 24 + shoulder * 7; }
     }
     if (this.biome === "desert") {
       const duneField = warpZ * 0.00034 + this.noise(warpX * 0.00028, warpZ * 0.00016) * 1.25 +
