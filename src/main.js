@@ -30,7 +30,7 @@ const cameraTarget = new THREE.Vector3();
 const cameraDesired = new THREE.Vector3();
 const params = new URLSearchParams(location.search);
 const requestedEnv = params.get("env");
-let playlistEnabled = params.get("playlist") === "1" || (!requestedEnv && params.get("playlist") !== "0");
+let playlistEnabled = params.get("playlist") !== "0";
 const skipOnLoad = params.get("skip") === "1";
 const seedParam = new URLSearchParams(location.search).get("seed");
 const requestedSeed = seedParam === null ? Number.NaN : Number(seedParam);
@@ -164,7 +164,7 @@ async function advanceLandscape() {
   const staged = preloadedTerrain && preloadedIndex === requestedNext ? preloadedTerrain : null;
   if (preloadedTerrain && !staged) { try { preloadedTerrain.dispose(); } catch {} }
   preloadedTerrain = null; preloadedIndex = -1;
-  await new Promise(resolve => setTimeout(resolve, 4000));
+  await new Promise(resolve => setTimeout(resolve, 350));
   try {
     transitionState = "activating " + ENVIRONMENTS[requestedNext].id;
     await withEightSecondTimeout(activateLandscape(requestedNext, staged), "Landscape activation");
@@ -177,7 +177,11 @@ async function advanceLandscape() {
     } catch (fallbackError) {
       console.error("[THE FALL] Landscape fallback failed.", fallbackError);
       transitionState = "error";
+      transitionStarted = false;
+      preloadedTerrain = null;
+      preloadedIndex = -1;
       transitioning = false;
+      console.error("[THE FALL] Playlist can be retried with N or on the next scheduled transition.");
       return;
     }
   }
@@ -199,9 +203,15 @@ async function beginDescent() {
       sequenceIndex = Number.isInteger(saved.theFallLastLandscapeIndex) ? saved.theFallLastLandscapeIndex : -1;
       orderMode = saved.theFallLandscapeOrder || "In order";
       orderControl.value = orderMode;
-      index = nextIndex(sequenceIndex);
+      // An explicit env= selection is the first playlist view, not a reason
+      // to disable the playlist. Subsequent transitions continue from it.
+      index = directEnvironment
+        ? Math.max(0, ENVIRONMENTS.findIndex(item => item.id === directEnvironment.id))
+        : nextIndex(sequenceIndex);
       if (skipOnLoad) index = nextIndex(index);
-    } else if (directEnvironment) index = Math.max(0, ENVIRONMENTS.findIndex(item => item.id === directEnvironment.id));
+    } else if (directEnvironment) {
+      index = Math.max(0, ENVIRONMENTS.findIndex(item => item.id === directEnvironment.id));
+    }
   } catch { index = directEnvironment ? Math.max(0, ENVIRONMENTS.findIndex(item => item.id === directEnvironment.id)) : 0; }
   fade.classList.add("white"); fade.style.opacity = "1";
   await new Promise(resolve => setTimeout(resolve, 450));
