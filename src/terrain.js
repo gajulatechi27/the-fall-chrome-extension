@@ -174,6 +174,10 @@ float fallMicro = fallDetail(vFallWorldPosition.xz * 0.045);
 float fallFieldNoise = fallDetail(vFallWorldPosition.xz * 0.00062);
 float fallFieldPatch = smoothstep(-0.12, 0.16, fallFieldNoise);
 float fallFieldRows = 0.5 + 0.5 * sin((vFallWorldPosition.x * 0.0017 + vFallWorldPosition.z * 0.0009) + fallNoiseValue * 2.0);
+float fallFieldGrid = ${environment?.id === "river-valley" ? "1.0" : "0.0"};
+vec2 fallFieldCell = vec2(vFallWorldPosition.x * 0.0025, vFallWorldPosition.z * 0.0018);
+vec2 fallFieldEdge = abs(fract(fallFieldCell + vec2(fallFieldNoise * 0.12, fallFieldNoise * 0.08)) - 0.5);
+float fallFieldBoundary = 1.0 - smoothstep(0.012, 0.045, min(fallFieldEdge.x, fallFieldEdge.y));
 float fallWet = 1.0 - smoothstep(-34.0, -23.0, fallHeight + fallNoiseValue * 5.0);
 float fallDry = smoothstep(-31.0, -8.0, fallHeight + fallNoiseValue * 5.0);
 float fallGrass = smoothstep(-12.0, 24.0, fallHeight);
@@ -191,6 +195,7 @@ vec3 fallSnowColor = vec3(0.91, 0.94, 0.97);
 vec3 fallBiomeTint = ${paletteTint};
 vec3 fallGround = mix(fallWetSand, fallDrySand, fallDry);
 fallGround = mix(fallGround, fallGrassColor * fallBiomeTint, fallGrass);
+fallGround = mix(fallGround, fallGround * vec3(0.78, 0.82, 0.68), fallFieldBoundary * fallFieldGrid * fallGrass * 0.62);
 fallGround = mix(fallGround, fallForestFloor * fallBiomeTint, smoothstep(22.0, 58.0, fallHeight) * 0.35);
 fallGround = mix(fallGround, fallRockColor * (0.94 + fallMicro * 0.12), fallRock);
 fallGround = mix(fallGround, fallSnowColor, fallSnowCoverage);
@@ -240,8 +245,10 @@ function makeChunk(noise, seed, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, s
         const broadValley = noise(warpX * 0.00017 + 19.0, warpZ * 0.00016 - 37.0);
         const valleyShoulder = noise(warpX * 0.00031 - 51.0, warpZ * 0.00034 + 13.0);
         const lowRelief = 1.0 - Math.abs(noise(warpX * 0.00046 + 73.0, warpZ * 0.00042 - 29.0));
-        h += broadValley * 19 + rolling * 6 + valleyShoulder * 4 +
-          Math.pow(Math.max(0, lowRelief), 2.2) * 3.5 + shoulder * 1.5;
+        // Agricultural valleys should read as broad lowland basins, not
+        // another field of tightly repeated rolling hills.
+        h += broadValley * 11 + rolling * 2.8 + valleyShoulder * 2.2 +
+          Math.pow(Math.max(0, lowRelief), 2.2) * 1.8 + shoulder * 0.8;
       } else { h += rolling * 15 + shoulder * 3.5; }
     }
     if (biome === "desert") {
