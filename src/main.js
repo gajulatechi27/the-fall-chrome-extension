@@ -246,10 +246,15 @@ function updateDebug(dt) {
       "Landscape: " + (sequenceIndex + 1) + "/" + ENVIRONMENTS.length + " — " + (activeEnvironment?.name || biome) + "\n" +
       "Time left: " + Math.max(0, (activeEnvironment?.duration || 68) - time).toFixed(1) + " s\n" +
       "Order: " + orderMode + "\n" +
+      "Transition: " + transitionState + "\n" +
+      "Terrain config: base " + (activeEnvironment?.terrain?.baseHeight ?? "-") + ", octaves " + (activeEnvironment?.terrain?.noiseOctaves ?? "-") + ", ridge " + (activeEnvironment?.terrain?.ridgeWeight ?? "-") + ", valley " + (activeEnvironment?.terrain?.valleyCarving ?? "-") + "\n" +
+      "Water: " + (activeEnvironment?.water?.type || "none") + " / vegetation config: " + (activeEnvironment?.vegetation?.types?.join(", ") || "none") + "\n" +
+      "Sun/time: " + (activeEnvironment?.timeOfDay || "-") + " / intensity " + (activeEnvironment?.sun?.intensity ?? "-") + "\n" +
       "Seed: " + seed + "\n" +
       "Altitude: " + Math.round(altitude) + " m\n" +
       "Camera X/Z: " + camera.position.x.toFixed(1) + " / " + camera.position.z.toFixed(1) + "\n" +
       "Terrain chunks: " + (stats.chunkCount ?? 0) + "\n" +
+      "Chunk gap check: " + (stats.chunkGapWarning ? "WARNING — MISSING CHUNK" : "OK") + "\n" +
       "LOD rings near/mid/far/horizon: " + (stats.ringCounts ? Object.values(stats.ringCounts).join(" / ") : "n/a") + "\n" +
       "20 km coverage: " + (stats.coverage20km ? "OK" : "EDGE VISIBLE — MISSING CHUNKS") + "\n" +
       "Chunks under camera: " + (stats.chunksUnderCamera ?? 0) + "\n" +
