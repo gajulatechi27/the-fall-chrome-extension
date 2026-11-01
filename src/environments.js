@@ -7,7 +7,7 @@ export const ENVIRONMENTS = [
     vegetation: { types: ["meadow-grass"], density: 0.72, clumpSize: 48, grassDensity: 1.0 },
     sun: { position: [-220, 145, -310], intensity: 2.58 }, sky: { horizon: "#b9d5e0", zenith: "#39749a", sun: "#fff1d7" },
     fog: { color: "#c9d9c2", density: 0.000062 }, clouds: { cover: 0.28, speed: 0.8 }, weather: "clear", particles: "pollen",
-    camera: { altitude: 420, speed: 42 }, duration: 25
+    camera: { altitude: 420, speed: 42 }, duration: 10
   },
   {
     id: "river-valley", name: "River valley with farmland", timeOfDay: "morning",
@@ -17,7 +17,7 @@ export const ENVIRONMENTS = [
     vegetation: { types: ["farmland", "field-boundaries"], density: 0, clumpSize: 68 },
     sun: { position: [-90, 260, -340], intensity: 2.38 }, sky: { horizon: "#c7dce0", zenith: "#4b7896", sun: "#fff1d9" },
     fog: { color: "#c2d5d0", density: 0.000064 }, clouds: { cover: 0.22, speed: 0.9 }, weather: "clear", particles: "none",
-    camera: { altitude: 390, speed: 44 }, duration: 25
+    camera: { altitude: 390, speed: 44 }, duration: 10
   },
   {
     id: "tropical-beach", name: "Tropical beach and coast", timeOfDay: "noon",
@@ -27,7 +27,7 @@ export const ENVIRONMENTS = [
     vegetation: { types: ["palms", "coastal-grass"], density: 0.34, clumpSize: 55 },
     sun: { position: [-260, 420, -310], intensity: 2.8 }, sky: { horizon: "#9fc8d9", zenith: "#244766", sun: "#ffdfb4" },
     fog: { color: "#9fc8d9", density: 0.0000820 }, clouds: { cover: 0.26, speed: 1.0 }, weather: "clear", particles: "sea-spray",
-    camera: { altitude: 330, speed: 46 }, duration: 25
+    camera: { altitude: 330, speed: 46 }, duration: 10
   },
   {
     id: "himalayan-range", name: "Himalayan mountain range", timeOfDay: "clear mountain daylight",
@@ -37,7 +37,7 @@ export const ENVIRONMENTS = [
     vegetation: { types: [], density: 0, clumpSize: 62 },
     sun: { position: [-340, 560, -300], intensity: 3.1 }, sky: { horizon: "#d9edfa", zenith: "#2878b7", sun: "#fff8e8" },
     fog: { color: "#c6deed", density: 0.000052 }, clouds: { cover: 0.28, speed: 0.78 }, weather: "clear", particles: "mist",
-    camera: { altitude: 520, speed: 40 }, duration: 25
+    camera: { altitude: 520, speed: 40 }, duration: 10
   },
   {
     id: "desert-dunes", name: "Desert and golden dunes", timeOfDay: "sunlit afternoon",
@@ -47,7 +47,7 @@ export const ENVIRONMENTS = [
     vegetation: { types: ["desert-shrub"], density: 0.12, clumpSize: 110 },
     sun: { position: [-260, 500, -330], intensity: 3.0 }, sky: { horizon: "#f2d6ad", zenith: "#398bc2", sun: "#fff0ce" },
     fog: { color: "#e9c99e", density: 0.000038 }, clouds: { cover: 0.08, speed: 0.65 }, weather: "clear", particles: "dust",
-    camera: { altitude: 390, speed: 43 }, duration: 25
+    camera: { altitude: 390, speed: 43 }, duration: 10
   },
   {
     id: "alpine-lake", name: "Alpine lake with mountains", timeOfDay: "bright afternoon",
@@ -57,7 +57,7 @@ export const ENVIRONMENTS = [
     vegetation: { types: ["pine", "alpine-grass"], density: 0.62, clumpSize: 54 },
     sun: { position: [-300, 520, -260], intensity: 3.15 }, sky: { horizon: "#d9efff", zenith: "#287ec0", sun: "#fff8e5" },
     fog: { color: "#c9e4f2", density: 0.000048 }, clouds: { cover: 0.32, speed: 0.82 }, weather: "clear", particles: "mist",
-    camera: { altitude: 480, speed: 38 }, duration: 25
+    camera: { altitude: 480, speed: 38 }, duration: 10
   }
 ];
 
