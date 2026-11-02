@@ -268,7 +268,9 @@ function updateDebug(dt) {
       "Altitude: " + Math.round(altitude) + " m\n" +
       "Camera X/Z: " + camera.position.x.toFixed(1) + " / " + camera.position.z.toFixed(1) + "\n" +
       "Terrain chunks: " + (stats.chunkCount ?? 0) + "\n" +
-      "Chunk gap check: " + (stats.chunkGapWarning ? "WARNING — MISSING CHUNK" : "OK") + "\n" +\n      "Far base visible: " + (stats.farBaseVisible ? "YES" : "NO — GENERATING") + "\n" +\n      "Far-base worker queue: " + (stats.workerQueue ?? "n/a") + "\n" +
+      "Chunk gap check: " + (stats.chunkGapWarning ? "WARNING — MISSING CHUNK" : "OK") + "\n" +
+      "Far base visible: " + (stats.farBaseVisible ? "YES" : "NO — GENERATING") + "\n" +
+      "Far-base worker queue: " + (stats.workerQueue ?? "n/a") + "\n" +
       "LOD rings near/mid/far/horizon: " + (stats.ringCounts ? Object.values(stats.ringCounts).join(" / ") : "n/a") + "\n" +
       "14 km coverage: " + (stats.coverage14km ? "OK" : "EDGE VISIBLE — MISSING CHUNKS") + "\n" +
       "Chunks under camera: " + (stats.chunksUnderCamera ?? 0) + "\n" +
