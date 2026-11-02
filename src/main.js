@@ -140,7 +140,7 @@ async function activateLandscape(index, stagedTerrain = null) {
   cameraTarget.set(0, altitude - 14, -48);
   sky = createSky(scene, renderer, seed, config);
   scene.background = sky.horizonColor.clone();
-  scene.fog = new THREE.FogExp2(new THREE.Color(config.fog.color), config.fog.density);
+  scene.fog = new THREE.FogExp2(sky.horizonColor.clone(), Math.max(config.fog.density, 0.000075));
   terrain = stagedTerrain || createTerrainFor(config, seed, true);
   terrain.setVisible(true);
   if (!terrain.isReady()) throw new Error("Landscape terrain preload incomplete: " + config.name);
@@ -268,7 +268,7 @@ function updateDebug(dt) {
       "Altitude: " + Math.round(altitude) + " m\n" +
       "Camera X/Z: " + camera.position.x.toFixed(1) + " / " + camera.position.z.toFixed(1) + "\n" +
       "Terrain chunks: " + (stats.chunkCount ?? 0) + "\n" +
-      "Chunk gap check: " + (stats.chunkGapWarning ? "WARNING — MISSING CHUNK" : "OK") + "\n" +
+      "Chunk gap check: " + (stats.chunkGapWarning ? "WARNING — MISSING CHUNK" : "OK") + "\n" +\n      "Far base visible: " + (stats.farBaseVisible ? "YES" : "NO — GENERATING") + "\n" +\n      "Far-base worker queue: " + (stats.workerQueue ?? "n/a") + "\n" +
       "LOD rings near/mid/far/horizon: " + (stats.ringCounts ? Object.values(stats.ringCounts).join(" / ") : "n/a") + "\n" +
       "14 km coverage: " + (stats.coverage14km ? "OK" : "EDGE VISIBLE — MISSING CHUNKS") + "\n" +
       "Chunks under camera: " + (stats.chunksUnderCamera ?? 0) + "\n" +
@@ -356,7 +356,7 @@ function animate() {
 
   if (scene.fog instanceof THREE.FogExp2) {
     scene.fog.density = activeEnvironment?.fog?.density ?? 0.00012;
-    if (activeEnvironment?.fog?.color) scene.fog.color.set(activeEnvironment.fog.color);
+    if (sky?.horizonColor) scene.fog.color.copy(sky.horizonColor);
   }
 
   try {
