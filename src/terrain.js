@@ -143,10 +143,14 @@ function makeTerrainShader(material, biome, environment = null) {
   material.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader.replace(
       "#include <common>",
-      "#include <common>\nvarying vec3 vFallWorldPosition;\nvarying vec3 vFallWorldNormal;"
+      "#include <common>
+varying vec3 vFallWorldPosition;
+varying vec3 vFallWorldNormal;"
     ).replace(
       "#include <worldpos_vertex>",
-      "#include <worldpos_vertex>\nvFallWorldPosition = (modelMatrix * vec4(transformed, 1.0)).xyz;\nvFallWorldNormal = normalize(mat3(modelMatrix) * objectNormal);"
+      "#include <worldpos_vertex>
+vFallWorldPosition = (modelMatrix * vec4(transformed, 1.0)).xyz;
+vFallWorldNormal = normalize(mat3(modelMatrix) * objectNormal);"
     );
     shader.fragmentShader = shader.fragmentShader.replace(
       "#include <common>",
@@ -634,7 +638,13 @@ export class Terrain {
   }
 
   requestFarBase(centerX, centerZ) {
-    const cx = Math.round(centerX / 4000) * 4000, cz = Math.round(centerZ / 4000) * 4000;\n    if (cx === this.farBaseCenterX && cz === this.farBaseCenterZ) return;\n    const request = ++this.farBaseRequest;\n    this.farBaseWorker.postMessage({ request, seed: this.seed, centerX: cx, centerZ: cz, size: 40000, segments: 128, biome: this.biome, baseHeight: this.environment?.terrain?.baseHeight ?? BIOME_HEIGHT[this.biome] ?? 145, ridgeWeight: this.environment?.terrain?.ridgeWeight ?? 1, octaves: this.environment?.terrain?.noiseOctaves ?? 6 });\n  }\n\n  lodForDistance(distance) {
+    const cx = Math.round(centerX / 4000) * 4000, cz = Math.round(centerZ / 4000) * 4000;
+    if (cx === this.farBaseCenterX && cz === this.farBaseCenterZ) return;
+    const request = ++this.farBaseRequest;
+    this.farBaseWorker.postMessage({ request, seed: this.seed, centerX: cx, centerZ: cz, size: 40000, segments: 128, biome: this.biome, baseHeight: this.environment?.terrain?.baseHeight ?? BIOME_HEIGHT[this.biome] ?? 145, ridgeWeight: this.environment?.terrain?.ridgeWeight ?? 1, octaves: this.environment?.terrain?.noiseOctaves ?? 6 });
+  }
+
+  lodForDistance(distance) {
     const river = this.environment?.water?.type === "river";
     const himalayan = this.environment?.id === "himalayan-range";
     if (distance < 400) return { segments: himalayan ? 192 : 128, ring: "near" };
@@ -799,7 +809,8 @@ export class Terrain {
   update(dt, speed, altitude, camera) {
     if (camera) {
       this.ensureGrid(camera.position.x, camera.position.z);
-      this.farRanges?.update(camera);\n      this.requestFarBase(camera.position.x, camera.position.z);
+      this.farRanges?.update(camera);
+      this.requestFarBase(camera.position.x, camera.position.z);
     }
     if (this.water) {
       const wx = camera?.position.x || 0, wz = camera?.position.z || 0;
@@ -814,7 +825,9 @@ export class Terrain {
 
   setVisible(visible) {
     this.group.visible = visible;
-    this.farRanges?.setVisible(visible);\n    if (this.farBase) this.farBase.visible = visible && this.farBase.geometry.attributes.position?.count > 0;\n    this.visible = visible;
+    this.farRanges?.setVisible(visible);
+    if (this.farBase) this.farBase.visible = visible && this.farBase.geometry.attributes.position?.count > 0;
+    this.visible = visible;
     if (this.water) this.water.visible = visible;
   }
 
@@ -895,7 +908,10 @@ export class Terrain {
       chunk.geometry.dispose(); chunk.material.dispose();
     }
     this.group.parent?.remove(this.group);
-    this.farRanges?.dispose();\n    this.farBaseRequest++;\n    this.farBaseWorker?.terminate();\n    if (this.farBase) { this.scene.remove(this.farBase); this.farBase.geometry.dispose(); this.farBase.material.dispose(); }
+    this.farRanges?.dispose();
+    this.farBaseRequest++;
+    this.farBaseWorker?.terminate();
+    if (this.farBase) { this.scene.remove(this.farBase); this.farBase.geometry.dispose(); this.farBase.material.dispose(); }
     if (this.water) {
       this.scene.remove(this.water); this.water.geometry.dispose(); this.water.material.dispose();
     }
