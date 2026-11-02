@@ -270,14 +270,14 @@ function updateDebug(dt) {
       "Terrain chunks: " + (stats.chunkCount ?? 0) + "\n" +
       "Chunk gap check: " + (stats.chunkGapWarning ? "WARNING — MISSING CHUNK" : "OK") + "\n" +
       "LOD rings near/mid/far/horizon: " + (stats.ringCounts ? Object.values(stats.ringCounts).join(" / ") : "n/a") + "\n" +
-      "20 km coverage: " + (stats.coverage20km ? "OK" : "EDGE VISIBLE — MISSING CHUNKS") + "\n" +
+      "14 km coverage: " + (stats.coverage14km ? "OK" : "EDGE VISIBLE — MISSING CHUNKS") + "\n" +
       "Chunks under camera: " + (stats.chunksUnderCamera ?? 0) + "\n" +
       "Terrain height at camera: " + (stats.cameraGroundHeight == null ? "OUTSIDE CHUNKS" : stats.cameraGroundHeight.toFixed(1) + " m") + "\n" +
       "Camera altitude: " + camera.position.y.toFixed(1) + " m\n" +
       "Camera pitch: " + (stats.cameraPitch ?? 0).toFixed(1) + " deg\n" +
       "Ground objects: 0 (Stage 1)\n" +
       "Asset failures: " + (assetFailures.length ? assetFailures.join(", ") : "none") + "\n" +
-      "Safety: " + (stats.safetyWarning || (stats.coverage20km ? "OK" : "WARNING — TERRAIN EDGE / GAP")) + "\n" +
+      "Safety: " + (stats.safetyWarning || (stats.coverage14km ? "OK" : "WARNING — TERRAIN EDGE / GAP")) + "\n" +
       "Sea level: " + (stats.seaLevel == null ? "off" : stats.seaLevel.toFixed(1)) + " m\n" +
       "Camera above water: " + (stats.seaLevel == null ? "n/a" : (camera.position.y - stats.seaLevel).toFixed(1) + " m") + "\n" +
       "Water terrain clipping: " + (stats.waterTerrainClipping ? "ON" : "OFF") + "\n" +
@@ -317,15 +317,19 @@ function animate() {
   const pitchRadians = THREE.MathUtils.degToRad(-10);
   const lookDistance = 1200;
   // Hold the camera if the terrain streamer ever loses the ground footprint.
-  const groundReady = (terrain?.hasChunkNear(cameraDesired.x, cameraDesired.z, 500) ?? false) && (terrain?.hasCoverage(20000) ?? false);
+  // The active 11x11 grid spans about 16.5 km from its centre.
+  // A 20 km coverage test can therefore never pass and was freezing the
+  // camera before it reached the shared pan/rotation code in every view.
+  const groundReady = (terrain?.hasChunkNear(cameraDesired.x, cameraDesired.z, 500) ?? false) && (terrain?.hasCoverage(14000) ?? false);
   if (groundReady) {
     camera.position.lerp(cameraDesired, 1 - Math.exp(-4.2 * dt));
-    // Green Hills has a broad river corridor: gently pan across both
-    // banks during the flight instead of keeping the view locked forward.
-    // Other environments retain the existing subtle heading drift.
-    // Sweep the camera across both sides of every landscape. One complete
-    // left-to-right-to-left viewing cycle fits the ten-second scene duration.
-    const viewYaw = THREE.MathUtils.degToRad(35) * Math.sin((time / duration) * Math.PI * 2);
+    // Every landscape uses the same slow panoramic sweep: start looking
+    // 75 degrees left and ease across to 75 degrees right during the view.
+    // A single half-cycle avoids the fast left-right oscillation and makes
+    // both sides of lakes, valleys and mountain ranges visible.
+    const viewProgress = THREE.MathUtils.clamp(time / duration, 0, 1);
+    const easedSweep = 0.5 - 0.5 * Math.cos(viewProgress * Math.PI);
+    const viewYaw = THREE.MathUtils.degToRad(-75 + easedSweep * 150);
     cameraTarget.set(
       camera.position.x + Math.sin(viewYaw) * lookDistance,
       camera.position.y + Math.sin(pitchRadians) * lookDistance,
