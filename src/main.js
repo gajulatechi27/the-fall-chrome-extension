@@ -316,7 +316,9 @@ function animate() {
     forwardZ + Math.sin(time * 0.8) * 0.18
   );
   terrain?.ensureGrid(cameraDesired.x, cameraDesired.z);
-  const pitchRadians = THREE.MathUtils.degToRad(-10);
+  // Keep the shared flight camera aimed into the landscape, not near the horizon.
+  // The previous -10° pitch let fog and the water plane dominate every environment.
+  const pitchRadians = THREE.MathUtils.degToRad(-24);
   const lookDistance = 1200;
   // Hold the camera if the terrain streamer ever loses the ground footprint.
   // The active 11x11 grid spans about 16.5 km from its centre.
