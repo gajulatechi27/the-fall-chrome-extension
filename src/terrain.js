@@ -633,7 +633,8 @@ export class Terrain {
     }
   }
 
-  requestFarBase(centerX, centerZ) {\n    const cx = Math.round(centerX / 4000) * 4000, cz = Math.round(centerZ / 4000) * 4000;\n    if (cx === this.farBaseCenterX && cz === this.farBaseCenterZ) return;\n    const request = ++this.farBaseRequest;\n    this.farBaseWorker.postMessage({ request, seed: this.seed, centerX: cx, centerZ: cz, size: 40000, segments: 128, biome: this.biome, baseHeight: this.environment?.terrain?.baseHeight ?? BIOME_HEIGHT[this.biome] ?? 145, ridgeWeight: this.environment?.terrain?.ridgeWeight ?? 1, octaves: this.environment?.terrain?.noiseOctaves ?? 6 });\n  }\n\n  lodForDistance(distance) {
+  requestFarBase(centerX, centerZ) {
+    const cx = Math.round(centerX / 4000) * 4000, cz = Math.round(centerZ / 4000) * 4000;\n    if (cx === this.farBaseCenterX && cz === this.farBaseCenterZ) return;\n    const request = ++this.farBaseRequest;\n    this.farBaseWorker.postMessage({ request, seed: this.seed, centerX: cx, centerZ: cz, size: 40000, segments: 128, biome: this.biome, baseHeight: this.environment?.terrain?.baseHeight ?? BIOME_HEIGHT[this.biome] ?? 145, ridgeWeight: this.environment?.terrain?.ridgeWeight ?? 1, octaves: this.environment?.terrain?.noiseOctaves ?? 6 });\n  }\n\n  lodForDistance(distance) {
     const river = this.environment?.water?.type === "river";
     const himalayan = this.environment?.id === "himalayan-range";
     if (distance < 400) return { segments: himalayan ? 192 : 128, ring: "near" };
