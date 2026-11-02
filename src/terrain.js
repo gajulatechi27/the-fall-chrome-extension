@@ -225,9 +225,6 @@ function makeChunk(noise, seed, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, s
     let h = fbm(noise, warpX, warpZ, environment?.terrain?.noiseOctaves ?? 6) * amplitude;
     if (environment?.terrain?.valleyCarving) h -= Math.abs(noise(warpX * 0.00048, warpZ * 0.00048)) * environment.terrain.valleyCarving * amplitude * 0.34;
     h = applyRiverChannel(h, x, worldZ, noise, environment);
-    if (environment?.water?.type === "lake") {
-      h = applyAlpineLakeTerrain(h, x, worldZ, noise, warpX, warpZ);
-    }
     if (biome === "islands") {
       const ridgeA = 1.0 - Math.abs(noise(warpX * 0.00145, warpZ * 0.00145));
       const ridgeB = 1.0 - Math.abs(noise(warpX * 0.0031 + 17.0, warpZ * 0.0031 - 9.0));
@@ -274,6 +271,11 @@ function makeChunk(noise, seed, z, biome, xOffset = 0, chunkSize = CHUNK_SIZE, s
         ? mountainRelief(noise, warpX, warpZ, ridgeWeight, true)
         : (Math.pow(Math.max(0, 1 - Math.abs(noise(warpX * 0.00105, warpZ * 0.00105))), 2.65) * (biome === "snow" ? 112 : 76) +
            Math.pow(Math.max(0, 1 - Math.abs(noise(warpX * 0.00215 + 13, warpZ * 0.00215 - 7))), 3.1) * (biome === "snow" ? 24 : 18)) * ridgeWeight;
+    }
+    // Apply the lake basin after mountain relief so ridge generation cannot
+    // refill the lake floor and turn the water surface into a giant land patch.
+    if (environment?.water?.type === "lake") {
+      h = applyAlpineLakeTerrain(h, x, worldZ, noise, warpX, warpZ);
     }
     return h;
   };
@@ -702,9 +704,6 @@ export class Terrain {
     let h = fbm(this.noise, warpX, warpZ, this.environment?.terrain?.noiseOctaves ?? 6) * (this.environment?.terrain?.baseHeight ?? BIOME_HEIGHT[this.biome] ?? 145);
     if (this.environment?.terrain?.valleyCarving) h -= Math.abs(this.noise(warpX * 0.00048, warpZ * 0.00048)) * this.environment.terrain.valleyCarving * (this.environment.terrain.baseHeight || 145) * 0.34;
     h = applyRiverChannel(h, x, z, this.noise, this.environment);
-    if (this.environment?.water?.type === "lake") {
-      h = applyAlpineLakeTerrain(h, x, z, this.noise, warpX, warpZ);
-    }
     if (this.biome === "islands") {
       const ridgeA = 1.0 - Math.abs(this.noise(warpX * 0.00145, warpZ * 0.00145));
       const ridgeB = 1.0 - Math.abs(this.noise(warpX * 0.0031 + 17.0, warpZ * 0.0031 - 9.0));
@@ -760,6 +759,11 @@ export class Terrain {
         ? mountainRelief(this.noise, warpX, warpZ, ridgeWeight, true)
         : (Math.pow(Math.max(0, 1 - Math.abs(this.noise(warpX * 0.00105, warpZ * 0.00105))), 2.65) * (this.biome === "snow" ? 112 : 76) +
            Math.pow(Math.max(0, 1 - Math.abs(this.noise(warpX * 0.00215 + 13, warpZ * 0.00215 - 7))), 3.1) * (this.biome === "snow" ? 24 : 18)) * ridgeWeight;
+    }
+    // Keep water clipping in sync with chunk geometry: cut the basin only
+    // after all mountain relief has been added.
+    if (this.environment?.water?.type === "lake") {
+      h = applyAlpineLakeTerrain(h, x, z, this.noise, warpX, warpZ);
     }
     return h;
   }
