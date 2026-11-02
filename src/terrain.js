@@ -143,14 +143,14 @@ function makeTerrainShader(material, biome, environment = null) {
   material.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader.replace(
       "#include <common>",
-      "#include <common>
+      `#include <common>
 varying vec3 vFallWorldPosition;
-varying vec3 vFallWorldNormal;"
+varying vec3 vFallWorldNormal`
     ).replace(
       "#include <worldpos_vertex>",
-      "#include <worldpos_vertex>
+      `#include <worldpos_vertex>
 vFallWorldPosition = (modelMatrix * vec4(transformed, 1.0)).xyz;
-vFallWorldNormal = normalize(mat3(modelMatrix) * objectNormal);"
+vFallWorldNormal = normalize(mat3(modelMatrix) * objectNormal);`
     );
     shader.fragmentShader = shader.fragmentShader.replace(
       "#include <common>",
