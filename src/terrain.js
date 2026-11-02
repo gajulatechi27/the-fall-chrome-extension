@@ -414,8 +414,8 @@ function createWaterMaterial(seed) {
         if (vTerrainHeight >= uWaterLevel) discard;
         vec2 p=vWorldPosition.xz;
         float t=uTime;
-        float n1=fbm2(p*.012+vec2(t*.045,-t*.026));
-        float n2=fbm2(p*.031+vec2(-t*.075,t*.052));
+        float n1=fbm2(p*.0045+vec2(t*.018,-t*.012));
+        float n2=fbm2(p*.010+vec2(-t*.026,t*.019));
         vec2 ripple=vec2(dFdx(n1+n2),dFdy(n1+n2))*3.8;
         vec3 normal=normalize(vec3(-ripple.x,1.0,-ripple.y));
         float viewDot=max(dot(normalize(vViewDirection),normal),0.0);
@@ -434,14 +434,14 @@ function createWaterMaterial(seed) {
         vec3 skyReflection=mix(vec3(.018,.12,.25),vec3(.48,.76,.88),.5+.5*normal.y);
         color=mix(color,skyReflection,fresnel*.72);
         float sun=pow(max(dot(reflect(-normalize(uSunDirection),normal),normalize(vViewDirection)),0.0),72.0);
-        float glitter=pow(max(dot(normal,uSunDirection),0.0),24.0)*pow(noise2(p*.075+t*.045),7.0);
-        color+=vec3(1.0,.82,.58)*(sun*.75+glitter*.10);
+        float glitter=pow(max(dot(normal,uSunDirection),0.0),24.0)*pow(noise2(p*.018+t*.012),9.0);
+        color+=vec3(1.0,.88,.72)*(sun*.52+glitter*.025);
         float waveCycle=sin(waterDepth*2.4-t*1.8+lowNoise*5.0);
         float foam=shore*smoothstep(.18,.72,noise2(p*.018+t*.018))*(.42+.58*smoothstep(-.25,.85,waveCycle));
         color=mix(color,vec3(.86,.97,.98),foam*.68);
         float waveLines=pow(max(0.0,sin(waterDepth*1.35-t*1.15+lowNoise*3.0)),18.0);
         color=mix(color,vec3(.65,.85,.83),waveLines*shore*.24);
-        float distanceFade=smoothstep(900.0,3100.0,length(vWorldPosition.xz));
+        float distanceFade=smoothstep(650.0,2200.0,length(vWorldPosition.xz));
         color=mix(color,vec3(.20,.39,.48),distanceFade*.22);
         gl_FragColor=vec4(color,1.0);
         #include <tonemapping_fragment>
@@ -579,6 +579,25 @@ export class Terrain {
     this.ringCounts = { near: 0, mid: 0, far: 0, horizon: 0 };
     this.ensureGrid(0, 0);
     this.farRanges = createFarRanges(scene, this.noise, this.environment);
+    this.farBaseWorker = new Worker(new URL("./terrain-far.worker.js", import.meta.url), { type: "module" });
+    this.farBase = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial({ color: 0x71866d, roughness: 1, side: THREE.DoubleSide, fog: true }));
+    this.farBase.frustumCulled = false;
+    this.farBase.renderOrder = -2;
+    this.scene.add(this.farBase);
+    this.farBaseCenterX = Number.NaN; this.farBaseCenterZ = Number.NaN; this.farBaseRequest = 0;
+    this.farBaseWorker.onmessage = ({ data }) => {
+      if (data.request !== this.farBaseRequest) return;
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.BufferAttribute(data.positions, 3));
+      geometry.setAttribute("normal", new THREE.BufferAttribute(data.normals, 3));
+      geometry.setIndex(new THREE.BufferAttribute(data.indices, 1));
+      geometry.computeBoundingSphere();
+      this.farBase.geometry.dispose(); this.farBase.geometry = geometry;
+      this.farBase.position.set(data.centerX, 0, data.centerZ);
+      this.farBaseCenterX = data.centerX; this.farBaseCenterZ = data.centerZ;
+      this.farBase.visible = this.visible !== false;
+    };
+    this.requestFarBase(0, 0);
     this.farRanges.layers?.forEach(mesh => { mesh.userData.farRangeOwner = this; });
 
     this.water = null;
@@ -587,7 +606,7 @@ export class Terrain {
       const waterWidth = isRiver
         ? Math.max(24, (this.environment?.water?.width || 120) * 3.15)
         : (this.environment?.water?.width || WATER_SIZE);
-      const waterDepth = isRiver ? WATER_SIZE : waterWidth;
+      const waterDepth = isRiver ? 22000 : waterWidth;
       // Rivers are narrow strips; keep their long axis detailed without
       // allocating a huge square water grid.
       const isLake = this.environment?.water?.type === "lake";
@@ -614,7 +633,7 @@ export class Terrain {
     }
   }
 
-  lodForDistance(distance) {
+  requestFarBase(centerX, centerZ) {\n    const cx = Math.round(centerX / 4000) * 4000, cz = Math.round(centerZ / 4000) * 4000;\n    if (cx === this.farBaseCenterX && cz === this.farBaseCenterZ) return;\n    const request = ++this.farBaseRequest;\n    this.farBaseWorker.postMessage({ request, seed: this.seed, centerX: cx, centerZ: cz, size: 40000, segments: 128, biome: this.biome, baseHeight: this.environment?.terrain?.baseHeight ?? BIOME_HEIGHT[this.biome] ?? 145, ridgeWeight: this.environment?.terrain?.ridgeWeight ?? 1, octaves: this.environment?.terrain?.noiseOctaves ?? 6 });\n  }\n\n  lodForDistance(distance) {
     const river = this.environment?.water?.type === "river";
     const himalayan = this.environment?.id === "himalayan-range";
     if (distance < 400) return { segments: himalayan ? 192 : 128, ring: "near" };
@@ -779,7 +798,7 @@ export class Terrain {
   update(dt, speed, altitude, camera) {
     if (camera) {
       this.ensureGrid(camera.position.x, camera.position.z);
-      this.farRanges?.update(camera);
+      this.farRanges?.update(camera);\n      this.requestFarBase(camera.position.x, camera.position.z);
     }
     if (this.water) {
       const wx = camera?.position.x || 0, wz = camera?.position.z || 0;
@@ -794,7 +813,7 @@ export class Terrain {
 
   setVisible(visible) {
     this.group.visible = visible;
-    this.farRanges?.setVisible(visible);
+    this.farRanges?.setVisible(visible);\n    if (this.farBase) this.farBase.visible = visible && this.farBase.geometry.attributes.position?.count > 0;\n    this.visible = visible;
     if (this.water) this.water.visible = visible;
   }
 
@@ -861,7 +880,7 @@ export class Terrain {
       camera.position.z >= this.group.position.z + c.position.z - this.chunkSize * .5 &&
       camera.position.z <= this.group.position.z + c.position.z + this.chunkSize * .5).length : 0;
     return {
-      chunkCount: this.chunks.length, chunksUnderCamera,
+      chunkCount: this.chunks.length, chunksUnderCamera, farBaseVisible: Boolean(this.farBase?.visible), workerQueue: 0,
       ringCounts: { ...this.ringCounts }, coverage14km: this.hasCoverage(14000),
       chunkGapWarning: this.hasChunkGaps(),
       seaLevel: this.seaLevel, waterEnabled: Boolean(this.water), waterTerrainClipping: Boolean(this.water?.geometry?.attributes?.terrainHeight),
@@ -875,7 +894,7 @@ export class Terrain {
       chunk.geometry.dispose(); chunk.material.dispose();
     }
     this.group.parent?.remove(this.group);
-    this.farRanges?.dispose();
+    this.farRanges?.dispose();\n    this.farBaseRequest++;\n    this.farBaseWorker?.terminate();\n    if (this.farBase) { this.scene.remove(this.farBase); this.farBase.geometry.dispose(); this.farBase.material.dispose(); }
     if (this.water) {
       this.scene.remove(this.water); this.water.geometry.dispose(); this.water.material.dispose();
     }
